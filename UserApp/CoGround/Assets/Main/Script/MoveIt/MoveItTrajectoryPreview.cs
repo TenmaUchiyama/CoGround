@@ -37,6 +37,12 @@ public class MoveItTrajectoryPreview : MonoBehaviour
     float playTime;
 
     public bool IsShowing => visible;
+    /// <summary>ゴースト (複製した fetch のルート)。Start の後で使える</summary>
+    public GameObject Ghost { get; private set; }
+    /// <summary>今表示している軌道の再生位置 [s] (計画の時間軸。0 に戻ると次の周)</summary>
+    public float PlayTime => playTime;
+    /// <summary>今の計画の長さ [s]。計画が無ければ 0</summary>
+    public float Duration => pointTimes != null && pointTimes.Length > 0 ? pointTimes[pointTimes.Length - 1] : 0f;
 
     void Start()
     {
@@ -53,6 +59,7 @@ public class MoveItTrajectoryPreview : MonoBehaviour
         holder.SetActive(false);
         var ghost = Instantiate(gameObject, holder.transform, true);
         ghost.name = name + " (planned path)";
+        Ghost = ghost;
 
         // ROS とやり取りする自前のスクリプト (このコンポーネント自身も含む) を外す
         var ownAssembly = typeof(MoveItTrajectoryPreview).Assembly;

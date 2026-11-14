@@ -22,7 +22,7 @@ Docker で動かす（WSL に python3-venv が無くてもよい。Docker Deskto
 |---|---|
 | ビルド（初回、`pyproject.toml` を変えた後） | `make build` |
 | 起動（コードを変えると自動で再起動） | `make up` |
-| ログを見る | `make logs` |
+| ログを見る（リアルタイム。詳しくは「ログを見る」） | `make logs` / `docker logs -f coground_grounding_server` |
 | テスト | `make test` |
 | 疎通確認（WebSocket で `system.ping`） | `make ping` |
 | 停止 | `make down` |
@@ -36,6 +36,32 @@ docker compose exec grounding_server python scripts/ws_client.py call debug.coun
 docker compose exec grounding_server python scripts/ws_client.py call scene.update @tests/fixtures/tabletop_scene.json
 docker compose exec grounding_server python scripts/ws_client.py listen     # event を見続ける
 ```
+
+### ログを見る
+
+`make up` はコンテナをバックグラウンド（`-d`）で起動する。バックグラウンドのままでも、ログはリアルタイムで見られる。
+
+```bash
+docker logs -f coground_grounding_server          # どこからでも（-f で流し続ける。--tail 100 で直近から）
+make logs                                         # Backend/grounding_server で
+```
+
+`Ctrl+C` で止まるのはログの表示だけで、サーバーは動き続ける。Docker Desktop でも Containers → `coground_grounding_server` → Logs で見られる。
+
+- **`docker attach` は使わない。** サーバーのプロセスに直接つながるので、そこで `Ctrl+C` を押すとサーバーが止まる。
+- ログを起動したターミナルに出したいときは、`-d` を付けずに `docker compose up` で起動する（この場合は `Ctrl+C` でサーバーも止まる）。
+
+ログの例（1 つの request につき、受信と結果の 2 行が出る）:
+
+```
+session 8d9f3818: connected from 172.22.0.1:59690       ← Unity が接続した
+session 8d9f3818: system.ping [u-1] <- request           ← 要求が届いた（[ ] は request の id。Unity は u-N）
+session 8d9f3818: system.ping [u-1] -> ok (1ms)          ← 応答した（ok / error / cancelled と処理時間）
+state v1 -> 2 client(s)                                  ← state.updated を全クライアントに送った
+session 626083f8: nope [cli-1] rejected: unknown_method  ← 処理する前に断った（WARNING）
+```
+
+届いた event の中身まで見たいときは、`compose.yaml` の `COGROUND_LOG_LEVEL` を `debug` にして `make down && make up`。
 
 ### Quest から接続する
 

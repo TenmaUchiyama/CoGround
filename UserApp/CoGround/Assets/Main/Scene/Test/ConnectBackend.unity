@@ -565,6 +565,7 @@ GameObject:
   m_Component:
   - component: {fileID: 663067838}
   - component: {fileID: 663067837}
+  - component: {fileID: 663067839}
   m_Layer: 0
   m_Name: ServerClient
   m_TagString: Untagged
@@ -584,7 +585,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9787e8adf0f7eb94b967ca561aba002c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serverUrl: ws://127.0.0.1:8000/ws
+  serverUrl: ws://100.122.127.48:8000/ws
   connectOnStart: 1
   reconnectDelayMin: 1
   reconnectDelayMax: 10
@@ -605,6 +606,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &663067839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663067836}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17a721bb019d95f4491c896acfaeb562, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  client: {fileID: 663067837}
+  pingOnConnect: 1
 --- !u!1 &681631772
 GameObject:
   m_ObjectHideFlags: 0
@@ -875,52 +890,6 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!1 &1278960776
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1278960778}
-  - component: {fileID: 1278960777}
-  m_Layer: 0
-  m_Name: ServerDemo
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1278960777
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1278960776}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 17a721bb019d95f4491c896acfaeb562, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  client: {fileID: 663067837}
-  pingOnConnect: 1
---- !u!4 &1278960778
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1278960776}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.5624547, y: -0.9387276, z: 2.3527558}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1349714662
 GameObject:
   m_ObjectHideFlags: 0
@@ -1239,4 +1208,3 @@ SceneRoots:
   - {fileID: 103850929}
   - {fileID: 32772748}
   - {fileID: 663067838}
-  - {fileID: 1278960778}
