@@ -20,6 +20,13 @@
     <param name="gripper_acceleration_scaling" value="1.0"/>
   </node>
 
+  <!-- 計画した軌道 / 実際に動いた軌跡の手先の通り道 (/coground/arm/planned_path, executed_path, path_markers) -->
+  <node name="coground_trajectory_path" pkg="coground_control" type="trajectory_path.py" output="screen"
+        respawn="true" respawn_delay="5">
+    <param name="frame" value="world"/>
+    <param name="tip_link" value="gripper_link"/>
+  </node>
+
   <!-- Unity に置いた箱 (MoveItCollisionBox) -> MoveIt の Planning Scene の衝突物体 -->
   <node name="coground_scene_sync" pkg="coground_control" type="scene_sync.py" output="screen"
         respawn="true" respawn_delay="5"/>

@@ -1,4 +1,4 @@
-# Docker Desktop (WSL2 バックエンド) + WSLg で Gazebo / RViz の画面を表示する構成
+# Linux remote host: headless ROS / MoveIt / Unity endpoint
 services:
   fetch_sim:
     build: .
@@ -6,28 +6,11 @@ services:
     container_name: fetch_sim
     # 既定は Gazebo なし (MoveIt + Unity 通信)。GAZEBO=true で Gazebo あり、GAZEBO_GUI=false で Gazebo の画面なし、MOVEIT=false で MoveIt なし、RVIZ=true で RViz (RVIZ_FRAME=odom で odom 基準。既定は world)
     # AUTO_EXECUTE=true で /coground/arm/goal_* を受けたら計画 + 即実行
-    command: ["roslaunch", "coground_vr_bridge", "vr_sim.launch", "gazebo:=${GAZEBO:-false}", "gui:=${GAZEBO_GUI:-true}", "moveit:=${MOVEIT:-true}", "rviz:=${RVIZ:-false}", "rviz_frame:=${RVIZ_FRAME:-world}", "auto_execute:=${AUTO_EXECUTE:-false}"]
+    command: ["roslaunch", "coground_vr_bridge", "vr_sim.launch", "gazebo:=${GAZEBO:-false}", "gui:=${GAZEBO_GUI:-false}", "moveit:=${MOVEIT:-true}", "rviz:=${RVIZ:-false}", "rviz_frame:=${RVIZ_FRAME:-world}", "auto_execute:=${AUTO_EXECUTE:-false}"]
     ports:
       # Unity (Quest / Editor) -> ROS-TCP-Endpoint
       - "10000:10000"
-    environment:
-      DISPLAY: ${DISPLAY:-:0}
-      WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
-      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
-      PULSE_SERVER: /mnt/wslg/PulseServer
-      QT_X11_NO_MITSHM: "1"
-      # 0 = GPU 描画 (d3d12 経由)。うまく表示されないときは 1 で CPU 描画に戻す
-      LIBGL_ALWAYS_SOFTWARE: ${LIBGL_ALWAYS_SOFTWARE:-0}
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
-      MESA_D3D12_DEFAULT_ADAPTER_NAME: NVIDIA
-    devices:
-      - /dev/dxg:/dev/dxg
     volumes:
-      - /usr/lib/wsl:/usr/lib/wsl:ro
-      # WSL Integration 有効時は WSL 側のパスがそのまま見える
-      # (/run/desktop/mnt/host/wslg はこの環境では空だった)
-      - /mnt/wslg/.X11-unix:/tmp/.X11-unix
-      - /mnt/wslg:/mnt/wslg
       # 自前パッケージをコンテナに直接見せる (launch / Python の変更は再起動だけで反映)。
       # パッケージやノードを「追加」したとき、CMakeLists.txt を変えたときは docker compose build が必要
       - ./ros_pkgs/coground_vr_bridge:/opt/fetch_ws/src/coground_vr_bridge

@@ -134,6 +134,18 @@ Unity で RViz と同じように操作する（目標をドラッグ → Plan �
 
 計画・実行中に来た目標は `rejected: busy` で捨てる。計画は 1 回実行すると破棄される。
 
+### 手先の通り道（`trajectory_path.py`、ROS 側だけで完結）
+
+`control.launch` で一緒に起動する。Unity 側の対応は不要。
+
+| トピック | 型 | 内容 |
+|---|---|---|
+| `/coground/arm/planned_path` | nav_msgs/Path | 計画した軌道の `gripper_link` の通り道（frame `world`、latch）。各点を関節空間で補間して `/compute_fk` で求める。計画失敗で空になる |
+| `/coground/arm/executed_path` | nav_msgs/Path | 実際に動いた `gripper_link` の通り道（status が `executing` の間、TF を 20Hz で記録。次の実行まで残る） |
+| `/coground/arm/path_markers` | visualization_msgs/MarkerArray | 上の 2 本を線にしたもの（ns `planned` 緑 / `executed` 橙、始点・終点に球）。`RVIZ=true` の RViz に表示項目あり |
+
+パラメータ（`~tip_link`, `~frame`, `~max_joint_step`, `~record_rate` など）は `trajectory_path.py` の冒頭を参照。
+
 コマンドラインで試す:
 
 ```bash

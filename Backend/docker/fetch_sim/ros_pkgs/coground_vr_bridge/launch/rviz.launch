@@ -1,5 +1,5 @@
 <!--
-  CoGround 用 RViz (MoveIt の計画表示 + TF + /odom の軌跡)
+  CoGround 用 RViz (MoveIt の計画表示 + 手先の通り道 + TF + /odom の軌跡)
     frame:=world (既定) : Unity の World 基準。ロボットは Unity 上と同じ場所に出る
     frame:=odom         : odom 基準。odom の原点からどう動いたかを見る
   設定ファイル: coground_vr_bridge/rviz/<frame>.rviz (元は fetch_moveit_config の moveit.rviz)

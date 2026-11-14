@@ -259,6 +259,14 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /coground/arm/path_markers
+      Name: 手先の通り道 (緑 = 計画 / 橙 = 実際)
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
