@@ -72,7 +72,7 @@ public class CoGroundServerDemo : MonoBehaviour
                 new JObject
                 {
                     ["id"] = name,
-                    ["label"] = "test_object",
+                    ["category"] = "cup",
                     ["position"] = CoGroundServerClient.ToJson(transform.position),
                     ["rotation"] = CoGroundServerClient.ToJson(transform.rotation),
                     ["size"] = CoGroundServerClient.ToJson(transform.lossyScale),
