@@ -100,7 +100,7 @@ New-NetFirewallRule -DisplayName "CoGround grounding server 8000" -Direction Inb
 | event | data |
 |---|---|
 | `session.welcome` | `{session_id, server_version, protocol_version, methods}`（接続直後） |
-| `state.updated` | `{version, updated_at, scene: {frame, objects, regions}, constraints}` |
+| `state.updated` | `{version, updated_at, scene: {frame, objects, regions}, rules, plan}`（`plan` は計画が無ければ `null`） |
 | `session.error` | `{code, message, details?}` |
 
 ### method（現在）
@@ -110,11 +110,37 @@ New-NetFirewallRule -DisplayName "CoGround grounding server 8000" -Direction Inb
 | `system.ping` | なし | `{pong, server_time}` |
 | `system.describe` | なし | method と params スキーマの一覧 |
 | `state.get` | なし | `state.updated` と同じ全体状態 |
-| `scene.update` | `SceneSnapshot`（`coground_server/state.py`、例は `tests/fixtures/tabletop_scene.json`） | `{version, objects, regions}` |
+| `scene.update` | `SceneSnapshot`（`coground_server/models.py`、例は `tests/fixtures/tabletop_scene.json`） | `{version, objects, regions}` |
 | `debug.count` | `{count, interval}` | `{i, of}` を stream で送ったあと `{done}` |
 | `debug.fail` | `{code, message}` | 必ずそのエラーで失敗 |
 
 画像（物体の切り出しなど）は WebSocket に載せず、後で REST のアップロード（`POST /api/images`）を足し、WebSocket では `image_id` だけを送る予定。
+
+## データの型
+
+`coground_server/models.py` にまとめてある（Pydantic）。中心は Plan で、可視化は 2 種類とも同じ Plan を描く。
+
+| 型 | 内容 | 例 |
+|---|---|---|
+| `SceneSnapshot` / `SceneObject` / `SceneRegion` | いまの状態。物体は `category`、`attributes`（ルール照合用）、`region_id`、`observation` を持つ。領域は `polygon`（床面）か `box`（高さあり） | `tests/fixtures/tabletop_scene.json` |
+| `Rule` | `condition`（属性 = 値）と `target_region` | |
+| `Utterance` / `InteractionEvent` | タスク実行の入力（音声、実演） | |
+| `Plan` / `Step` | 処理の出力。step は `from` / `to` / `rule_id` / `status` / `locked` / `trajectory_id` | |
+| `Correction` | 修正（`move` / `reject` / `reorder`）。どの版の Plan に対するものかを `plan_version` で持つ | |
+| `Scenario` | 実験用の台本（最初のシーン、ルール、正しい計画、見せる計画、仕込んだ誤り） | `tests/fixtures/shelf_scenario.json` |
+| `TrialLog` | 計測（`view_toggle` / `step_select` / `correction` / `approve`） | |
+
+物体（`SceneObject`）はシミュレーション（Unity 上の仮想物体）と検出で同じ型。違うのは `observation.source`（`simulation` / `detection` / `manual`）と属性の `source`（`ground_truth` / `detector` / `vlm` / `user`）だけ。
+
+- `category` だけ送れば、`role`（`item` / `receptacle` / `surface`）と `group`（`dish` / `cutlery` / `trash` など）はカテゴリ表（`coground_server/taxonomy.py`）から埋める。表に無い category も受け付ける（`item` / `other`）
+- 属性は値だけ（`{"fragile": true}` = 真値）か、`{"value", "source", "confidence"}`
+- シンク・ごみ箱・机などは `place_zone`（box）を持ち、その物体と同じ ID の領域になる。ルールの `target_region` や Step の `region_id` にそのまま使える
+- `region_id` を省略すると、物体の中心を含むいちばん小さい box の領域を入れる
+- ルールの条件には属性のほか `category` / `group` / `role` も書ける（`{"attribute": "group", "equals": "dish"}`）
+- Unity 側の型は `Assets/Main/Script/Scene/`（`CoGroundSceneTypes.cs`、シミュレーション用の `CoGroundSceneObject`、送信する `CoGroundSceneReporter`）
+
+型だけで、Plan を作る処理や `Correction` / `TrialLog` を受ける method・event はまだ無い。
+ROS 側が動作計画・実行で扱う型は `docker/fetch_sim/ros_pkgs/coground_control/scripts/plan_types.py`（Plan のうちロボットに必要な部分と、軌道）。
 
 ## method を足す
 

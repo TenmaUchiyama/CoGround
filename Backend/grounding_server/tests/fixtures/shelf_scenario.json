@@ -1,0 +1,51 @@
+{
+  "id": "shelf_fragile_1",
+  "initial_scene": {
+    "frame": "unity_world",
+    "objects": [
+      {"id": "glass_cup_1", "category": "cup", "position": [-0.3, 0.80, 1.0], "size": [0.08, 0.12, 0.08],
+       "attributes": {"fragile": true, "material": "glass"}, "region_id": "table_top"},
+      {"id": "plastic_cup_1", "category": "cup", "position": [0.0, 0.80, 1.0], "size": [0.08, 0.11, 0.08],
+       "attributes": {"fragile": false, "material": "plastic"}, "region_id": "table_top"}
+    ],
+    "regions": [
+      {"id": "table_top", "label": "table_top",
+       "box": {"center": [0.0, 0.84, 1.0], "size": [1.2, 0.2, 0.7]}},
+      {"id": "shelf_lower", "label": "shelf_lower",
+       "box": {"center": [-2.0, 0.45, 0.5], "size": [0.8, 0.3, 0.35]}},
+      {"id": "shelf_upper", "label": "shelf_upper",
+       "box": {"center": [-2.0, 1.25, 0.5], "size": [0.8, 0.3, 0.35]}}
+    ]
+  },
+  "rules": [
+    {"id": "rule_2", "text": "割れ物は棚の下段に置く",
+     "condition": {"attribute": "fragile", "equals": true},
+     "target_region": "shelf_lower", "source": "script"}
+  ],
+  "ground_truth_plan": {
+    "id": "plan_1", "version": 1, "base_scene_version": 1,
+    "steps": [
+      {"id": "s1", "index": 0, "object_id": "glass_cup_1",
+       "from": {"region_id": "table_top", "pose": {"position": [-0.3, 0.80, 1.0]}},
+       "to": {"region_id": "shelf_lower", "pose": {"position": [-2.0, 0.36, 0.5]}},
+       "rule_id": "rule_2", "status": "ok"}
+    ]
+  },
+  "presented_plan": {
+    "id": "plan_1", "version": 1, "base_scene_version": 1,
+    "steps": [
+      {"id": "s1", "index": 0, "object_id": "glass_cup_1",
+       "from": {"region_id": "table_top", "pose": {"position": [-0.3, 0.80, 1.0]}},
+       "to": {"region_id": "shelf_upper", "pose": {"position": [-2.0, 1.16, 0.5]}},
+       "rule_id": "rule_2", "status": "ok"},
+      {"id": "s2", "index": 1, "object_id": "plastic_cup_1",
+       "from": {"region_id": "table_top", "pose": {"position": [0.0, 0.80, 1.0]}},
+       "to": {"region_id": "shelf_lower", "pose": {"position": [-1.8, 0.355, 0.5]}},
+       "rule_id": "rule_2", "status": "ok"}
+    ]
+  },
+  "injected_errors": [
+    {"step_id": "s1", "type": "wrong_place"},
+    {"step_id": "s2", "type": "over_generalize"}
+  ]
+}

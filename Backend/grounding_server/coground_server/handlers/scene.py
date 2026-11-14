@@ -15,6 +15,6 @@ router = Router()
 )
 async def update_scene(ctx: RequestContext, scene: SceneSnapshot) -> dict[str, Any]:
     version = ctx.services.state.set_scene(scene)
-    # TODO: ここで M1（関係の計算）→ M2 → M4 を走らせ、constraints を更新する
+    # TODO: ここで Plan を作り直す（ルール照合 → 目標 → 置き位置 → 順序 → 動作計画）
     await ctx.services.publish_state()
     return {"version": version, "objects": len(scene.objects), "regions": len(scene.regions)}

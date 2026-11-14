@@ -122,7 +122,7 @@ def test_scene_update_broadcasts_to_all_clients(client):
         msgs = recv_until(a, is_response("u-1"))
         response = msgs[-1]
         assert response["ok"] is True
-        assert response["result"] == {"version": 1, "objects": 6, "regions": 1}
+        assert response["result"] == {"version": 1, "objects": 11, "regions": 4}
         # 送った本人にも state.updated が response より前に届く
         assert any(m["type"] == "event" and m["event"] == "state.updated" for m in msgs[:-1])
 
@@ -141,7 +141,7 @@ def test_reconnect_gets_latest_state(client):
 
     with connect(client) as (b, _, state):
         assert state["data"]["version"] == 1
-        assert len(state["data"]["scene"]["objects"]) == 6
+        assert len(state["data"]["scene"]["objects"]) == 11
 
 
 def test_stream_then_response(client):
@@ -203,7 +203,7 @@ def test_rest_endpoints(client):
         recv_until(ws, is_response("u-1"))
 
         state = client.get("/api/state").json()
-        assert state["version"] == 1 and len(state["scene"]["objects"]) == 6
+        assert state["version"] == 1 and len(state["scene"]["objects"]) == 11
         assert client.get("/health").json()["clients"] == 1
 
         proto = client.get("/api/protocol").json()
