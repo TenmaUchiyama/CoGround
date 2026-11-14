@@ -1,0 +1,16 @@
+services:
+  grounding_server:
+    build: .
+    image: coground/grounding_server:dev
+    container_name: coground_grounding_server
+    ports:
+      - "8000:8000"
+    volumes:
+      # コードを変えたら自動で再起動する（--reload）
+      - ./coground_server:/app/coground_server
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+    command: ["python", "-m", "coground_server", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      # 後で LLM / VLM の API キーなどをここ（または .env）に足す
+      - COGROUND_LOG_LEVEL=info

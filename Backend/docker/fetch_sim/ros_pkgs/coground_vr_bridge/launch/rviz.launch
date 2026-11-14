@@ -1,0 +1,15 @@
+<!--
+  CoGround 用 RViz (MoveIt の計画表示 + TF + /odom の軌跡)
+    frame:=world (既定) : Unity の World 基準。ロボットは Unity 上と同じ場所に出る
+    frame:=odom         : odom 基準。odom の原点からどう動いたかを見る
+  設定ファイル: coground_vr_bridge/rviz/<frame>.rviz (元は fetch_moveit_config の moveit.rviz)
+  起動中のコンテナで追加で開く:
+    docker exec -d fetch_sim bash -c 'roslaunch coground_vr_bridge rviz.launch frame:=odom'
+-->
+<launch>
+  <arg name="frame" default="world"/>
+
+  <node name="$(anon rviz)" pkg="rviz" type="rviz" args="-d $(find coground_vr_bridge)/rviz/$(arg frame).rviz" output="screen">
+    <rosparam command="load" file="$(find fetch_moveit_config)/config/kinematics.yaml"/>
+  </node>
+</launch>

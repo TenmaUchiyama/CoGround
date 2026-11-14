@@ -1,0 +1,30 @@
+<!--
+  腕・グリッパーの指令ノード。move_group が起動している前提。
+  トピック一覧は Backend/README.md の「Unity から腕を動かす」を参照。
+-->
+<launch>
+  <arg name="arm_group" default="arm"/>
+  <!-- true: 目標を受けたら計画して即実行 / false: 計画だけして /coground/arm/execute を待つ -->
+  <arg name="auto_execute" default="false"/>
+
+  <node name="coground_arm_command_server" pkg="coground_control" type="arm_command_server.py" output="screen"
+        respawn="true" respawn_delay="5">
+    <param name="arm_group" value="$(arg arm_group)"/>
+    <param name="gripper_group" value="gripper"/>
+    <param name="auto_execute" value="$(arg auto_execute)"/>
+    <param name="planning_time" value="5.0"/>
+    <param name="velocity_scaling" value="0.5"/>
+    <param name="acceleration_scaling" value="0.5"/>
+    <!-- グリッパーの速さ (0〜1。1.0 = URDF の上限 = 指 1 本 0.05 m/s) -->
+    <param name="gripper_velocity_scaling" value="1.0"/>
+    <param name="gripper_acceleration_scaling" value="1.0"/>
+  </node>
+
+  <!-- Unity に置いた箱 (MoveItCollisionBox) -> MoveIt の Planning Scene の衝突物体 -->
+  <node name="coground_scene_sync" pkg="coground_control" type="scene_sync.py" output="screen"
+        respawn="true" respawn_delay="5"/>
+
+  <!-- 箱を指定した場所へ運ぶ (/coground/pick_place/*) -->
+  <node name="coground_pick_place_server" pkg="coground_control" type="pick_place_server.py" output="screen"
+        respawn="true" respawn_delay="5"/>
+</launch>

@@ -1,0 +1,25 @@
+<!--
+  MoveIt (ROS1) の move_group。シミュレーションでも実機でも共通。
+    - 腕の実行先は /arm_controller/follow_joint_trajectory など (Gazebo でも実機でも同名)
+    - robot_description は Gazebo / 実機側が読み込んだものを使う
+  単体起動: roslaunch coground_vr_bridge moveit.launch rviz:=true
+  RViz は coground_vr_bridge/launch/rviz.launch (rviz_frame:=world / odom で基準を選ぶ)
+-->
+<launch>
+  <arg name="rviz" default="false"/>
+  <arg name="rviz_frame" default="world"/>  <!-- RViz の基準: world (Unity の World) / odom -->
+  <!-- true にするとコントローラへ送らず計画だけ (実機を絶対に動かさない確認用) -->
+  <arg name="fake_execution" default="false"/>
+  <arg name="pipeline" default="ompl"/>
+
+  <include file="$(find fetch_moveit_config)/launch/move_group.launch">
+    <arg name="allow_trajectory_execution" value="true"/>
+    <arg name="fake_execution" value="$(arg fake_execution)"/>
+    <arg name="pipeline" value="$(arg pipeline)"/>
+    <arg name="info" value="true"/>
+  </include>
+
+  <include if="$(arg rviz)" file="$(find coground_vr_bridge)/launch/rviz.launch">
+    <arg name="frame" value="$(arg rviz_frame)"/>
+  </include>
+</launch>

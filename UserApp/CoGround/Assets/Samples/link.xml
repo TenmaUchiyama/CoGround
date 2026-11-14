@@ -1,0 +1,4 @@
+<!-- IL2CPP のコード削除から守る（Newtonsoft が匿名型などをリフレクションで読むため） -->
+<linker>
+  <assembly fullname="Assembly-CSharp" preserve="all" />
+</linker>

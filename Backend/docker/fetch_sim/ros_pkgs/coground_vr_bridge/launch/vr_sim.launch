@@ -1,0 +1,58 @@
+<!--
+  シミュレーション一式
+    gazebo:=false (既定) : 運動学だけのロボット + MoveIt (疑似実行) + Unity 通信
+    gazebo:=true         : Gazebo + Fetch + MoveIt (Gazebo のコントローラで実行) + Unity 通信
+  例: roslaunch coground_vr_bridge vr_sim.launch gazebo:=true gui:=false
+  Unity 側は ROS-TCP-Connector で <PCのIP>:10000 に接続する。
+  構成の全体像は Backend/README.md を参照。
+-->
+<launch>
+  <arg name="gazebo" default="false"/>
+  <arg name="gui" default="true"/>       <!-- Gazebo の画面 (gazebo:=true のときだけ) -->
+  <arg name="moveit" default="true"/>
+  <arg name="rviz" default="false"/>
+  <arg name="rviz_frame" default="world"/>  <!-- RViz の基準: world (Unity の World) / odom -->
+  <!-- 腕の指令ノードで、計画できたら即実行するか (false なら /coground/arm/execute を待つ) -->
+  <arg name="auto_execute" default="false"/>
+  <arg name="world_launch" default="$(find fetch_gazebo)/launch/playground.launch"/>
+  <arg name="tcp_ip" default="0.0.0.0"/>
+  <arg name="tcp_port" default="10000"/>
+  <arg name="unity_rate" default="30"/>
+
+  <!-- 1a. ロボット: Gazebo + Fetch (実機のときはここが実機に置き換わる) -->
+  <group if="$(arg gazebo)">
+    <include file="$(arg world_launch)">
+      <arg name="gui" value="$(arg gui)"/>
+    </include>
+    <!-- Gazebo world 座標の真値姿勢 -> /unity/fetch_pose -->
+    <node ns="unity" name="fetch_pose" pkg="coground_vr_bridge" type="model_pose_relay.py">
+      <param name="model_name" value="fetch"/>
+      <param name="rate" value="$(arg unity_rate)"/>
+      <remap from="~pose" to="/unity/fetch_pose"/>
+    </node>
+    <!-- TF world -> odom (Gazebo は odom -> base_link しか出さないため。RViz を world 基準で見るのに使う) -->
+    <node name="coground_world_odom_tf" pkg="coground_vr_bridge" type="world_odom_tf.py"/>
+  </group>
+
+  <!-- 1b. ロボット: Gazebo なし (MoveIt の計画結果をそのまま関節角にする) -->
+  <include unless="$(arg gazebo)" file="$(find coground_vr_bridge)/launch/kinematic_robot.launch"/>
+
+  <!-- 2. Unity 通信 (共通) -->
+  <include file="$(find coground_vr_bridge)/launch/unity_bridge.launch">
+    <arg name="tcp_ip" value="$(arg tcp_ip)"/>
+    <arg name="tcp_port" value="$(arg tcp_port)"/>
+    <arg name="unity_rate" value="$(arg unity_rate)"/>
+  </include>
+
+  <!-- 3. MoveIt (共通)。Gazebo なしのときは疑似コントローラで実行 -->
+  <include if="$(arg moveit)" file="$(find coground_vr_bridge)/launch/moveit.launch">
+    <arg name="rviz" value="$(arg rviz)"/>
+    <arg name="rviz_frame" value="$(arg rviz_frame)"/>
+    <arg name="fake_execution" value="$(eval not arg('gazebo'))"/>
+  </include>
+
+  <!-- 4. 腕・グリッパーの指令ノード (/coground/*)。MoveIt が必要 -->
+  <include if="$(arg moveit)" file="$(find coground_control)/launch/control.launch">
+    <arg name="auto_execute" value="$(arg auto_execute)"/>
+  </include>
+</launch>

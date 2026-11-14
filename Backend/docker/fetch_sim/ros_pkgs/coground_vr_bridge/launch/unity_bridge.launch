@@ -1,0 +1,24 @@
+<!--
+  Unity との通信部分 (シミュレーションでも実機でも共通)
+    - ROS-TCP-Endpoint (:10000)
+    - /joint_states, /odom を間引いて /unity/* に流す
+  Gazebo の真値 (/unity/fetch_pose) はシミュレーション専用なので vr_sim.launch 側で起動する。
+-->
+<launch>
+  <arg name="tcp_ip" default="0.0.0.0"/>
+  <arg name="tcp_port" default="10000"/>
+  <!-- Quest へ送るレート (Hz)。無線で 100Hz 以上は重い -->
+  <arg name="unity_rate" default="30"/>
+
+  <include file="$(find ros_tcp_endpoint)/launch/endpoint.launch">
+    <arg name="tcp_ip" value="$(arg tcp_ip)"/>
+    <arg name="tcp_port" value="$(arg tcp_port)"/>
+  </include>
+
+  <group ns="unity">
+    <node name="joint_states_throttle" pkg="topic_tools" type="throttle"
+          args="messages /joint_states $(arg unity_rate) /unity/joint_states"/>
+    <node name="odom_throttle" pkg="topic_tools" type="throttle"
+          args="messages /odom $(arg unity_rate) /unity/odom"/>
+  </group>
+</launch>

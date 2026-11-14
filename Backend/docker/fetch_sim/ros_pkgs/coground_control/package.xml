@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>coground_control</name>
+  <version>0.1.0</version>
+  <description>Fetch の腕・グリッパーを MoveIt 経由で動かす指令ノード (Unity / 実機 / シミュレーション共通)</description>
+  <maintainer email="dev@coground.local">CoGround</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>moveit_commander</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>shape_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+</package>

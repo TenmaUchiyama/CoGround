@@ -1,0 +1,24 @@
+# Local Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Large source models (keep local)
+/UserApp/**/[Mm]aterial*/**/*.[fF][bB][xX]
+/UserApp/**/[Mm]aterial*/**/*.[fF][bB][xX].meta
+/UserApp/**/[Mm]odel*/**/*.[fF][bB][xX]
+/UserApp/**/[Mm]odel*/**/*.[fF][bB][xX].meta
+/UserApp/[Rr]esource*/**/*.[fF][bB][xX]
+/UserApp/[Rr]esource*/**/*.[fF][bB][xX].meta
+
+# Local developer connection credentials
+/UserApp/CoGround/Assets/Resources/DevAgentSettings.asset
+/UserApp/CoGround/Assets/Resources/DevAgentSettings.asset.meta

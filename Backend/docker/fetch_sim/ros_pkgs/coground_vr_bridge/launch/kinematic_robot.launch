@@ -1,0 +1,21 @@
+<!--
+  Gazebo を使わない「運動学だけのロボット」
+    - URDF を読み込み、MoveIt の疑似コントローラが出す関節角を /joint_states として配信
+    - 物理 (重力・接触) は無し。MoveIt で計画した動きがそのまま関節角になる
+    - ロボットの置き場所は Unity が決める: /coground/robot/base_pose -> TF world -> base_link
+      (Unity の World 座標 = ROS の world フレーム)
+  moveit.launch を fake_execution:=true で一緒に起動すること (vr_sim.launch が自動でそうする)
+-->
+<launch>
+  <param name="robot_description" textfile="$(find fetch_description)/robots/fetch.urdf"/>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <rosparam param="source_list">[/move_group/fake_controller_joint_states]</rosparam>
+    <param name="rate" value="60"/>
+  </node>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <!-- Unity の World での base_link の位置 -> TF world -> base_link -->
+  <node name="coground_base_pose_tf" pkg="coground_control" type="base_pose_tf.py"/>
+</launch>
