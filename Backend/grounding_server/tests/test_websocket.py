@@ -209,3 +209,11 @@ def test_rest_endpoints(client):
         proto = client.get("/api/protocol").json()
         names = [m["name"] for m in proto["methods"]]
         assert "scene.update" in names and "debug.count" in names
+
+
+def test_ui_and_fixtures(client):
+    page = client.get("/ui")
+    assert page.status_code == 200 and "CoGround テスト画面" in page.text
+    assert client.get("/", follow_redirects=False).headers["location"] == "/ui"
+    fixtures = client.get("/api/fixtures").json()
+    assert len(fixtures["tabletop_scene"]["objects"]) == 11 and fixtures["shelf_scenario"]["rules"]

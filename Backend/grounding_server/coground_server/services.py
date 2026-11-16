@@ -1,4 +1,4 @@
-"""ハンドラから使う共有オブジェクト（ctx.services）。LLM / VLM / clingo もここに足していく。"""
+"""ハンドラから使う共有オブジェクト（ctx.services）。VLM / clingo もここに足していく。"""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass, field
 
 from .hub import Hub
+from .llm import AgentSdkLlm, LlmClient
 from .state import StateStore
 
 
@@ -13,6 +14,7 @@ from .state import StateStore
 class Services:
     hub: Hub = field(default_factory=Hub)
     state: StateStore = field(default_factory=StateStore)
+    llm: LlmClient = field(default_factory=AgentSdkLlm)  # テストでは FakeLlm に差し替える
 
     async def publish_state(self) -> None:
         """現在の全体状態を全クライアントに送る。状態を変えたら必ず呼ぶ。"""

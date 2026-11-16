@@ -4,20 +4,28 @@
   REST       /health         死活確認
              /api/state      現在の全体状態（デバッグ用。state.get と同じ）
              /api/protocol   method の一覧とスキーマ
+             /api/fixtures   テスト用のシーンとシナリオ（tests/fixtures の JSON。テスト画面が使う）
+  画面       /ui             ブラウザで開くテスト画面（static/ui.html。Unity の代わりに WebSocket でつなぐ）
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, WebSocket
+from fastapi.responses import FileResponse, RedirectResponse
 
 from . import __version__, protocol
 from .handlers import build_router
 from .services import Services
 from .session import Session
+
+STATIC_DIR = Path(__file__).parent / "static"
+FIXTURES_DIR = Path(__file__).parent.parent / "tests" / "fixtures"
 
 
 def create_app() -> FastAPI:
@@ -54,6 +62,20 @@ def create_app() -> FastAPI:
             "client_events": sorted(router.events),
             "server_events": ["session.welcome", "session.error", "state.updated"],
         }
+
+    @app.get("/api/fixtures")
+    async def get_fixtures() -> dict[str, Any]:
+        # ファイル名（拡張子なし）-> 中身。フォルダが無ければ空
+        return {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in sorted(FIXTURES_DIR.glob("*.json"))}
+
+    @app.get("/ui", include_in_schema=False)
+    async def ui() -> FileResponse:
+        # 開発中に書き換えてもすぐ反映されるよう、キャッシュさせない
+        return FileResponse(STATIC_DIR / "ui.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse("/ui")
 
     return app
 

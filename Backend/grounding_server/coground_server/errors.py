@@ -11,6 +11,7 @@ class ErrorCode:
     INVALID_PARAMS = "invalid_params"  # params が method のスキーマに合わない
     DUPLICATE_ID = "duplicate_id"  # 同じ id の request が処理中
     CANCELLED = "cancelled"  # cancel で中断した
+    LLM_FAILED = "llm_failed"  # LLM を呼べなかった / 決めた型の答えが返らなかった
     INTERNAL = "internal_error"  # ハンドラ内の想定外の例外
 
 

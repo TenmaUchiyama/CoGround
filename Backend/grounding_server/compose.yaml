@@ -10,7 +10,13 @@ services:
       - ./coground_server:/app/coground_server
       - ./tests:/app/tests
       - ./scripts:/app/scripts
+      # LLM の呼び出しの記録（llm.jsonl）
+      - ./logs:/app/logs
     command: ["python", "-m", "coground_server", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # LLM の認証（CLAUDE_CODE_OAUTH_TOKEN か ANTHROPIC_API_KEY）は .env に書く。.env.example を写して作る
+    env_file:
+      - path: .env
+        required: false
     environment:
-      # 後で LLM / VLM の API キーなどをここ（または .env）に足す
       - COGROUND_LOG_LEVEL=info
+      - COGROUND_LLM_LOG=/app/logs/llm.jsonl
