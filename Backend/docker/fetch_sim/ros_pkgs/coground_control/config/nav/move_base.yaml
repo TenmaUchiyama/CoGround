@@ -1,0 +1,45 @@
+# move_base 本体と計画器の設定 (Gazebo なしのシミュレーション用)
+base_global_planner: navfn/NavfnROS
+base_local_planner: dwa_local_planner/DWAPlannerROS
+
+# 目標を受けたときに 1 回だけ計画する。make_plan で Unity に見せた経路と、実行時の経路を一致させるため
+planner_frequency: 0.0
+controller_frequency: 10.0
+planner_patience: 5.0
+controller_patience: 5.0
+oscillation_timeout: 10.0
+oscillation_distance: 0.2
+# デモで勝手にその場回転などをしない
+recovery_behavior_enabled: false
+clearing_rotation_allowed: false
+
+NavfnROS:
+  allow_unknown: true
+  default_tolerance: 0.0
+
+# Fetch は差動二輪 (横には動けない)
+DWAPlannerROS:
+  max_vel_x: 0.5
+  min_vel_x: 0.0
+  max_vel_y: 0.0
+  min_vel_y: 0.0
+  max_vel_trans: 0.5
+  min_vel_trans: 0.05
+  max_vel_theta: 1.0
+  min_vel_theta: 0.3
+  acc_lim_x: 1.0
+  acc_lim_y: 0.0
+  acc_lim_theta: 2.0
+  holonomic_robot: false
+  vy_samples: 1
+  vx_samples: 10
+  vth_samples: 20
+  sim_time: 1.5
+  # 経路から外れにくくする (Unity で見せた経路をなぞる)
+  path_distance_bias: 32.0
+  goal_distance_bias: 20.0
+  occdist_scale: 0.02
+  xy_goal_tolerance: 0.1
+  yaw_goal_tolerance: 0.1
+  latch_xy_goal_tolerance: true
+  prune_plan: true

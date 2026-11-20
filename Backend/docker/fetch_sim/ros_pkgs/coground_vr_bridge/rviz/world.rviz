@@ -41,6 +41,26 @@ Visualization Manager:
       Plane Cell Count: 20
       Reference Frame: <Fixed Frame>
       Value: true
+    - Alpha: 0.7
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: true
+      Enabled: true
+      Name: Map (Unity)
+      Topic: /coground/nav/map_unity
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
+    - Alpha: 0.5
+      Class: rviz/Map
+      Color Scheme: costmap
+      Draw Behind: true
+      Enabled: false
+      Name: Map (move_base)
+      Topic: /coground/nav/map
+      Unreliable: false
+      Use Timestamp: false
+      Value: false
     - Class: moveit_rviz_plugin/MotionPlanning
       Enabled: true
       MoveIt_Goal_Tolerance: 0

@@ -1,0 +1,17 @@
+{
+  "_comment": "VLM の代役（vlm.py の MockVlm）が返す属性。COGROUND_VLM=mock のとき、検出した物体（observation.source = detection）のうち、まだ持っていない属性だけに付ける。by_id は by_category より優先。値は {\"value\": ..., \"confidence\": ...} とも書ける。",
+  "default_confidence": 0.9,
+  "by_category": {
+    "plastic_bottle": {"trash": false, "fragile": false, "material": "plastic"},
+    "water_bottle":   {"trash": false, "fragile": false, "material": "metal"},
+    "can":            {"trash": true,  "fragile": false, "material": "metal", "waste_type": "can"},
+    "tissue":         {"trash": true,  "fragile": false, "material": "paper", "waste_type": "burnable"},
+    "small_box":      {"trash": false, "fragile": false, "material": "paper"},
+    "mug":            {"trash": false, "fragile": true,  "material": "ceramic"},
+    "plate":          {"trash": false, "fragile": true,  "material": "ceramic"},
+    "bowl":           {"trash": false, "fragile": true,  "material": "ceramic"},
+    "cup":            {"trash": false, "fragile": true,  "material": "ceramic"},
+    "glass":          {"trash": false, "fragile": true,  "material": "glass"}
+  },
+  "by_id": {}
+}

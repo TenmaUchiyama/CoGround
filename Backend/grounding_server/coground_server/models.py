@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -51,6 +52,7 @@ class Attribute(BaseModel):
     value: AttributeValue
     source: AttributeSource = "ground_truth"
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    observed_at: float | None = Field(default=None, description="その値を得た時刻（秒、captured_at と同じ時計）")
 
     @model_validator(mode="before")
     @classmethod
@@ -109,6 +111,11 @@ class SceneObject(BaseModel):
         default=None,
         description="receptacle・surface のみ: 物を置ける / 入れられる範囲。この物体と同じ ID の領域になる",
     )
+    approach_poses: list[Pose] = Field(
+        default_factory=list,
+        description="receptacle・surface のみ: ロボット（台車の base_link）が止まって作業する位置と向き（Unity ワールド座標。"
+        "向きは Unity の +Z が台車の正面）。動作計画は、ここに置く・ここから取るとき、まずこの位置を試す",
+    )
     observation: Observation = Field(default_factory=Observation)
     extra: dict[str, Any] = Field(default_factory=dict, description="試験的な追加情報")
 
@@ -151,8 +158,20 @@ class SceneRegion(BaseModel):
     @model_validator(mode="after")
     def _has_shape(self) -> SceneRegion:
         if self.polygon is None and self.box is None:
-            raise ValueError(f"領域 {self.id!r} に polygon も box も無い")
+            raise ValueError(f"Zone {self.id!r} has neither polygon nor box")
         return self
+
+
+PersonKind = Literal["child", "adult", "unknown"]
+
+
+class Person(BaseModel):
+    """人の位置（家庭ルールの「子供の近くでは台車を止める」などに使う）。people.update で届く。"""
+
+    id: str = Field(min_length=1)
+    kind: PersonKind = Field(default="unknown", description="child / adult / unknown（子供かどうか分からない）")
+    position: Vec3 = Field(description="Unity ワールド座標（高さは使わない）")
+    observed_at: float | None = Field(default=None, description="その位置を得た時刻（秒、captured_at と同じ時計）")
 
 
 class SceneSnapshot(BaseModel):
@@ -167,6 +186,9 @@ class SceneSnapshot(BaseModel):
     captured_at: float | None = Field(default=None, description="Unity 側の時刻（秒）")
     objects: list[SceneObject] = Field(default_factory=list)
     regions: list[SceneRegion] = Field(default_factory=list)
+    people: list[Person] | None = Field(
+        default=None, description="人の位置。null なら、このシーンは人について何も言っていない（前に届いた値のまま。"
+        "ふつうは people.update で別に送る）。空のリストは「見えている範囲に誰もいない」")
 
     @model_validator(mode="after")
     def _check_and_fill(self) -> SceneSnapshot:
@@ -181,10 +203,10 @@ class SceneSnapshot(BaseModel):
         # 物体の place_zone から作った領域だけは、物体と同じ ID でよい
         dup += sorted({r.id for r in self.regions if r.id in object_ids and r.object_id != r.id})
         if dup:
-            raise ValueError(f"ID が重複している: {dup}")
+            raise ValueError(f"Duplicate IDs: {dup}")
         unknown_owner = sorted({r.object_id for r in self.regions if r.object_id} - set(object_ids))
         if unknown_owner:
-            raise ValueError(f"regions の object_id が objects に無い: {unknown_owner}")
+            raise ValueError(f"regions object_id not in objects: {unknown_owner}")
 
         boxed = [r for r in self.regions if r.box is not None]
         for o in self.objects:
@@ -195,7 +217,7 @@ class SceneSnapshot(BaseModel):
 
         unknown = sorted({o.region_id for o in self.objects if o.region_id} - set(region_ids))
         if unknown:
-            raise ValueError(f"objects の region_id が regions に無い: {unknown}")
+            raise ValueError(f"objects region_id not in regions: {unknown}")
         return self
 
 
@@ -230,11 +252,21 @@ RuleSource = Literal["speech", "demo", "script"]
 
 
 class Rule(BaseModel):
+    """条件に合う物を、行き先の領域に置く。
+
+    condition が null のルールは「それ以外」（例: それ以外は箱にしまう）。
+    条件のあるルールのどれにも合わなかった物（role = item）にだけ使う。
+    """
+
     id: str = Field(min_length=1)
     text: str = Field(description="可視化で見せる文。例: 割れ物は棚の下段に置く")
-    condition: RuleCondition
+    condition: RuleCondition | None = Field(default=None, description="null なら「それ以外」")
     target_region: str = Field(min_length=1, description="行き先の領域の ID")
     source: RuleSource = "script"
+
+    @property
+    def is_fallback(self) -> bool:
+        return self.condition is None
 
 
 # ---------------------------------------------------------------- 3. 入力（タスク実行）
@@ -248,7 +280,7 @@ class Utterance(BaseModel):
     @model_validator(mode="after")
     def _order(self) -> Utterance:
         if self.t_end < self.t_start:
-            raise ValueError("t_end が t_start より前")
+            raise ValueError("t_end is before t_start")
         return self
 
 
@@ -269,7 +301,46 @@ class Placement(BaseModel):
     pose: Pose
 
 
-StepStatus = Literal["ok", "ambiguous", "unmatched", "infeasible"]
+# 家庭ルールの判定（ルールの型と評価は norms/。Step が持つので、型だけここに置く）
+
+VerdictValue = Literal["violated", "compliant", "not_applicable", "undetermined"]
+"""violated: 違反の証拠がある / compliant: 評価範囲で適合を確認 / not_applicable: 適用対象が無い /
+undetermined: 足りない観測によって結論が変わる"""
+
+Basis = Literal["predicted", "observed"]
+"""predicted: 計画の予測状態列に対する判定 / observed: 観測した状態に対する判定"""
+
+
+class MissingFact(BaseModel):
+    """未確定のとき、何が分かれば結論が出るか。"""
+
+    entity_id: str | None = Field(default=None, description="物体・領域・人物の ID。時計などは null")
+    key: str = Field(description="attr:fragile / object_region / clock / requester など（norms/depends.py のキー）")
+
+
+class Verdict(BaseModel):
+    rule_id: str
+    value: VerdictValue
+    basis: Basis
+    entity_id: str | None = Field(default=None, description="判定した対象（物体や領域）の ID")
+    t: datetime | None = Field(default=None, description="違反した時刻（家の時計）。違反以外は null")
+    missing: list[MissingFact] = Field(default_factory=list)
+    detail: str = ""
+    evaluated_at: datetime | None = Field(default=None, description="判定した時刻（家の時計）")
+
+    def same_as(self, other: Verdict | None) -> bool:
+        """判定の中身が同じか（時刻の違いは見ない）。履歴に同じものを積まないために使う。"""
+        if other is None:
+            return False
+        skip = {"evaluated_at", "t"}
+        return self.model_dump(exclude=skip) == other.model_dump(exclude=skip)
+
+    def timeless(self) -> Verdict:
+        """時刻を落とした写し（Step に入れる。時刻だけ違う判定で Plan を作り直さないため）。"""
+        return self.model_copy(update={"evaluated_at": None, "t": None})
+
+
+StepStatus = Literal["ok", "ambiguous", "unmatched", "infeasible", "deferred"]
 
 
 class Step(BaseModel):
@@ -280,6 +351,8 @@ class Step(BaseModel):
       ambiguous   合うルールが複数あって決められない（候補は candidate_rule_ids）
       unmatched   合うルールが無い（to と rule_id は null）
       infeasible  MoveIt で計画できない
+      deferred    家庭ルールにより保留（禁止に反する、判定する情報が足りない、収納先が決まらない）。
+                  理由は message、判定は verdicts。依頼（task.request）から作った Plan だけに出る
     """
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -297,11 +370,12 @@ class Step(BaseModel):
         default=None, description="軌道の ID。軌道そのものは ROS / Unity 側が持つ"
     )
     message: str | None = Field(default=None, description="infeasible の理由など、人が読む補足")
+    verdicts: list[Verdict] = Field(default_factory=list, description="この step に関係する家庭ルールの判定（時刻は入れない）")
 
     @model_validator(mode="after")
     def _consistent(self) -> Step:
         if self.status in ("ok", "infeasible") and self.to is None:
-            raise ValueError(f"step {self.id!r}: status が {self.status} なのに to が無い")
+            raise ValueError(f"step {self.id!r}: status is {self.status} but to is missing")
         return self
 
 
@@ -322,9 +396,9 @@ class Plan(BaseModel):
         ids = [s.id for s in self.steps]
         dup = sorted({i for i in ids if ids.count(i) > 1})
         if dup:
-            raise ValueError(f"step の ID が重複している: {dup}")
+            raise ValueError(f"Duplicate step IDs: {dup}")
         if [s.index for s in self.steps] != list(range(len(self.steps))):
-            raise ValueError("steps は index 順（0 から連番）に並べる")
+            raise ValueError("steps must be in index order (consecutive from 0)")
         return self
 
     def step(self, step_id: str) -> Step | None:
@@ -358,9 +432,9 @@ class Correction(BaseModel):
     @model_validator(mode="after")
     def _payload(self) -> Correction:
         if self.type == "move" and self.new_pose is None:
-            raise ValueError("move には new_pose が必要")
+            raise ValueError("move requires new_pose")
         if self.type == "reorder" and self.new_index is None:
-            raise ValueError("reorder には new_index が必要")
+            raise ValueError("reorder requires new_index")
         return self
 
 
@@ -395,25 +469,25 @@ class Scenario(BaseModel):
         rule_ids = [r.id for r in self.rules]
         dup = sorted({i for i in rule_ids if rule_ids.count(i) > 1})
         if dup:
-            problems.append(f"rule の ID が重複している: {dup}")
+            problems.append(f"Duplicate rule IDs: {dup}")
         for rule in self.rules:
             if rule.target_region not in region_ids:
-                problems.append(f"{rule.id}: target_region {rule.target_region!r} が無い")
+                problems.append(f"{rule.id}: target_region {rule.target_region!r} doesn't exist")
         for name, plan in (("ground_truth_plan", self.ground_truth_plan), ("presented_plan", self.presented_plan)):
             for step in plan.steps:
                 where = f"{name}.{step.id}"
                 if step.object_id not in object_ids:
-                    problems.append(f"{where}: object_id {step.object_id!r} が無い")
+                    problems.append(f"{where}: object_id {step.object_id!r} doesn't exist")
                 for rid in [step.rule_id, *step.candidate_rule_ids]:
                     if rid is not None and rid not in rule_ids:
-                        problems.append(f"{where}: rule_id {rid!r} が無い")
+                        problems.append(f"{where}: rule_id {rid!r} doesn't exist")
                 for place in (step.from_, step.to):
                     if place is not None and place.region_id is not None and place.region_id not in region_ids:
-                        problems.append(f"{where}: region_id {place.region_id!r} が無い")
+                        problems.append(f"{where}: region_id {place.region_id!r} doesn't exist")
         presented = {s.id for s in self.presented_plan.steps}
         for err in self.injected_errors:
             if err.step_id not in presented:
-                problems.append(f"injected_errors: step_id {err.step_id!r} が presented_plan に無い")
+                problems.append(f"injected_errors: step_id {err.step_id!r} not in presented_plan")
         if problems:
             raise ValueError("; ".join(problems))
         return self

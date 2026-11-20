@@ -3,8 +3,13 @@ services:
     build: .
     image: coground/grounding_server:dev
     container_name: coground_grounding_server
+    # Docker やマシンを再起動しても自動で起動し直す（make down で止めたときは起動しない）
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    # 同じマシンの ROS（fetch_sim の rosbridge :9090）に ws://host.docker.internal:9090 で届くようにする（Linux の Docker 用）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # コードを変えたら自動で再起動する（--reload）
       - ./coground_server:/app/coground_server
@@ -12,6 +17,8 @@ services:
       - ./scripts:/app/scripts
       # LLM の呼び出しの記録（llm.jsonl）
       - ./logs:/app/logs
+      # ルールバンク（rule_bank.json）。再起動しても家庭ルール・片付けルール・領域が消えない
+      - ./data:/app/data
     command: ["python", "-m", "coground_server", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     # LLM の認証（CLAUDE_CODE_OAUTH_TOKEN か ANTHROPIC_API_KEY）は .env に書く。.env.example を写して作る
     env_file:
@@ -20,3 +27,58 @@ services:
     environment:
       - COGROUND_LOG_LEVEL=info
       - COGROUND_LLM_LOG=/app/logs/llm.jsonl
+      # だれが何を呼んだか、実行とスキルの経過の記録（events.jsonl）
+      - COGROUND_EVENT_LOG=/app/logs/events.jsonl
+      # ルールバンクを残すファイル（空にすると残さない。coground_server/rulebank.py）
+      - COGROUND_RULE_BANK=${COGROUND_RULE_BANK-/app/data/rule_bank.json}
+      # 検出した物体（observation.source = detection）に属性を付ける VLM。mock は vlm_mock_attributes.json の答えを返す（off で付けない）
+      - COGROUND_VLM=${COGROUND_VLM:-mock}
+      # perception（画像 → 検出 → VLM → 物体の記憶。/perception/ui）
+      # 分割（YOLOE-seg）は detector コンテナに頼む
+      - COGROUND_DETECTOR_URL=${COGROUND_DETECTOR_URL:-http://detector:8001}
+      # 物体の記憶を残すファイル（空にすると残さない）と、run ごとの入力・途中の画像・JSON を残すフォルダ
+      - COGROUND_OBJECT_MEMORY=${COGROUND_OBJECT_MEMORY-/app/data/object_memory.json}
+      - COGROUND_PERCEPTION_RUNS=${COGROUND_PERCEPTION_RUNS-/app/logs/perception}
+      # Quest のフレームを ?record=<名前> で残す場所（scripts/perception_replay.py で流し直せる）
+      - COGROUND_PERCEPTION_SEQUENCES=${COGROUND_PERCEPTION_SEQUENCES-/app/logs/sequences}
+      # 3D で追っている物体（箱・見た目の特徴量）。再起動しても同じ物体に同じ ID を付けるため
+      - COGROUND_OBJECT_TRACKS=${COGROUND_OBJECT_TRACKS-/app/data/object_tracks.json}
+
+  # YOLO-World の物体検出（POST /detect、画面 /detect/ui）。Unity / Quest から :8001 に直接送る。
+  # YOLOE-seg の分割（POST /segment）もここ。grounding_server の perception が呼ぶ。
+  # GPU を使うので、ホストに NVIDIA Container Toolkit が要る（無いマシンでは make up-cpu）。
+  # 重みの読み込みに数秒かかるので --reload は付けない。コードを変えたら make detect-restart。
+  detector:
+    build:
+      context: .
+      dockerfile: Dockerfile.detect
+    image: coground/detector:dev
+    container_name: coground_detector
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./coground_server:/app/coground_server:ro
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      # COGROUND_DETECT_DEBUG_DIR=/app/logs/detect にすると、受け取った画像と結果がここに残る
+      - ./logs:/app/logs
+    environment:
+      - COGROUND_LOG_LEVEL=info
+      - COGROUND_DETECT_DEVICE=0
+      - COGROUND_DETECT_CONF=${COGROUND_DETECT_CONF:-0.25}
+      - COGROUND_DETECT_IMGSZ=${COGROUND_DETECT_IMGSZ:-640}
+      - COGROUND_DETECT_DEBUG_DIR=${COGROUND_DETECT_DEBUG_DIR:-}
+      # /detect のモード: open（prompt-free。名前を渡さなくてよい）/ vocab（語彙の物だけ）。動いたまま PUT /detect/mode でも変えられる
+      - COGROUND_DETECT_MODE=${COGROUND_DETECT_MODE:-open}
+      # open のとき、画像のこの割合より大きい箱（机・椅子など）は捨てる
+      - COGROUND_DETECT_OPEN_MAX_AREA=${COGROUND_DETECT_OPEN_MAX_AREA:-0.25}
+      - COGROUND_SEGMENT_ENABLED=${COGROUND_SEGMENT_ENABLED:-1}
+      - COGROUND_SEGMENT_CONF=${COGROUND_SEGMENT_CONF:-0.25}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

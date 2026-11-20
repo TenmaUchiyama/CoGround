@@ -1,0 +1,23 @@
+# 実機 Fetch の上で動かす確認ツール。
+# Fetch 本体の roscore (localhost:11311) につなぐ。ROS の通信はポートを固定できないので network_mode: host が必須。
+#
+# シム (fetch_sim) で試すときは compose.sim.yaml を重ねる (make real-sim)。
+services:
+  fetch_real:
+    build: .
+    image: coground/fetch-real:noetic
+    container_name: fetch_real
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      ROS_MASTER_URI: ${ROS_MASTER_URI:-http://localhost:11311}
+      # 他の PC から このコンテナのノードへ届く名前/IP。未設定なら ホスト名 (Fetch なら fetch1 など) が使われる
+      ROS_HOSTNAME: ${ROS_HOSTNAME:-}
+      ROS_IP: ${ROS_IP:-}
+      # real: 実機 / sim: シム (実機にしか無いもの (バッテリー等) が無くても FAIL ではなく SKIP にする)
+      FETCH_CHECK_MODE: ${FETCH_CHECK_MODE:-real}
+    volumes:
+      # 確認ツールのソース (Python の変更は再起動なしで次の実行から反映)
+      - ./ros_pkgs/fetch_check:/opt/check_ws/src/fetch_check
+      # 実行結果 (JSON) の保存先
+      - ${REPORT_DIR:-./reports}:/data/reports

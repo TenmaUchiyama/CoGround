@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CoGround テスト画面</title>
+<title>CoGround Test Page</title>
 <style>
   :root {
     --bg: #f4f5f7; --panel: #fff; --line: #d9dce3; --text: #1d2330; --muted: #6b7384;
@@ -43,6 +43,8 @@
   th { color: var(--muted); font-weight: normal; }
   .scroll { overflow-x: auto; }
   .badge { display: inline-block; padding: 0 6px; border-radius: 10px; font-size: 12px; color: #fff; background: var(--other); }
+  .badge.done, .badge.running { background: var(--ok); } .badge.failed { background: var(--bad); }
+  .badge.picking, .badge.holding, .badge.placing, .badge.paused { background: var(--accent); } .badge.skipped, .badge.blocked { background: var(--warn); }
   .badge.ok { background: var(--ok); } .badge.ambiguous, .badge.unmatched { background: var(--warn); } .badge.infeasible { background: var(--bad); }
   code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
   pre { background: var(--code); padding: 8px; border-radius: 6px; margin: 4px 0 0; overflow: auto; max-height: 300px; white-space: pre-wrap; word-break: break-all; }
@@ -54,6 +56,18 @@
   #map .item.sel { stroke: var(--text); stroke-width: .7; }
   #map .arrow { fill: none; stroke-width: .7; }
   #map .hl { stroke-width: 1.6; }
+  #map .track { fill: none; stroke: var(--accent); stroke-width: .5; stroke-dasharray: 2 1; opacity: .7; }
+  #map .stop { fill: none; stroke: var(--accent); stroke-width: .4; }
+  #map .approach { fill: none; stroke: #0891b2; stroke-width: .5; }
+  #map .approach-dir { stroke: #0891b2; stroke-width: .7; }
+  #map .robot { fill: var(--accent); fill-opacity: .22; stroke: var(--accent); stroke-width: .6; }
+  #map .robot-dir { stroke: var(--accent); stroke-width: .9; }
+  #map .ghost-obj { fill-opacity: .35; stroke: var(--accent); stroke-width: .4; stroke-dasharray: 1 .6; }
+  .tl { display: flex; height: 16px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); cursor: pointer; position: relative; margin: 4px 0; }
+  .tl > div { height: 100%; border-right: 1px solid var(--panel); box-sizing: border-box; }
+  .tl .nav { background: var(--other); } .tl .pick { background: var(--accent); } .tl .place { background: var(--ok); }
+  .tl .cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); border: none; pointer-events: none; }
+  input[type=range] { width: 100%; }
   #map .num { font-size: 3px; fill: #fff; text-anchor: middle; dominant-baseline: central; font-weight: bold; }
   #log { max-height: 380px; overflow: auto; font-size: 12px; }
   #log details { border-bottom: 1px solid var(--line); padding: 2px 0; }
@@ -63,108 +77,210 @@
   .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
   ul { margin: 4px 0; padding-left: 20px; }
   tr.hover td { background: var(--code); }
+  h3 { font-size: 13px; margin: 12px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); }
+  #map .goal { fill: #db2777; fill-opacity: .18; stroke: #db2777; stroke-width: .6; }
+  #map .goal-dir { stroke: #db2777; stroke-width: 1; }
+  #map .goal-track { fill: none; stroke: #db2777; stroke-width: .6; stroke-dasharray: 2 1; }
+  #map.goal-mode { cursor: crosshair; }
+  .warn-size { color: var(--warn); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  #map.after .item { cursor: default; }
 </style>
 </head>
 <body>
 <header>
-  <h1>CoGround テスト画面</h1>
-  <span><span id="dot" class="dot"></span><span id="conn">未接続</span></span>
+  <h1>CoGround Test Page</h1>
+  <span><span id="dot" class="dot"></span><span id="conn">Disconnected</span></span>
   <span class="muted" id="info"></span>
+  <a href="/rules" target="_blank" rel="noopener">Rule Bank ↗</a>
   <span style="flex:1"></span>
+  <button id="btnReset" title="Stop and clear execution, motion plans and unit-test plans, forget what the robot holds, and return the arm to its initial pose. Rules and scene objects are kept (system.reset)">Reset</button>
   <button id="btnPing">system.ping</button>
-  <button id="btnLlmPing">llm.ping（LLM に届くか）</button>
+  <button id="btnLlmPing">llm.ping (is the LLM reachable)</button>
   <span id="pingResult" class="muted"></span>
 </header>
 
 <main>
   <div class="col">
     <section>
-      <h2>シーン（上から見た図）<small>X が右、Z が上。物をドラッグすると動かして scene.update を送る</small></h2>
+      <h2>Scene (top view)<small>X to the right, Z up. Drag an object to move it and send scene.update</small></h2>
       <div class="row">
-        <button id="btnSample" class="primary">サンプルのシーンを送る（机の上）</button>
-        <button id="btnScenario">棚のシナリオを送る（シーン + ルール）</button>
-        <button id="btnClearScene">シーンを空にする</button>
-        <label><input type="checkbox" id="snap" checked> 領域に落としたら底に置く</label>
+        <button id="btnSample" class="primary">Send sample scene (desk)</button>
+        <button id="btnScenario">Send shelf scenario (scene + rules)</button>
+        <button id="btnClearScene">Clear scene</button>
+        <label><input type="checkbox" id="snap" checked> Place at the bottom when dropped in a zone</label>
+        <span style="flex:1"></span>
+        <span class="seg" title="Toggle object positions before / after executing the Plan (key B)">
+          <button id="btnViewBefore" class="on">Before</button><button id="btnViewAfter">After</button>
+        </span>
       </div>
       <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="row legend muted">
-        <span><i class="sw" style="background:var(--dish)"></i>食器</span>
-        <span><i class="sw" style="background:var(--cutlery)"></i>カトラリー</span>
-        <span><i class="sw" style="background:var(--trash)"></i>ごみ</span>
-        <span><i class="sw" style="background:var(--other)"></i>その他</span>
-        <span><i class="sw" style="background:var(--fixture)"></i>置く / 入れる場所</span>
-        <span>点線 = 領域</span><span>矢印 = Plan の step</span>
+        <span><i class="sw" style="background:var(--dish)"></i>Dishes</span>
+        <span><i class="sw" style="background:var(--cutlery)"></i>Cutlery</span>
+        <span><i class="sw" style="background:var(--trash)"></i>Trash</span>
+        <span><i class="sw" style="background:var(--other)"></i>Other</span>
+        <span><i class="sw" style="background:var(--fixture)"></i>Places to put on / in</span>
+        <span>Dashed = zone</span><span>Arrow = Plan step</span>
       </div>
-      <div id="selected" class="muted">物をクリックすると、中身を表示する。</div>
+      <div id="selected" class="muted">Click an object to show its contents.</div>
+    </section>
+
+    <section>
+      <h2>Objects <small id="objectsInfo"></small></h2>
+      <div class="muted">Objects the server has received (scene.update). Choosing a "Destination" creates a step that carries the object there (plan.place). Rules aren't consulted.</div>
+      <div class="scroll"><table id="objectsTable"></table></div>
+      <div class="row">
+        <button id="btnUnplaceAll">Clear all destinations</button>
+        <span id="placeStatus" class="muted"></span>
+      </div>
     </section>
 
     <section>
       <h2>Plan <small id="planInfo"></small></h2>
       <div class="scroll"><table id="planTable"></table></div>
+      <div class="row">
+        <button id="btnMotionPlan" class="primary" title="Plan move → pick → move → place without moving the robot (motion.plan)">Build Plan (motion plan)</button>
+        <button id="btnMotionClear">Discard</button>
+        <span id="motionStatus" class="muted"></span>
+      </div>
+      <div id="timelinePanel" hidden>
+        <div class="row">
+          <button id="btnTlPlay">▶ Play</button>
+          <span id="tlTime" class="muted"></span>
+          <span id="tlPhase"></span>
+        </div>
+        <input type="range" id="tlRange" min="0" max="1" step="0.01" value="0">
+        <div id="tlStrip" class="tl"></div>
+        <div class="muted">Gray: move · Blue: pick · Green: place. Click a bar or a Plan row to jump to that time. In the diagram, the dashed line is the base's path, the translucent circle is the base, and the dashed square is the carried object.</div>
+      </div>
     </section>
 
     <section>
-      <h2>シーンの JSON <small>scene.update で送る中身を直接書ける</small></h2>
+      <h2>Execution <small id="execInfo"></small></h2>
+      <div class="muted">First plan with "Build Plan (motion plan)", check it on the sequence bar, then "Execute" (exec.*). It moves as planned and replans on the spot if things have shifted. You can change destinations in the "Objects" table above even during execution. Per-step "Skip" / "Retry" are in the Plan table.</div>
       <div class="row">
-        <button id="btnSceneFromState">いまのシーンを読み込む</button>
-        <button id="btnSceneSend" class="primary">scene.update を送る</button>
+        <button id="btnExecStart" class="primary" title="Move according to the Plan (motion plan)">Execute</button>
+        <button id="btnExecPause" title="Stop once the current motion (grasping or placing) finishes">Stop at break</button>
+        <button id="btnExecStop" title="Stop even mid-motion">Stop now</button>
+        <button id="btnExecResume">Resume</button>
+        <button id="btnExecConfirm" class="primary" hidden>Proceed with this step</button>
+        <button id="btnExecReset">Clear records</button>
+      </div>
+      <div class="row">
+        <label>Confirm <select id="execConfirm"><option value="auto">No (proceed automatically)</option><option value="each_step">Ask before every grasp</option></select></label>
+        <label>On failure <select id="execOnFailure"><option value="pause">Stop and wait</option><option value="continue">Go to the next step</option></select></label>
+        <label title="Also run steps without a motion plan or with a stale one (no base move; plans the arm on the spot)"><input type="checkbox" id="execUnplanned"> Execute even without Plan</label>
+        <button id="btnExecFail" title="Only with the stand-in robot without ROS">Make the next motion fail on purpose</button>
+        <span id="execStatus" class="muted"></span>
+      </div>
+      <div id="execWarn" class="row" style="color: var(--bad)" hidden></div>
+      <div id="execNow"></div>
+      <div class="scroll"><table id="execHistory"></table></div>
+    </section>
+
+    <section>
+      <h2>Scene JSON <small>Write the contents sent with scene.update directly</small></h2>
+      <div class="row">
+        <button id="btnSceneFromState">Load current scene</button>
+        <button id="btnSceneSend" class="primary">Send scene.update</button>
       </div>
       <textarea id="sceneJson" rows="8" spellcheck="false" placeholder='{"objects": [...], "regions": []}'></textarea>
     </section>
   </div>
 
   <div class="col">
-    <section>
-      <h2>ルールを言葉で足す <small>rules.compile（LLM を使う。数秒かかる）</small></h2>
-      <textarea id="nlText" rows="2" placeholder="例: 食器は流しに入れて、ごみは分別してごみ箱に捨てて"></textarea>
+    <section id="robotTest">
+      <h2>Robot unit test <small id="rtInfo"></small></h2>
+      <div class="muted">Runs a single skill without the Plan or motion planning (robot.*). Unavailable while the Plan is executing.</div>
+      <div id="rtWarn" class="row" style="color: var(--bad)" hidden></div>
+
+      <h3>MoveIt: grasp in place</h3>
+      <div class="muted">Assumes the robot is in front of the desk (the base doesn't move). For objects received from Unity (scene.update), "Plan" plans without moving (Unity's Ghost plays it back) and "Pick" grasps and lifts on the spot. If there's a plan, it follows that trajectory.</div>
+      <div class="scroll"><table id="rtObjects"></table></div>
       <div class="row">
-        <select id="nlMode"><option value="append">いまのルールに足す</option><option value="replace">ルールを置き換える</option></select>
-        <label><input type="checkbox" id="nlApply" checked> そのまま反映する</label>
-        <button id="btnCompile" class="primary">ルールにする</button>
-        <button id="btnCompileCancel" disabled>中断</button>
+        <button id="btnRtPlaceBack" title="Return the held object to where it was picked (robot.place_back)">Return held object</button>
+        <button id="btnRtStop1">Stop</button>
+      </div>
+
+      <h3>Nav: move to Goal</h3>
+      <div class="muted">Moves the base with move_base (start ROS with NAV=true / make coground). Coordinates are Unity world coordinates.</div>
+      <div class="row">
+        <label><input type="checkbox" id="rtGoalMode"> Click the diagram on the left to place the Goal (drag for heading)</label>
+      </div>
+      <div class="row">
+        <label>X <input id="rtX" type="number" step="0.05" value="0" style="width:6em"></label>
+        <label>Z <input id="rtZ" type="number" step="0.05" value="0" style="width:6em"></label>
+        <label title="Clockwise from +Z, seen from above">Heading <input id="rtYaw" type="number" step="15" value="0" style="width:5em">°</label>
+        <select id="rtPreset" class="grow"><option value="">Choose from stop positions…</option></select>
+      </div>
+      <div class="row">
+        <button id="btnRtNavPlan" title="Plan the path without moving (robot.plan). Check it with Unity's Ghost and the diagram on the left">Plan</button>
+        <button id="btnRtNav" class="primary">Move to Goal</button>
+        <button id="btnRtStop2">Stop</button>
+      </div>
+
+      <div class="row"><b id="rtNow"></b></div>
+      <div id="rtPlanBox"></div>
+      <div class="scroll"><table id="rtHistory"></table></div>
+    </section>
+
+    <section>
+      <h2>Add rules in words <small>rules.compile (uses the LLM; takes a few seconds)</small></h2>
+      <textarea id="nlText" rows="2" placeholder="e.g. Put dishes in the sink, and sort trash into the bins"></textarea>
+      <div class="row">
+        <select id="nlMode"><option value="append">Add to current rules</option><option value="replace">Replace rules</option></select>
+        <label><input type="checkbox" id="nlApply" checked> Apply directly</label>
+        <button id="btnCompile" class="primary">Make rules</button>
+        <button id="btnCompileCancel" disabled>Abort</button>
         <span id="nlStatus" class="muted"></span>
       </div>
       <div id="nlResult"></div>
     </section>
 
     <section>
-      <h2>ルール <small id="rulesInfo"></small></h2>
+      <h2>Rules <small id="rulesInfo"></small></h2>
       <div class="scroll"><table id="rulesTable"></table></div>
+      <div class="scroll"><table id="normsTable"></table></div>
+      <p class="muted" id="normsNote"></p>
       <div class="row">
-        <input id="rAttr" class="grow" list="attrList" placeholder="属性（group, fragile など）">
+        <input id="rAttr" class="grow" list="attrList" placeholder="Attribute (group, fragile, etc.)">
         <datalist id="attrList">
           <option value="group"><option value="category"><option value="role"><option value="fragile"><option value="material">
           <option value="dirty"><option value="contents"><option value="waste_type">
         </datalist>
         <span>=</span>
-        <input id="rEquals" class="grow" placeholder="値（dish, true など）">
+        <input id="rEquals" class="grow" placeholder="Value (dish, true, etc.)">
         <span>→</span>
         <select id="rTarget" class="grow"></select>
       </div>
       <div class="row">
-        <input id="rText" class="grow" placeholder="見せる文（省略可）">
-        <button id="btnAddRule" class="primary">ルールを足す（rules.set）</button>
-        <button id="btnClearRules">ルールを全部消す</button>
+        <input id="rText" class="grow" placeholder="Display text (optional)">
+        <button id="btnAddRule" class="primary">Add rule (rules.set)</button>
+        <button id="btnClearRules">Delete all rules</button>
       </div>
     </section>
 
     <section>
-      <h2>method を直接呼ぶ</h2>
+      <h2>Call a method directly</h2>
       <div class="row">
         <select id="method" class="grow"></select>
-        <button id="btnCall" class="primary">送る</button>
-        <button id="btnCancel" disabled>中断</button>
+        <button id="btnCall" class="primary">Send</button>
+        <button id="btnCancel" disabled>Abort</button>
       </div>
       <div id="methodDesc" class="muted"></div>
-      <textarea id="params" rows="3" spellcheck="false" placeholder="params の JSON（無ければ空）"></textarea>
+      <textarea id="params" rows="3" spellcheck="false" placeholder="params JSON (empty if none)"></textarea>
       <pre id="callResult" hidden></pre>
     </section>
 
     <section>
-      <h2>通信のログ <small>クリックで中身を表示</small></h2>
+      <h2>Message log <small>Click to show contents</small></h2>
       <div class="row">
-        <label><input type="checkbox" id="logState"> state.updated も出す</label>
-        <button id="btnClearLog">消す</button>
+        <label><input type="checkbox" id="logState"> Also show state.updated</label>
+        <button id="btnClearLog">Clear</button>
       </div>
       <div id="log"></div>
     </section>
@@ -189,7 +305,7 @@ function connect() {
   ws.onopen = () => setConn(true);
   ws.onclose = () => {
     setConn(false);
-    for (const p of pending.values()) p.reject({ code: "disconnected", message: "接続が切れた" });
+    for (const p of pending.values()) p.reject({ code: "disconnected", message: "Connection lost" });
     pending.clear();
     setTimeout(connect, 1500);
   };
@@ -212,14 +328,14 @@ function connect() {
 
 function setConn(on) {
   $("dot").classList.toggle("on", on);
-  $("conn").textContent = on ? "接続中" : "未接続（つなぎ直している）";
+  $("conn").textContent = on ? "Connected" : "Disconnected (reconnecting)";
 }
 
 /** request を送る。戻り値は { id, promise }（id は中断に使う）。 */
 function request(method, params, onStream) {
   const id = "ui-" + (++nextId);
   const promise = new Promise((resolve, reject) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return reject({ code: "not_connected", message: "サーバーに接続していない" });
+    if (!ws || ws.readyState !== WebSocket.OPEN) return reject({ code: "not_connected", message: "Not connected to the server" });
     pending.set(id, { resolve, reject, onStream });
     const msg = { type: "request", id, method };
     if (params !== undefined && params !== null) msg.params = params;
@@ -240,7 +356,7 @@ function cancel(id) {
 function addLog(dir, msg) {
   const d = document.createElement("details");
   const s = document.createElement("summary");
-  const t = new Date().toLocaleTimeString("ja-JP", { hour12: false });
+  const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
   let head;
   if (msg.type === "request") head = `${msg.method} [${msg.id}]`;
   else if (msg.type === "response") head = `${msg.ok ? "ok" : "error: " + msg.error.code} [${msg.id}]`;
@@ -264,11 +380,16 @@ const errText = e => e && e.code ? `${e.code}: ${e.message}` : String(e);
 function render() {
   if (!state) return;
   const scene = state.scene;
-  $("info").textContent = `state v${state.version} ・ 物体 ${scene.objects.length} ・ 領域 ${scene.regions.length} ・ ルール ${state.rules.length}`;
+  $("info").textContent = `state v${state.version} · objects ${scene.objects.length} · zones ${scene.regions.length} · rules ${state.rules.length}`;
   renderMap();
+  renderObjects();
+  syncMotion();
   renderPlan();
+  renderMotionStatus();
+  renderExec();
   renderRules();
   renderSelected();
+  renderRobotTest();
 }
 
 function el(name, attrs, text) {
@@ -302,9 +423,12 @@ function renderMap() {
     for (const p of r.polygon || []) pts.push([p[0], p[2], 0]);
   }
   for (const s of state.plan ? state.plan.steps : []) if (s.to) pts.push([s.to.pose.position[0], s.to.pose.position[2], 0.1]);
+  for (const o of scene.objects) for (const a of o.approach_poses || []) pts.push([a.position[0], a.position[2], 0.35]);
+  if (motion) for (const b of motion.timeline.base) { const u = rosToUnity([b[1], b[2], 0]); pts.push([u[0], u[2], 0.35]); }
+  if (rtGoal) pts.push([rtGoal.x, rtGoal.z, 0.4]);
   if (!pts.length) {
     svg.setAttribute("viewBox", "0 0 100 40");
-    svg.append(el("text", { x: 50, y: 20, "text-anchor": "middle" }, "シーンが空。「サンプルのシーンを送る」か、Unity から scene.update を送る"));
+    svg.append(el("text", { x: 50, y: 20, "text-anchor": "middle" }, "The scene is empty. \"Send sample scene\" or send scene.update from Unity"));
     return;
   }
   const minX = Math.min(...pts.map(p => p[0] - p[2])), maxX = Math.max(...pts.map(p => p[0] + p[2]));
@@ -329,6 +453,14 @@ function renderMap() {
     else { svg.append(el("polygon", { class: "region", points: r.polygon.map(p => `${p[0] * S},${-p[2] * S}`).join(" ") })); at = [r.polygon[0][0] * S + 1, -r.polygon[0][2] * S + 4]; }
     svg.append(el("text", { x: at[0], y: at[1], style: "fill:var(--muted)" }, r.id));
   }
+  // 止まる位置（家具に Unity で置いた CoGroundApproachPoint）。水色の円 = 台車、線 = 正面
+  for (const o of scene.objects) for (const a of o.approach_poses || []) {
+    const [qx, qy, qz, qw] = a.rotation, fx = 2 * (qx * qz + qw * qy), fz = 1 - 2 * (qx * qx + qy * qy);
+    const x = a.position[0] * S, y = -a.position[2] * S, n = Math.hypot(fx, fz) || 1;
+    const c = el("circle", { class: "approach", cx: x, cy: y, r: 0.28 * S });
+    c.append(el("title", {}, `Stop position of ${o.id}`));
+    svg.append(c, el("line", { class: "approach-dir", x1: x, y1: y, x2: x + fx / n * 0.4 * S, y2: y - fz / n * 0.4 * S }));
+  }
   // Plan の矢印
   for (const s of state.plan ? state.plan.steps : []) {
     const color = STATUS_COLOR[s.status] || "var(--other)";
@@ -343,20 +475,190 @@ function renderMap() {
     }
     svg.append(g);
   }
-  // 運ぶ物
+  // 運ぶ物（After では Plan の行き先に置いた姿で描く。ドラッグはしない）
+  svg.classList.toggle("after", viewAfter);
+  const afterPose = viewAfter ? afterPoses() : {};
   for (const o of scene.objects) {
     if (o.role !== "item") continue;
-    const r = boxRect(o.position, o.size || [0.1, 0.1, 0.1], o.rotation,
+    const pose = afterPose[o.id] || o;
+    const r = boxRect(pose.position, o.size || [0.1, 0.1, 0.1], pose.rotation,
       { class: "item" + (o.id === selectedId ? " sel" : ""), fill: GROUP_COLOR[o.group] || "var(--other)", "data-id": o.id }, 0.05);
-    r.addEventListener("pointerdown", e => startDrag(e, o, r));
-    svg.append(r, el("text", { x: o.position[0] * S + 4, y: -o.position[2] * S - 3 }, o.id));
+    if (viewAfter) r.addEventListener("click", () => { selectedId = o.id; renderSelected(); });
+    else r.addEventListener("pointerdown", e => startDrag(e, o, r));
+    svg.append(r, el("text", { x: pose.position[0] * S + 4, y: -pose.position[2] * S - 3 }, o.id));
   }
   for (const o of scene.objects) if (o.role !== "item") {
     const hit = boxRect(o.position, o.size || [0.3, 0.3, 0.3], o.rotation, { fill: "transparent" });
     hit.addEventListener("click", () => { selectedId = o.id; render(); });
     svg.insertBefore(hit, svg.querySelector("g, .item"));
   }
+  drawTimelineLayer();
+  drawGoal();
 }
+
+// ---------------------------------------------------------------- Before / After
+
+let viewAfter = false;
+
+/** Plan の step の行き先（to）。行き先の無い物は今の位置のまま */
+function afterPoses() {
+  const out = {};
+  for (const s of state.plan ? state.plan.steps : []) if (s.to) out[s.object_id] = s.to.pose;
+  return out;
+}
+
+function setView(after) {
+  viewAfter = after;
+  $("btnViewBefore").classList.toggle("on", !after);
+  $("btnViewAfter").classList.toggle("on", after);
+  if (motion) { tlPlaying = false; tlTime = after ? motion.timeline.duration : 0; renderTimeline(); }
+  if (state) renderMap();
+}
+$("btnViewBefore").onclick = () => setView(false);
+$("btnViewAfter").onclick = () => setView(true);
+document.addEventListener("keydown", e => {
+  if (e.key !== "b" && e.key !== "B" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+  e.preventDefault(); setView(!viewAfter);
+});
+
+// ---------------------------------------------------------------- 動作計画（Plan）とシーケンスバー
+
+let motion = null, motionTimelineId = null, tlTime = 0, tlPlaying = false, tlLast = null, tlStripId = null;
+const PICK_PHASES = new Set(["opening", "approaching", "descending", "grasping", "lifting"]);
+const PHASE_LABEL = { navigating: "moving", opening: "opening fingers", approaching: "approaching", descending: "lowering hand", grasping: "grasping",
+  lifting: "lifting", moving: "over the placement", lowering: "lowering", releasing: "releasing", retreating: "retreating" };
+const rosToUnity = p => [-p[1], p[2], p[0]];
+
+function syncMotion() {
+  const tid = state.motion ? state.motion.timeline_id : null;
+  if (tid === motionTimelineId) return;
+  motionTimelineId = tid;
+  if (!tid) { motion = null; tlPlaying = false; renderTimeline(); renderMap(); return; }
+  call("motion.get").then(r => {
+    if (motionTimelineId !== tid) return;
+    motion = r; tlTime = 0; renderTimeline(); renderMap();
+  }).catch(e => { $("motionStatus").textContent = "Can't read the timeline: " + errText(e); });
+}
+
+function baseAt(t) {
+  const b = motion.timeline.base;
+  if (!b.length) return null;
+  if (t <= b[0][0]) return b[0];
+  for (let i = 1; i < b.length; i++) {
+    if (b[i][0] < t) continue;
+    const a = b[i - 1], c = b[i], span = c[0] - a[0], k = span > 1e-6 ? (t - a[0]) / span : 1;
+    const dyaw = Math.atan2(Math.sin(c[3] - a[3]), Math.cos(c[3] - a[3]));
+    return [t, a[1] + (c[1] - a[1]) * k, a[2] + (c[2] - a[2]) * k, a[3] + dyaw * k];
+  }
+  return b[b.length - 1];
+}
+
+const phaseAt = t => motion.timeline.phases.find(p => t >= p.t0 && t <= p.t1) || null;
+
+/** 時刻 t の物体の位置（ROS の座標）。持っている間は台車の 0.5 m 前に描く（手の位置は Web UI では計算しない） */
+function objectAt(o, t, base) {
+  const spans = motion.timeline.attached.filter(a => a.object === o.object);
+  const holding = spans.find(a => t >= a.t0 && t <= a.t1);
+  if (holding && base) return { pos: [base[1] + 0.5 * Math.cos(base[3]), base[2] + 0.5 * Math.sin(base[3]), 0], carried: true };
+  const done = spans.filter(a => t > a.t1);
+  return { pos: (done.length && o.rest ? o.rest : o.start).position, carried: false };
+}
+
+function drawTimelineLayer() {
+  const svg = $("map");
+  const old = svg.querySelector("#tlLayer");
+  if (old) old.remove();
+  if (!motion || !state) return;
+  const layer = el("g", { id: "tlLayer" });
+  const toXY = (x, y) => { const u = rosToUnity([x, y, 0]); return [u[0] * S, -u[2] * S]; };
+  const track = motion.timeline.base.map(b => toXY(b[1], b[2]).join(",")).join(" ");
+  layer.append(el("polyline", { class: "track", points: track }));
+  for (const st of motion.steps) for (const stop of Object.values(st.stops || {})) {
+    const [x, y] = toXY(stop[0], stop[1]);
+    layer.append(el("circle", { class: "stop", cx: x, cy: y, r: 0.28 * S }));
+  }
+  const base = baseAt(tlTime);
+  for (const o of motion.timeline.objects) {
+    const sceneObj = state.scene.objects.find(s => s.id === o.object);
+    const size = sceneObj && sceneObj.size ? sceneObj.size : [0.1, 0.1, 0.1];
+    const at = objectAt(o, tlTime, base);
+    const u = rosToUnity(at.pos);
+    layer.append(boxRect([u[0], 0, u[2]], size, sceneObj ? sceneObj.rotation : null,
+      { class: "ghost-obj", fill: sceneObj ? GROUP_COLOR[sceneObj.group] || "var(--other)" : "var(--other)" }, 0.05));
+  }
+  if (base) {
+    const [x, y] = toXY(base[1], base[2]);
+    const [hx, hy] = toXY(base[1] + 0.4 * Math.cos(base[3]), base[2] + 0.4 * Math.sin(base[3]));
+    layer.append(el("circle", { class: "robot", cx: x, cy: y, r: 0.28 * S }), el("line", { class: "robot-dir", x1: x, y1: y, x2: hx, y2: hy }));
+  }
+  svg.append(layer);
+}
+
+function renderMotionStatus() {
+  const m = state.motion || { status: "none", steps: {} };
+  const st = $("motionStatus");
+  const steps = Object.values(m.steps);
+  const ok = steps.filter(s => s.status === "ok").length, stale = steps.filter(s => s.status === "stale").length;
+  st.style.color = m.status === "failed" || stale ? "var(--bad)" : "";
+  st.textContent = m.status === "planning" ? `Planning… ${m.progress || ""}`
+    : m.status === "failed" ? `Couldn't plan: ${m.error}`
+    : m.status === "ready" && !steps.length ? `All planned steps have been executed (the timeline can still be reviewed; ${(m.duration || 0).toFixed(1)} s)`
+    : m.status === "ready" ? `Planned (${(m.duration || 0).toFixed(1)} s, ok ${ok} / ${steps.length} steps${stale ? `, stale ${stale} (rebuild the Plan)` : ""})`
+    : "Not planned yet";
+  const running = state.execution && state.execution.mode === "running";
+  $("btnMotionPlan").disabled = m.status === "planning" || running || !state.plan;
+  $("btnMotionClear").disabled = m.status === "planning" || m.status === "none";
+}
+
+function renderTimeline() {
+  const panel = $("timelinePanel");
+  panel.hidden = !motion;
+  if (!motion) return;
+  const d = motion.timeline.duration || 0;
+  const range = $("tlRange");
+  range.max = d; range.value = tlTime;
+  const ph = phaseAt(tlTime);
+  $("tlTime").textContent = `${tlTime.toFixed(1)} / ${d.toFixed(1)} s`;
+  $("tlPhase").textContent = ph ? `${motion.step_ids[ph.step_id] || ph.step_id}: ${PHASE_LABEL[ph.phase] || ph.phase}` : "";
+  $("btnTlPlay").textContent = tlPlaying ? "❚❚ Pause" : "▶ Play";
+  const strip = $("tlStrip");
+  if (tlStripId !== motionTimelineId) {
+    tlStripId = motionTimelineId;
+    strip.replaceChildren();
+    for (const p of motion.timeline.phases) {
+      const seg = document.createElement("div");
+      seg.className = p.phase === "navigating" ? "nav" : PICK_PHASES.has(p.phase) ? "pick" : "place";
+      seg.style.width = d > 0 ? `${(p.t1 - p.t0) / d * 100}%` : "0";
+      seg.title = `${motion.step_ids[p.step_id] || p.step_id}: ${PHASE_LABEL[p.phase] || p.phase} (${p.t0.toFixed(1)}–${p.t1.toFixed(1)} s)`;
+      seg.onclick = () => seek(p.t0);
+      strip.append(seg);
+    }
+    const cur = document.createElement("div");
+    cur.className = "cursor"; cur.id = "tlCursor";
+    strip.append(cur);
+  }
+  const cur = $("tlCursor");
+  if (cur) cur.style.left = d > 0 ? `${tlTime / d * 100}%` : "0";
+}
+
+function seek(t) {
+  if (!motion) return;
+  tlTime = Math.max(0, Math.min(t, motion.timeline.duration));
+  renderTimeline(); drawTimelineLayer();
+}
+
+function tlTick(now) {
+  if (tlPlaying && motion) {
+    const dt = tlLast == null ? 0 : (now - tlLast) / 1000;
+    tlTime += dt;
+    if (tlTime > motion.timeline.duration) tlTime = 0;
+    renderTimeline(); drawTimelineLayer();
+  }
+  tlLast = now;
+  requestAnimationFrame(tlTick);
+}
+requestAnimationFrame(tlTick);
 
 function svgPoint(e) {
   const svg = $("map"), p = svg.createSVGPoint();
@@ -410,20 +712,89 @@ async function moveObject(id, x, z) {
     boxes.sort((a, b) => a.size[0] * a.size[1] * a.size[2] - b.size[0] * b.size[1] * b.size[2]);
     if (boxes.length) o.position[1] = +(boxes[0].center[1] - boxes[0].size[1] / 2 + (o.size ? o.size[1] : 0.1) / 2).toFixed(3);
   }
-  try { await call("scene.update", scene); } catch (e) { alert("scene.update に失敗: " + errText(e)); render(); }
+  try { await call("scene.update", scene); } catch (e) { alert("scene.update failed: " + errText(e)); render(); }
 }
 
 function renderSelected() {
   const box = $("selected");
   const o = state && state.scene.objects.find(o => o.id === selectedId);
   document.querySelectorAll("#map .item").forEach(r => r.classList.toggle("sel", r.dataset.id === selectedId));
-  if (!o) { box.className = "muted"; box.textContent = "物をクリックすると、中身を表示する。"; return; }
+  if (!o) { box.className = "muted"; box.textContent = "Click an object to show its contents."; return; }
   box.className = "";
-  const attrs = Object.entries(o.attributes).map(([k, a]) => `${k} = ${a.value}` + (a.source !== "ground_truth" ? `（${a.source}${a.confidence != null ? " " + a.confidence : ""}）` : "")).join("、 ");
+  const attrs = Object.entries(o.attributes).map(([k, a]) => `${k} = ${a.value}` + (a.source !== "ground_truth" ? ` (${a.source}${a.confidence != null ? " " + a.confidence : ""})` : "")).join(", ");
   box.replaceChildren();
   const b = document.createElement("b"); b.textContent = o.id;
-  box.append(b, ` ・ ${o.category}（${o.role} / ${o.group}） ・ 領域: ${o.region_id || "なし"} ・ 位置: [${o.position.map(v => v.toFixed(2)).join(", ")}]`,
-    document.createElement("br"), `属性: ${attrs || "なし"} ・ 出どころ: ${o.observation.source}`);
+  box.append(b, ` · ${o.category} (${o.role} / ${o.group}) · zone: ${o.region_id || "none"} · position: [${o.position.map(v => v.toFixed(2)).join(", ")}]`,
+    document.createElement("br"), `attributes: ${attrs || "none"} · source: ${o.observation.source}`);
+}
+
+/** 検出の情報（出どころ、生のラベル、確信度、追跡の状態）を 1 行にする */
+function observationText(o) {
+  const ob = o.observation || {};
+  let t = ob.source || "?";
+  if (ob.detector_label) t += ` ${ob.detector_label}`;
+  if (ob.confidence != null) t += ` ${(ob.confidence * 100).toFixed(0)}%`;
+  if (ob.tracking && ob.tracking !== "tracked") t += ` · ${ob.tracking}`;
+  return t;
+}
+
+function renderObjects() {
+  const table = $("objectsTable"), scene = state.scene, placements = state.placements || [];
+  const target = Object.fromEntries(placements.map(p => [p.object_id, p.target_region]));
+  const items = scene.objects.filter(o => o.role === "item"), places = scene.objects.filter(o => o.role !== "item");
+  $("objectsInfo").textContent = `items ${items.length} · places to put on / in ${places.length} · with destination ${placements.length}`;
+
+  // 中身が同じなら作り直さない（開いているプルダウンが閉じてしまうため）
+  const key = JSON.stringify([scene.objects.map(o => [o.id, o.category, o.role, o.region_id, observationText(o)]),
+                              scene.regions.map(r => [r.id, r.object_id]), placements]);
+  if (table.dataset.key !== key) {
+    table.dataset.key = key;
+    const body = header(table, ["Object", "Kind", "Source", "Current location", "Destination (manual)"]);
+    if (!scene.objects.length) { const c = body.insertRow().insertCell(); c.colSpan = 5; c.className = "muted"; c.textContent = "Nothing received yet"; }
+    for (const o of [...items, ...places]) {
+      const r = body.insertRow();
+      r.dataset.id = o.id;
+      td(r, o.id); td(r, `${o.category} (${o.role})`); td(r, observationText(o)); td(r, o.region_id || "—");
+      const c = r.insertCell();
+      if (o.role !== "item") { c.className = "muted"; c.textContent = "—"; }
+      else {
+        const sel = document.createElement("select");
+        const none = document.createElement("option"); none.value = ""; none.textContent = "(none)"; sel.append(none);
+        for (const reg of scene.regions) {
+          if (reg.object_id === o.id) continue;
+          const op = document.createElement("option");
+          op.value = reg.id; op.textContent = reg.id + (reg.id === o.region_id ? " (here now)" : "");
+          op.disabled = reg.id === o.region_id;
+          sel.append(op);
+        }
+        sel.value = target[o.id] || "";
+        sel.onclick = e => e.stopPropagation();
+        sel.onchange = () => placeObject(o.id, sel.value);
+        c.append(sel);
+      }
+      r.onclick = () => { selectedId = o.id; render(); };
+    }
+  }
+  for (const r of table.tBodies[0] ? table.tBodies[0].rows : []) r.classList.toggle("hover", !!r.dataset.id && r.dataset.id === selectedId);
+}
+
+/** 行き先を手で指定する（region が空なら指定を消す）。ルールは関係ない */
+async function placeObject(objectId, region) {
+  const status = $("placeStatus");
+  try {
+    if (region) {
+      const r = await call("plan.place", { object_id: objectId, target_region: region });
+      status.textContent = r.already_there ? `${objectId} is already in ${region}` : `${objectId} → ${region} (step ${r.step.index + 1}, ${r.step.status})`;
+    } else {
+      await call("plan.unplace", { object_id: objectId });
+      status.textContent = `Cleared the destination of ${objectId}`;
+    }
+  } catch (e) {
+    status.textContent = "";
+    alert("Setting the destination failed: " + errText(e));
+    delete $("objectsTable").dataset.key;  // プルダウンを元の値に戻す
+    render();
+  }
 }
 
 function td(row, text, cls) { const c = row.insertCell(); if (cls) { const s = document.createElement("span"); s.className = cls; s.textContent = text; c.append(s); } else c.textContent = text; return c; }
@@ -437,35 +808,110 @@ function header(table, names) {
 
 function renderPlan() {
   const plan = state.plan, table = $("planTable");
-  if (!plan) { $("planInfo").textContent = "なし（ルールが無い）"; table.replaceChildren(); return; }
-  $("planInfo").textContent = `${plan.id} ・ version ${plan.version} ・ state v${plan.base_scene_version} のシーンから ・ ${plan.steps.length} step`;
-  const body = header(table, ["#", "物体", "いま", "行き先", "置き位置", "ルール", "状態", "補足"]);
+  if (!plan) { $("planInfo").textContent = "None (no rules and no manual destinations)"; table.replaceChildren(); return; }
+  $("planInfo").textContent = `${plan.id} · version ${plan.version} · from scene state v${plan.base_scene_version} · ${plan.steps.length} steps`;
+  const body = header(table, ["#", "Object", "Now", "Destination", "Placement", "Rule", "Status", "Note", "Motion plan", "Execution", ""]);
+  const mo = state.motion || { steps: {} };
+  const ex = state.execution || { steps: {} };
   const ruleText = Object.fromEntries(state.rules.map(r => [r.id, r.text]));
-  if (!plan.steps.length) { const c = body.insertRow().insertCell(); c.colSpan = 8; c.className = "muted"; c.textContent = "動かす物は無い（すべて行き先にある）"; }
+  if (!plan.steps.length) { const c = body.insertRow().insertCell(); c.colSpan = 11; c.className = "muted"; c.textContent = "Nothing to move (everything is at its destination)"; }
   for (const s of plan.steps) {
     const r = body.insertRow();
-    td(r, s.index + 1); td(r, s.object_id); td(r, s.from.region_id || "—"); td(r, s.to ? s.to.region_id || "領域の外" : "—");
+    td(r, s.index + 1); td(r, s.object_id); td(r, s.from.region_id || "—"); td(r, s.to ? s.to.region_id || "outside zones" : "—");
     td(r, s.to ? `[${s.to.pose.position.map(v => v.toFixed(2)).join(", ")}]` : "—").style.whiteSpace = "nowrap";
-    td(r, s.rule_id ? `${s.rule_id}: ${ruleText[s.rule_id] || ""}` : s.candidate_rule_ids.length ? "候補: " + s.candidate_rule_ids.join(", ") : "—");
+    td(r, s.rule_id ? `${s.rule_id}: ${ruleText[s.rule_id] || ""}` : s.candidate_rule_ids.length ? "candidates: " + s.candidate_rule_ids.join(", ") : s.locked ? "manual" : "—");
     td(r, s.status, "badge " + s.status); td(r, s.message || "");
+    const ms = mo.steps[s.id];
+    const mc = ms ? td(r, ms.status === "ok" ? `ok ${(ms.t1 - ms.t0).toFixed(1)}s` : MOTION_LABEL[ms.status] || ms.status,
+      "badge " + ({ ok: "done", infeasible: "failed", stale: "skipped" }[ms.status] || "")) : td(r, "—");
+    const SRC = { approach: "specified position", auto: "automatically chosen position", stay: "in place" };
+    const src = ms && ms.stop_source ? ms.stop_source : {};
+    if (ms && ms.status === "ok" && (src.pick === "auto" || src.place === "auto")) mc.textContent += " (auto)";
+    if (ms) mc.title = [ms.reason, src.pick && `pick: ${SRC[src.pick] || src.pick}`, src.place && `place: ${SRC[src.place] || src.place}`]
+      .filter(Boolean).join("\n");
+    const rec = ex.steps[s.id] || { status: "pending", detail: "" };
+    const ec = td(r, EXEC_LABEL[rec.status] || rec.status, rec.status === "pending" ? "" : "badge " + rec.status);
+    if (rec.detail) ec.title = rec.detail;
+    const ops = r.insertCell(); ops.style.whiteSpace = "nowrap";
+    const op = (label, method) => { const b = document.createElement("button"); b.textContent = label;
+      b.onclick = e => { e.stopPropagation(); execCall(method, { step_id: s.id }); }; ops.append(b, " "); };
+    if (["failed", "skipped", "done"].includes(rec.status)) op("Retry", "exec.retry");
+    else if (rec.status !== "blocked") op("Skip", "exec.skip");
     const g = () => document.querySelector(`#map g[data-step="${s.id}"] .arrow`);
     r.onmouseenter = () => { r.classList.add("hover"); const a = g(); if (a) a.classList.add("hl"); };
     r.onmouseleave = () => { r.classList.remove("hover"); const a = g(); if (a) a.classList.remove("hl"); };
-    r.onclick = () => { selectedId = s.object_id; renderSelected(); };
+    r.onclick = () => { selectedId = s.object_id; renderSelected(); if (ms && ms.status === "ok" && motion) seek(ms.t0); };
   }
+}
+
+const MOTION_LABEL = { ok: "ok", infeasible: "can't plan", stale: "stale" };
+const EXEC_LABEL = { moving_to_pick: "going to pick", moving_to_place: "carrying", pending: "not yet", picking: "grasping", holding: "holding", placing: "placing", done: "done", failed: "failed", skipped: "skipped", blocked: "can't execute" };
+const MODE_LABEL = { idle: "idle (not started / finished)", running: "running", paused: "paused" };
+
+async function execCall(method, params) {
+  $("execStatus").textContent = "";
+  try { await call(method, params); }
+  catch (e) { $("execStatus").textContent = errText(e); }
+}
+
+function renderExec() {
+  const ex = state.execution;
+  if (!ex) return;
+  const robot = ex.robot;
+  $("execInfo").textContent = `${MODE_LABEL[ex.mode] || ex.mode}${ex.reason ? " (" + ex.reason + ")" : ""} · robot: ${robot.kind === "fake" ? "stand-in (no ROS)" : robot.kind}`
+    + `${robot.connected ? "" : " · disconnected"}${robot.holding ? " · holding " + robot.holding : ""}`;
+  const running = ex.mode === "running";
+  $("btnExecStart").disabled = running || ex.mode === "paused" || (state.motion && state.motion.status === "planning");
+  $("btnExecPause").disabled = !running || ex.pausing;
+  $("btnExecStop").disabled = !running;
+  $("btnExecResume").disabled = ex.mode !== "paused";
+  $("btnExecReset").disabled = running;
+  $("btnExecConfirm").hidden = !ex.waiting_confirm;
+  $("btnExecFail").disabled = robot.kind !== "fake";
+  $("execConfirm").value = ex.confirm; $("execOnFailure").value = ex.on_failure;
+  const warn = $("execWarn");
+  warn.hidden = robot.kind !== "fake" && robot.connected;
+  warn.textContent = robot.kind === "fake"
+    ? "Running with the stand-in robot (no ROS). Only the scene inside the server changes; neither the ROS robot nor Unity moves. To run with ROS, set COGROUND_ROSBRIDGE_URL in .env"
+    : "Not connected to ROS (rosbridge). Check that fetch_sim was started with ROSBRIDGE=true and that COGROUND_ROSBRIDGE_URL is correct";
+  const now = $("execNow"), c = ex.current;
+  now.className = "row";
+  now.textContent = ex.waiting_confirm ? `Waiting for confirmation: may ${ex.waiting_confirm} proceed?`
+    : c ? `Now: ${{ navigate: "moving to", pick: "grasping", place: "placing", put_back: "returning" }[c.skill]} ${c.object_id}${c.phase ? " (" + c.phase + ")" : ""}`
+    : ex.pausing ? "Will stop when this motion finishes" : "";
+  const table = $("execHistory"), hist = ex.history.slice(-8).reverse();
+  if (!hist.length) { table.replaceChildren(); return; }
+  const body = header(table, ["Finished motions (newest first)", "Object", "Result", "Note"]);
+  for (const h of hist) { const r = body.insertRow(); td(r, h.skill); td(r, h.object_id); td(r, h.state, "badge " + (h.state === "succeeded" ? "done" : h.state === "canceled" ? "skipped" : "failed")); td(r, (h.mode ? `[${h.mode === "replay" ? "as planned" : h.mode === "replanned" ? "replanned" : h.mode}] ` : "") + (h.detail || "")); }
 }
 
 function renderRules() {
   const table = $("rulesTable"), rules = state.rules;
-  $("rulesInfo").textContent = rules.length ? `${rules.length} 個` : "なし";
+  // 片付けルールも家庭ルールも、サーバーでは 1 つの並び（state.norms）。片付けルールの形で書けるものを上の表に、残りを下の表に出す
+  const tidyIds = new Set(rules.map(r => r.id));
+  const others = (state.norms || []).filter(n => !tidyIds.has(n.id));
+  $("rulesInfo").textContent = rules.length + others.length ? `tidy ${rules.length} · household rules ${others.length}` : "none";
+  const nt = $("normsTable");
+  if (others.length) {
+    const kind = { obligation: ["Obligation", "ok"], prohibition: ["Prohibition", "failed"], permission: ["Permission", "ambiguous"] };
+    const nb = header(nt, ["ID", "Kind", "Text", "Target", "Requirement"]);
+    for (const n of others) {
+      const r = nb.insertRow(), [label, cls] = kind[n.norm] || [n.norm, ""];
+      const t = n.target || {};
+      td(r, n.id); td(r, label, "badge " + cls); td(r, n.original_text);
+      td(r, t.kind !== "object" ? `${t.kind}${t.id ? " " + t.id : ""}` : t.id ? t.id : t.where ? condText(t.where) : t.fallback ? "otherwise" : "all objects");
+      td(r, `${n.requirement.predicate}${n.requirement.args && Object.keys(n.requirement.args).length ? " " + JSON.stringify(n.requirement.args) : ""}`);
+    }
+    $("normsNote").textContent = "Edit household rules in the Rule Bank (/rules). Even without a request, the same verdicts apply to every carryable object";
+  } else { nt.replaceChildren(); $("normsNote").textContent = ""; }
   const regionIds = new Set(state.scene.regions.map(r => r.id));
   if (rules.length) {
-    const body = header(table, ["ID", "文", "条件", "行き先", "出どころ", ""]);
+    const body = header(table, ["ID", "Text", "Condition", "Destination", "Source", ""]);
     for (const rule of rules) {
       const r = body.insertRow();
-      td(r, rule.id); td(r, rule.text); td(r, `${rule.condition.attribute} = ${JSON.stringify(rule.condition.equals)}`);
-      td(r, rule.target_region + (regionIds.has(rule.target_region) ? "" : "（シーンに無い）")); td(r, rule.source);
-      const b = document.createElement("button"); b.textContent = "消す";
+      td(r, rule.id); td(r, rule.text); td(r, condText(rule.condition));
+      td(r, rule.target_region + (regionIds.has(rule.target_region) ? "" : " (not in the scene)")); td(r, rule.source);
+      const b = document.createElement("button"); b.textContent = "Delete";
       b.onclick = () => setRules(state.rules.filter(x => x.id !== rule.id));
       r.insertCell().append(b);
     }
@@ -474,11 +920,257 @@ function renderRules() {
   const sel = $("rTarget"), keep = sel.value;
   sel.replaceChildren();
   for (const r of state.scene.regions) { const o = document.createElement("option"); o.value = o.textContent = r.id; sel.append(o); }
-  if (!state.scene.regions.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "（領域が無い）"; sel.append(o); }
+  if (!state.scene.regions.length) { const o = document.createElement("option"); o.value = ""; o.textContent = "(no zones)"; sel.append(o); }
   if (keep && regionIds.has(keep)) sel.value = keep;
 }
 
+// ---------------------------------------------------------------- ロボット単体テスト（robot.*）
+
+let rtGoal = null, rtBusy = false, rtReqId = null, rtGoalDrag = null, rtPlan = null;
+const rtHistory = [];
+const GRIPPER_FIT = 0.09;  // pick_place_server: 指の開き 10 cm - 余裕 1 cm 未満の幅でないとつかめない
+const RT_SKILL = { pick: "Pick", place: "Return to original place", navigate: "Move" };
+
+function renderRobotTest() {
+  const ex = state.execution, robot = ex ? ex.robot : { kind: "?", connected: false, holding: null, busy: false };
+  const running = ex && ex.mode === "running";
+  $("rtInfo").textContent = `robot: ${robot.kind === "fake" ? "stand-in (no ROS)" : robot.kind}${robot.connected ? "" : " · disconnected"}`
+    + `${robot.busy ? " · moving" : ""}${robot.holding ? " · holding " + robot.holding : ""}`;
+  const warn = $("rtWarn");
+  warn.hidden = !running && robot.connected && robot.kind !== "fake";
+  warn.textContent = running ? "Unavailable while the Plan is executing (stop it under \"Execution\" below)"
+    : !robot.connected ? "Not connected to ROS (rosbridge). Check that fetch_sim was started with ROSBRIDGE=true"
+    : robot.kind === "fake" ? "Stand-in robot (no ROS). Neither MoveIt nor move_base runs (phases just advance)" : "";
+  const blocked = running || rtBusy || robot.busy;
+
+  // 物体の一覧（運ぶ物だけ）
+  const items = state.scene.objects.filter(o => o.role === "item");
+  const table = $("rtObjects");
+  const body = header(table, ["Object", "Kind", "Source", "Size (cm)", ""]);
+  if (!items.length) { const c = body.insertRow().insertCell(); c.colSpan = 5; c.className = "muted"; c.textContent = "No carryable objects (waiting for scene.update from Unity)"; }
+  for (const o of items) {
+    const r = body.insertRow();
+    td(r, o.id); td(r, o.category); td(r, observationText(o));
+    const size = o.size || [0, 0, 0];
+    const sc = td(r, size.map(v => (v * 100).toFixed(1)).join(" × "));
+    if (o.size && Math.min(size[0], size[2]) >= GRIPPER_FIT) {
+      sc.className = "warn-size";
+      sc.title = `Width is ${GRIPPER_FIT * 100} cm or more in both directions. Doesn't fit between the fingers, so it can't be grasped`;
+      sc.textContent += " ⚠";
+    }
+    const c = r.insertCell(); c.style.whiteSpace = "nowrap";
+    const b = document.createElement("button");
+    if (robot.holding === o.id) {
+      b.textContent = "Return to original place";
+      b.onclick = e => { e.stopPropagation(); rtRun("robot.place_back", { object_id: o.id }, "place", o.id); };
+    } else {
+      const planned = rtPlan && rtPlan.skill === "pick" && rtPlan.target === o.id && rtPlan.status === "ok";
+      const pb = document.createElement("button");
+      pb.textContent = "Plan";
+      pb.title = "Plan without moving (robot.plan). Unity's Ghost plays it back";
+      pb.disabled = blocked || !!robot.holding;
+      pb.onclick = e => { e.stopPropagation(); rtPlanRun({ skill: "pick", object_id: o.id }); };
+      c.append(pb, " ");
+      b.textContent = planned ? "Pick (as planned)" : "Pick"; b.className = "primary";
+      b.title = planned ? "Replay the planned trajectory (replans on the spot if things have shifted)" : "Without a plan: plan on the spot and move";
+      b.disabled = !!robot.holding;
+      if (robot.holding) b.title = `Holding ${robot.holding}. Return it first`;
+      b.onclick = e => { e.stopPropagation(); rtRun("robot.pick", { object_id: o.id }, "pick", o.id); };
+    }
+    b.disabled = b.disabled || blocked;
+    c.append(b);
+    r.onclick = () => { selectedId = o.id; render(); };
+    if (o.id === selectedId) r.classList.add("hover");
+  }
+  $("btnRtPlaceBack").disabled = blocked || !robot.holding;
+  $("btnRtNav").disabled = $("btnRtNavPlan").disabled = blocked;
+  renderRtPlan();
+  $("btnRtStop1").disabled = $("btnRtStop2").disabled = running || !(rtBusy || robot.busy);
+
+  // 止まる位置（家具の CoGroundApproachPoint）を Goal の候補にする
+  const sel = $("rtPreset"), opts = [];
+  for (const o of state.scene.objects) (o.approach_poses || []).forEach((a, i) => opts.push([`${o.id}#${i}`, `Stop position of ${o.id}${o.approach_poses.length > 1 ? " " + (i + 1) : ""}`, a]));
+  const key = JSON.stringify(opts.map(o => o[0]));
+  if (sel.dataset.key !== key) {
+    sel.dataset.key = key;
+    sel.replaceChildren();
+    const first = document.createElement("option"); first.value = "";
+    first.textContent = opts.length ? "Choose from stop positions…" : "(no stop positions)"; sel.append(first);
+    for (const [v, label] of opts) { const op = document.createElement("option"); op.value = v; op.textContent = label; sel.append(op); }
+    sel._poses = Object.fromEntries(opts.map(o => [o[0], o[2]]));
+  }
+
+  const hist = $("rtHistory");
+  if (!rtHistory.length) { hist.replaceChildren(); return; }
+  const hb = header(hist, ["Test results (newest first)", "Target", "Result", "Note"]);
+  for (const h of rtHistory) {
+    const r = hb.insertRow();
+    td(r, `${h.time} ${RT_SKILL[h.skill] || h.skill}`); td(r, h.target);
+    td(r, h.state, "badge " + (h.state === "succeeded" ? "done" : h.state === "canceled" ? "skipped" : "failed")); td(r, h.detail || "");
+  }
+}
+
+async function rtRun(method, params, skill, target) {
+  if (rtBusy) return;
+  rtBusy = true;
+  $("rtNow").textContent = `${RT_SKILL[skill]}: ${target} … sent`;
+  renderRobotTest();
+  const started = Date.now();
+  const req = request(method, params, d => {
+    $("rtNow").textContent = `${RT_SKILL[skill]}: ${target} … ${PHASE_LABEL[d.phase] || d.phase}${d.detail && d.detail !== target ? " (" + d.detail + ")" : ""}`;
+  });
+  rtReqId = req.id;
+  let entry;
+  try {
+    const r = await req.promise;
+    const how = r.mode === "replay" ? "[as planned] " : r.mode === "replanned" ? "[replanned] "
+      : skill === "navigate" ? "" : r.plan_note ? `[${r.plan_note}] ` : "";
+    entry = { state: r.state, detail: how + (r.detail || "") };
+    if (r.state === "succeeded" && (skill === "pick" || skill === "navigate")) { rtPlan = null; drawGoal(); }
+  } catch (e) {
+    entry = { state: "error", detail: errText(e) };
+  }
+  const secs = ((Date.now() - started) / 1000).toFixed(1);
+  rtHistory.unshift({ time: new Date().toLocaleTimeString("en-GB", { hour12: false }), skill, target, ...entry, detail: `${secs} s${entry.detail ? " · " + entry.detail : ""}` });
+  rtHistory.length = Math.min(rtHistory.length, 10);
+  $("rtNow").textContent = "";
+  rtBusy = false; rtReqId = null;
+  render();
+}
+
+const rtGoalKey = () => rtGoal ? `${rtGoal.x.toFixed(3)},${rtGoal.z.toFixed(3)},${Math.round(rtGoal.yaw)}` : "";
+
+async function rtPlanRun(params) {
+  if (rtBusy) return;
+  if (params.skill === "navigate") {
+    const x = parseFloat($("rtX").value), z = parseFloat($("rtZ").value), yawDeg = parseFloat($("rtYaw").value) || 0;
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return alert("Enter X and Z");
+    rtSetGoal(x, z, yawDeg);
+    Object.assign(params, { x, z, yaw_deg: yawDeg });
+  }
+  rtBusy = true; rtPlan = null;
+  const label = params.skill === "pick" ? `Plan: grasp ${params.object_id}` : "Plan: move to Goal";
+  $("rtNow").textContent = `${label} … plan requested`;
+  render();
+  const started = Date.now();
+  try {
+    const r = await call("robot.plan", params, d => { $("rtNow").textContent = `${label} … ${d.detail || ""}`; });
+    rtPlan = { ...r, target: params.skill === "pick" ? params.object_id : r.target, goalKey: params.skill === "navigate" ? rtGoalKey() : null,
+               secs: ((Date.now() - started) / 1000).toFixed(1) };
+  } catch (e) {
+    rtPlan = { skill: params.skill, target: params.object_id || "Goal", status: "error", reason: errText(e), timeline: null };
+  }
+  $("rtNow").textContent = "";
+  rtBusy = false;
+  render();
+}
+
+function renderRtPlan() {
+  const box = $("rtPlanBox");
+  box.replaceChildren();
+  if (!rtPlan) return;
+  const ok = rtPlan.status === "ok";
+  const head = document.createElement("div");
+  head.className = "row";
+  const badge = document.createElement("span");
+  badge.className = "badge " + (ok ? "done" : "failed");
+  badge.textContent = ok ? "Planned" : rtPlan.status === "error" ? "Error" : "Can't plan";
+  const what = rtPlan.skill === "pick" ? `grasp ${rtPlan.target} (in place)` : `move to Goal ${rtPlan.target}`;
+  head.append(badge, ` ${what}` + (ok ? ` · ${rtPlan.duration.toFixed(1)} s of motion · planned in ${rtPlan.secs} s` : ""));
+  box.append(head);
+  if (!ok) { const r = document.createElement("div"); r.style.color = "var(--bad)"; r.textContent = rtPlan.reason; box.append(r); return; }
+  const tl = rtPlan.timeline;
+  if (tl && tl.phases.length) {
+    const strip = document.createElement("div"); strip.className = "tl";
+    for (const p of tl.phases) {
+      const seg = document.createElement("div");
+      seg.className = p.phase === "navigating" ? "nav" : PICK_PHASES.has(p.phase) ? "pick" : "place";
+      seg.style.width = tl.duration > 0 ? `${(p.t1 - p.t0) / tl.duration * 100}%` : "0";
+      seg.title = `${PHASE_LABEL[p.phase] || p.phase} (${p.t0.toFixed(1)}–${p.t1.toFixed(1)} s)`;
+      strip.append(seg);
+    }
+    box.append(strip);
+  }
+  const note = document.createElement("div"); note.className = "muted";
+  const stale = rtPlan.skill === "navigate" && rtGoalKey() !== rtPlan.goalKey;
+  note.textContent = "Unity's Ghost (CoGroundTaskPlanPlayer) is playing back this plan. " + (rtPlan.skill === "pick"
+    ? "If it looks good, \"Pick (as planned)\" follows that trajectory (replans on the spot if things have shifted)."
+    : "The dashed line in the diagram on the left is the path. \"Move to Goal\" has move_base rebuild the path on the spot (the Plan is for checking)."
+      + (stale ? " Note: the Goal was changed, so this plan isn't for the current Goal." : ""));
+  box.append(note);
+}
+
+async function rtStop() {
+  try { await call("robot.cancel"); } catch (e) { $("rtNow").textContent = "Couldn't stop: " + errText(e); }
+}
+
+function rtSetGoal(x, z, yawDeg) {
+  rtGoal = { x, z, yaw: yawDeg };
+  $("rtX").value = x.toFixed(2); $("rtZ").value = z.toFixed(2); $("rtYaw").value = Math.round(yawDeg);
+  drawGoal();
+}
+
+function drawGoal() {
+  const svg = $("map");
+  const old = svg.querySelector("#goalLayer");
+  if (old) old.remove();
+  if (!rtGoal) return;
+  const g = el("g", { id: "goalLayer" });
+  if (rtPlan && rtPlan.skill === "navigate" && rtPlan.timeline) {
+    const pts = rtPlan.timeline.base.map(b => { const u = rosToUnity([b[1], b[2], 0]); return `${u[0] * S},${-u[2] * S}`; }).join(" ");
+    g.append(el("polyline", { class: "goal-track", points: pts }));
+  }
+  const x = rtGoal.x * S, y = -rtGoal.z * S, a = rtGoal.yaw * Math.PI / 180;
+  g.append(el("circle", { class: "goal", cx: x, cy: y, r: 0.28 * S }),
+           el("line", { class: "goal-dir", x1: x, y1: y, x2: x + Math.sin(a) * 0.4 * S, y2: y - Math.cos(a) * 0.4 * S }),
+           el("text", { x: x + 0.3 * S, y: y - 0.3 * S, style: "fill:#db2777" }, "Goal"));
+  svg.append(g);
+}
+
+// Goal を置くモード: 図の上を押した所が位置、ドラッグした方向が向き（物のドラッグより先に受け取る）
+$("map").addEventListener("pointerdown", e => {
+  if (!$("rtGoalMode").checked) return;
+  e.stopPropagation(); e.preventDefault();
+  const p = svgPoint(e);
+  rtGoalDrag = { x: p.x / S, z: -p.y / S, id: e.pointerId };
+  $("map").setPointerCapture(e.pointerId);
+  rtSetGoal(rtGoalDrag.x, rtGoalDrag.z, rtGoal ? rtGoal.yaw : 0);
+}, true);
+$("map").addEventListener("pointermove", e => {
+  if (!rtGoalDrag) return;
+  const p = svgPoint(e), dx = p.x / S - rtGoalDrag.x, dz = -p.y / S - rtGoalDrag.z;
+  if (Math.hypot(dx, dz) > 0.05) rtSetGoal(rtGoalDrag.x, rtGoalDrag.z, Math.atan2(dx, dz) * 180 / Math.PI);
+});
+$("map").addEventListener("pointerup", () => { if (rtGoalDrag && state) renderRobotTest(); rtGoalDrag = null; });
+$("map").addEventListener("click", e => { if ($("rtGoalMode").checked) e.stopPropagation(); }, true);  // 家具の選択を起こさない
+$("rtGoalMode").onchange = e => $("map").classList.toggle("goal-mode", e.target.checked);
+for (const id of ["rtX", "rtZ", "rtYaw"]) $(id).oninput = () => {
+  const x = parseFloat($("rtX").value), z = parseFloat($("rtZ").value), yawDeg = parseFloat($("rtYaw").value) || 0;
+  if (Number.isFinite(x) && Number.isFinite(z)) { rtGoal = { x, z, yaw: yawDeg }; drawGoal(); if (state) renderRobotTest(); }
+};
+$("rtPreset").onchange = e => {
+  const a = (e.target._poses || {})[e.target.value];
+  if (a) rtSetGoal(a.position[0], a.position[2], yaw(a.rotation));
+  e.target.value = "";
+};
+$("btnRtNav").onclick = () => {
+  const x = parseFloat($("rtX").value), z = parseFloat($("rtZ").value), yawDeg = parseFloat($("rtYaw").value) || 0;
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return alert("Enter X and Z");
+  rtSetGoal(x, z, yawDeg);
+  rtRun("robot.navigate", { x, z, yaw_deg: yawDeg }, "navigate", `(${x.toFixed(2)}, ${z.toFixed(2)}) ${Math.round(yawDeg)}°`);
+};
+$("btnRtNavPlan").onclick = () => rtPlanRun({ skill: "navigate" });
+$("btnRtPlaceBack").onclick = () => {
+  const h = state && state.execution ? state.execution.robot.holding : null;
+  if (h) rtRun("robot.place_back", { object_id: h }, "place", h);
+};
+$("btnRtStop1").onclick = $("btnRtStop2").onclick = rtStop;
+
 // ---------------------------------------------------------------- 操作
+
+function condText(c) {
+  return c ? `${c.attribute} = ${JSON.stringify(c.equals)}` : "otherwise";
+}
 
 function parseValue(s) {
   s = s.trim();
@@ -489,19 +1181,42 @@ function parseValue(s) {
 }
 
 async function setRules(rules) {
-  try { await call("rules.set", { rules }); } catch (e) { alert("rules.set に失敗: " + errText(e) + "\n" + JSON.stringify(e.details || "")); }
+  try { await call("rules.set", { rules }); } catch (e) { alert("rules.set failed: " + errText(e) + "\n" + JSON.stringify(e.details || "")); }
 }
 
 $("btnAddRule").onclick = () => {
-  const attribute = $("rAttr").value.trim(), target = $("rTarget").value;
-  if (!attribute || $("rEquals").value.trim() === "" || !target) return alert("属性、値、行き先を入れてください");
+  // 属性と値を両方空にすると「それ以外」のルール（condition = null）
+  const attribute = $("rAttr").value.trim(), equals = $("rEquals").value.trim(), target = $("rTarget").value;
+  const fallback = !attribute && equals === "";
+  if (!target || (!fallback && (!attribute || equals === ""))) return alert("Enter attribute, value and destination (for \"otherwise\", leave attribute and value empty)");
   const used = new Set(state.rules.map(r => r.id));
   let n = 1; while (used.has("rule_" + n)) n++;
-  const text = $("rText").value.trim() || `${attribute} = ${$("rEquals").value.trim()} → ${target}`;
-  setRules([...state.rules, { id: "rule_" + n, text, condition: { attribute, equals: parseValue($("rEquals").value) }, target_region: target, source: "script" }]);
+  const condition = fallback ? null : { attribute, equals: parseValue(equals) };
+  const text = $("rText").value.trim() || `${condText(condition)} → ${target}`;
+  setRules([...state.rules, { id: "rule_" + n, text, condition, target_region: target, source: "script" }]);
   $("rText").value = "";
 };
 $("btnClearRules").onclick = () => setRules([]);
+$("btnMotionPlan").onclick = async () => {
+  $("motionStatus").textContent = "Requesting a plan…";
+  try { await call("motion.plan", {}, d => { $("motionStatus").textContent = `Planning… ${d.step_id || ""} ${d.detail || ""}`; }); }
+  catch (e) { $("motionStatus").textContent = errText(e); $("motionStatus").style.color = "var(--bad)"; }
+};
+$("btnMotionClear").onclick = () => call("motion.clear").catch(e => alert(errText(e)));
+$("btnTlPlay").onclick = () => { tlPlaying = !tlPlaying; tlLast = null; renderTimeline(); };
+$("tlRange").oninput = e => { tlPlaying = false; seek(parseFloat(e.target.value)); };
+$("btnExecStart").onclick = () => execCall("exec.start", { allow_unplanned: $("execUnplanned").checked });
+$("btnExecPause").onclick = () => execCall("exec.pause");
+$("btnExecStop").onclick = () => execCall("exec.stop");
+$("btnExecResume").onclick = () => execCall("exec.resume");
+$("btnExecConfirm").onclick = () => execCall("exec.confirm");
+$("btnExecReset").onclick = () => execCall("exec.reset");
+$("btnExecFail").onclick = () => execCall("exec.inject_failure", {});
+$("execConfirm").onchange = e => execCall("exec.set_policy", { confirm: e.target.value });
+$("execOnFailure").onchange = e => execCall("exec.set_policy", { on_failure: e.target.value });
+$("btnUnplaceAll").onclick = async () => {
+  try { await call("plan.unplace", {}); $("placeStatus").textContent = "Cleared all destinations"; } catch (e) { alert(errText(e)); }
+};
 
 $("btnCompile").onclick = async () => {
   const text = $("nlText").value.trim();
@@ -509,20 +1224,20 @@ $("btnCompile").onclick = async () => {
   $("btnCompile").disabled = true; $("btnCompileCancel").disabled = false;
   $("nlResult").replaceChildren();
   const started = Date.now();
-  const timer = setInterval(() => $("nlStatus").textContent = `LLM に聞いている… ${((Date.now() - started) / 1000).toFixed(0)} 秒`, 250);
+  const timer = setInterval(() => $("nlStatus").textContent = `Asking the LLM… ${((Date.now() - started) / 1000).toFixed(0)} s`, 250);
   const req = request("rules.compile", { text, mode: $("nlMode").value, apply: $("nlApply").checked });
   compileId = req.id;
   try {
     const result = await req.promise;
-    $("nlStatus").textContent = `${((Date.now() - started) / 1000).toFixed(1)} 秒 ・ ルール ${result.rules.length} 個` + (result.applied ? "（反映した）" : "（反映していない）");
+    $("nlStatus").textContent = `${((Date.now() - started) / 1000).toFixed(1)} s · rules ${result.rules.length}` + (result.applied ? " (applied)" : " (not applied)");
     const box = $("nlResult");
     if (result.rules.length) {
       const ul = document.createElement("ul");
-      for (const r of result.rules) { const li = document.createElement("li"); li.textContent = `${r.text} （${r.condition.attribute} = ${JSON.stringify(r.condition.equals)} → ${r.target_region}）`; ul.append(li); }
+      for (const r of result.rules) { const li = document.createElement("li"); li.textContent = `${r.text} (${condText(r.condition)} → ${r.target_region})`; ul.append(li); }
       box.append(ul);
     }
     if (result.unresolved.length) {
-      const p = document.createElement("div"); p.textContent = "ルールにできなかった部分:"; p.style.color = "var(--warn)";
+      const p = document.createElement("div"); p.textContent = "Parts that couldn't become rules:"; p.style.color = "var(--warn)";
       const ul = document.createElement("ul");
       for (const u of result.unresolved) { const li = document.createElement("li"); li.textContent = u; ul.append(li); }
       box.append(p, ul);
@@ -543,21 +1258,21 @@ async function fixtures() {
   return r.json();
 }
 $("btnSample").onclick = async () => {
-  try { await call("scene.update", (await fixtures()).tabletop_scene); } catch (e) { alert("失敗: " + errText(e)); }
+  try { await call("scene.update", (await fixtures()).tabletop_scene); } catch (e) { alert("Failed: " + errText(e)); }
 };
 $("btnScenario").onclick = async () => {
   try {
     const s = (await fixtures()).shelf_scenario;
     await call("scene.update", s.initial_scene);
     await call("rules.set", { rules: s.rules });
-  } catch (e) { alert("失敗: " + errText(e)); }
+  } catch (e) { alert("Failed: " + errText(e)); }
 };
 $("btnClearScene").onclick = () => call("scene.update", { objects: [], regions: [] }).catch(e => alert(errText(e)));
 
 $("btnSceneFromState").onclick = () => { if (state) $("sceneJson").value = JSON.stringify(sceneToSend(null), null, 1); };
 $("btnSceneSend").onclick = async () => {
   let scene;
-  try { scene = JSON.parse($("sceneJson").value); } catch (e) { return alert("JSON として読めない: " + e.message); }
+  try { scene = JSON.parse($("sceneJson").value); } catch (e) { return alert("Not readable as JSON: " + e.message); }
   try { await call("scene.update", scene); } catch (e) { alert(errText(e) + "\n" + JSON.stringify(e.details || "", null, 1).slice(0, 800)); }
 };
 
@@ -565,31 +1280,55 @@ async function ping(method, button) {
   button.disabled = true;
   const started = Date.now();
   $("pingResult").textContent = method + " …";
-  try { const r = await call(method); $("pingResult").textContent = `${method}: ${JSON.stringify(r)}（${Date.now() - started} ms）`; }
+  try { const r = await call(method); $("pingResult").textContent = `${method}: ${JSON.stringify(r)} (${Date.now() - started} ms)`; }
   catch (e) { $("pingResult").textContent = `${method}: ${errText(e)}`; }
   button.disabled = false;
 }
+/** 画面だけが覚えている表示（単体テストの Plan の結果・Goal の印・履歴・時間軸の再生位置）を消す。サーバーの状態は state.updated で届く */
+function clearLocalUi() {
+  rtPlan = null; rtGoal = null; rtGoalDrag = null;
+  rtHistory.length = 0;
+  $("rtNow").textContent = "";
+  $("rtX").value = 0; $("rtZ").value = 0; $("rtYaw").value = 0; $("rtPreset").value = "";
+  $("rtGoalMode").checked = false;
+  tlTime = 0; tlPlaying = false; tlLast = null;
+  const out = $("callResult"); out.hidden = true; out.textContent = "";
+  drawGoal();
+  if (state) render();
+}
+$("btnReset").onclick = async () => {
+  if (!confirm("Reset everything?\nStops anything moving, clears execution / motion plan state and held objects, and returns the arm to its initial pose (rules and scene objects are kept).")) return;
+  const button = $("btnReset");
+  button.disabled = true;
+  $("pingResult").textContent = "Resetting … (returning the arm takes a few seconds)";
+  try {
+    const r = await call("system.reset");
+    clearLocalUi();
+    $("pingResult").textContent = r.ok ? "Reset done" : `Reset: some parts failed: ${r.detail}`;
+  } catch (e) { $("pingResult").textContent = `Reset: ${errText(e)}`; }
+  button.disabled = false;
+};
 $("btnPing").onclick = () => ping("system.ping", $("btnPing"));
 $("btnLlmPing").onclick = () => ping("llm.ping", $("btnLlmPing"));
 
 $("method").onchange = () => {
   const m = methods.find(m => m.name === $("method").value);
   if (!m) return;
-  $("methodDesc").textContent = m.description + (m.streams ? "（stream あり）" : "");
+  $("methodDesc").textContent = m.description + (m.streams ? " (streams)" : "");
   const props = Object.keys(m.params_schema.properties || {});
-  $("params").placeholder = props.length ? "params: " + props.join(", ") : "params は無い";
+  $("params").placeholder = props.length ? "params: " + props.join(", ") : "no params";
 };
 $("btnCall").onclick = async () => {
   let params;
   const text = $("params").value.trim();
-  if (text) { try { params = JSON.parse(text); } catch (e) { return alert("params が JSON として読めない: " + e.message); } }
+  if (text) { try { params = JSON.parse(text); } catch (e) { return alert("params is not readable as JSON: " + e.message); } }
   const out = $("callResult");
   out.hidden = false; out.textContent = "…";
   const streams = [];
   const req = request($("method").value, params, d => { streams.push(d); out.textContent = "stream:\n" + streams.map(s => JSON.stringify(s)).join("\n"); });
   callId = req.id; $("btnCancel").disabled = false;
   try { out.textContent = JSON.stringify(await req.promise, null, 2); }
-  catch (e) { out.textContent = "エラー: " + JSON.stringify(e, null, 2); }
+  catch (e) { out.textContent = "Error: " + JSON.stringify(e, null, 2); }
   callId = null; $("btnCancel").disabled = true;
 };
 $("btnCancel").onclick = () => cancel(callId);

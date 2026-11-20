@@ -2,11 +2,14 @@
   Gazebo を使わない「運動学だけのロボット」
     - URDF を読み込み、MoveIt の疑似コントローラが出す関節角を /joint_states として配信
     - 物理 (重力・接触) は無し。MoveIt で計画した動きがそのまま関節角になる
-    - ロボットの置き場所は Unity が決める: /coground/robot/base_pose -> TF world -> base_link
-      (Unity の World 座標 = ROS の world フレーム)
+    - 台車の位置 (Unity の World 座標 = ROS の world フレーム):
+        nav:=false (既定) : Unity が決める。/coground/robot/base_pose -> base_pose_tf.py -> TF world -> base_link
+        nav:=true         : ROS が決める。fake_base_driver.py が cmd_vel を積分して TF / /odom / /unity/base_pose を出す
+                            (Unity は RosBasePoseToFetch で表示するだけ。move_base で動かせる)
   moveit.launch を fake_execution:=true で一緒に起動すること (vr_sim.launch が自動でそうする)
 -->
 <launch>
+  <arg name="nav" default="false"/>
   <param name="robot_description" textfile="$(find fetch_description)/robots/fetch.urdf"/>
 
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
@@ -16,6 +19,8 @@
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
-  <!-- Unity の World での base_link の位置 -> TF world -> base_link -->
-  <node name="coground_base_pose_tf" pkg="coground_control" type="base_pose_tf.py"/>
+  <!-- nav:=false: Unity の World での base_link の位置 -> TF world -> base_link -->
+  <node unless="$(arg nav)" name="coground_base_pose_tf" pkg="coground_control" type="base_pose_tf.py"/>
+  <!-- nav:=true: ROS 側の疑似台車 (cmd_vel を積分) -->
+  <node if="$(arg nav)" name="coground_fake_base_driver" pkg="coground_control" type="fake_base_driver.py" output="screen"/>
 </launch>

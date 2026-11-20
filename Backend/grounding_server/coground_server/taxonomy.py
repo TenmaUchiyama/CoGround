@@ -42,15 +42,21 @@ CATEGORIES: dict[str, tuple[ObjectRole, ObjectGroup]] = {
     # 置く場所
     "table": ("surface", "surface"),
     "shelf": ("surface", "surface"),
+    # 片付けデモ（Unity の TidyDemoSetup）
+    "water_bottle": ("item", "other"),
+    "small_box": ("item", "other"),
+    "storage_box": ("receptacle", "receptacle"),
 }
 
 # 属性の語彙（ルールの条件と VLM のプロンプトに使う）。値は検証しない（VLM の出力で scene.update 全体を落とさないため）。
 ATTRIBUTES: dict[str, str] = {
     "material": "glass | ceramic | plastic | metal | paper | wood",
-    "fragile": "bool（割れ物か）",
-    "dirty": "bool（汚れているか）",
-    "contents": "empty | liquid | food（中に何が残っているか）",
-    "waste_type": "burnable | plastic | can | bottle（ごみの分別。ごみ箱ではどの分別を受け付けるか）",
+    "fragile": "bool (whether it's breakable)",
+    "dirty": "bool (whether it's dirty)",
+    "contents": "empty | liquid | food (what's left inside)",
+    "waste_type": "burnable | plastic | can | bottle (waste sorting; for trash bins, which sorting they accept)",
+    "full": "bool (for boxes, bins and shelves: whether there is no room left to put more in)",
+    "trash": "bool (whether it's to be thrown away; decided per object, separate from the category's group. e.g. even an empty PET bottle is false if still in use)",
 }
 
 

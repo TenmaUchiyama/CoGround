@@ -143,8 +143,8 @@ def test_rules_set_over_websocket():
 
         call("u-1", "scene.update", TABLETOP)
         rules = [
-            {"id": "r1", "text": "食器はシンクへ", "condition": {"attribute": "group", "equals": "dish"}, "target_region": "sink_1"},
-            {"id": "r2", "text": "フォークは引き出しへ", "condition": {"attribute": "category", "equals": "fork"}, "target_region": "drawer_1"},
+            {"id": "r1", "text": "Dishes to the sink", "condition": {"attribute": "group", "equals": "dish"}, "target_region": "sink_1"},
+            {"id": "r2", "text": "Forks to the drawer", "condition": {"attribute": "category", "equals": "fork"}, "target_region": "drawer_1"},
         ]
         *events, response = call("u-2", "rules.set", {"rules": rules})
         assert response["ok"] is True
@@ -155,3 +155,111 @@ def test_rules_set_over_websocket():
 
         *_, response = call("u-3", "rules.set", {"rules": [rules[0], rules[0]]})
         assert response["ok"] is False and response["error"]["code"] == "invalid_params"
+
+
+# ---------------------------------------------------------------- 手で指定した行き先（plan.place）
+
+
+def test_manual_placement_ignores_rules():
+    # ルールは「食器はシンクへ」。手では皿をごみ箱へ（ルールに合わないが、確かめない）
+    steps = plan_steps(tabletop(), [rule("r1", "group", "dish", "sink_1")], {"plate_1": "trash_bin_burnable"})
+    by = {s.object_id: s for s in steps}
+    plate = by["plate_1"]
+    assert plate.status == "ok" and plate.to.region_id == "trash_bin_burnable"
+    assert plate.rule_id is None and plate.locked is True
+    assert by["mug_1"].rule_id == "r1" and by["mug_1"].locked is False  # ほかの物はルールのまま
+
+
+def test_manual_placement_to_missing_region_is_unmatched():
+    (step,) = plan_steps(tabletop(), [], {"plate_1": "drawer_1"})
+    assert step.status == "unmatched" and step.to is None and step.locked is True
+
+
+def test_state_manual_placement_without_rules_and_cleared_on_arrival():
+    state = StateStore()
+    state.set_scene(tabletop())
+    state.set_placement("tissue_1", "trash_bin_plastic")
+    assert [(s.object_id, s.to.region_id) for s in state.plan.steps] == [("tissue_1", "trash_bin_plastic")]
+    assert state.snapshot()["placements"] == [{"object_id": "tissue_1", "target_region": "trash_bin_plastic"}]
+
+    state.set_placement("tissue_1", "trash_bin_burnable")  # 指定し直す
+    assert [(s.object_id, s.to.region_id) for s in state.plan.steps] == [("tissue_1", "trash_bin_burnable")]
+
+    moved = json.loads(json.dumps(TABLETOP))
+    next(o for o in moved["objects"] if o["id"] == "tissue_1")["position"] = [-1.0, 0.1, 1.0]  # ごみ箱に入った
+    state.set_scene(SceneSnapshot.model_validate(moved))
+    assert state.placements == {} and state.plan is None  # 運び終わったら指定は消える
+
+    state.set_placement("plate_1", "sink_1")
+    state.set_placement("mug_1", "sink_1")
+    state.clear_placements("plate_1")
+    assert [s.object_id for s in state.plan.steps] == ["mug_1"]
+    state.clear_placements()
+    assert state.plan is None
+
+
+def test_plan_place_over_websocket():
+    with TestClient(create_app()) as client, client.websocket_connect("/ws") as ws:
+        ws.receive_json(), ws.receive_json()  # welcome, state.updated
+
+        def call(rid, method, params):
+            ws.send_json({"type": "request", "id": rid, "method": method, "params": params})
+            msgs = []
+            while not msgs or msgs[-1]["type"] != "response":
+                msgs.append(ws.receive_json())
+            return msgs
+
+        call("u-1", "scene.update", TABLETOP)
+        *events, response = call("u-2", "plan.place", {"object_id": "plate_1", "target_region": "trash_bin_burnable"})
+        assert response["ok"] is True and response["result"]["already_there"] is False
+        assert response["result"]["step"]["to"]["region_id"] == "trash_bin_burnable"
+        data = events[-1]["data"]
+        assert data["placements"] == [{"object_id": "plate_1", "target_region": "trash_bin_burnable"}]
+        assert data["plan"]["steps"][0]["locked"] is True and data["plan"]["steps"][0]["rule_id"] is None
+
+        *_, response = call("u-3", "plan.place", {"object_id": "plate_1", "target_region": "table_1"})
+        assert response["ok"] is True and response["result"] == {"version": 3, "already_there": True, "step": None}
+
+        *_, response = call("u-4", "plan.place", {"object_id": "nope", "target_region": "sink_1"})
+        assert response["ok"] is False and response["error"]["code"] == "invalid_params"
+        *_, response = call("u-5", "plan.place", {"object_id": "plate_1", "target_region": "nope"})
+        assert response["ok"] is False and response["error"]["code"] == "invalid_params"
+
+        call("u-6", "plan.place", {"object_id": "mug_1", "target_region": "sink_1"})
+        *events, response = call("u-7", "plan.unplace", {})
+        assert response["ok"] is True and response["result"]["placements"] == 0
+        assert events[-1]["data"]["plan"] is None
+
+
+def fallback(rid: str, target: str) -> Rule:
+    return Rule(id=rid, text=rid, condition=None, target_region=target)
+
+
+def test_fallback_rule_takes_items_no_other_rule_matches():
+    scene = tabletop()
+    steps = plan_steps(scene, [rule("dish", "group", "dish", "sink_1"), fallback("rest", "trash_bin_burnable")])
+    objs = {o.id: o for o in scene.objects}
+    items = [o for o in scene.objects if o.role == "item"]
+    assert {s.object_id for s in steps} == {o.id for o in items if o.region_id not in ("sink_1", "trash_bin_burnable")}
+    for s in steps:
+        assert s.status == "ok"
+        expected = "dish" if objs[s.object_id].group == "dish" else "rest"
+        assert s.rule_id == expected
+        assert s.to.region_id == ("sink_1" if expected == "dish" else "trash_bin_burnable")
+
+
+def test_fallback_rule_alone_moves_every_item():
+    scene = tabletop()
+    steps = plan_steps(scene, [fallback("rest", "sink_1")])
+    assert {s.object_id for s in steps} == {o.id for o in scene.objects if o.role == "item" and o.region_id != "sink_1"}
+
+
+def test_two_fallback_rules_with_different_targets_are_ambiguous():
+    steps = plan_steps(tabletop(), [fallback("a", "sink_1"), fallback("b", "trash_bin_burnable")])
+    assert steps and all(s.status == "ambiguous" and s.candidate_rule_ids == ["a", "b"] for s in steps)
+
+
+def test_rule_condition_null_is_fallback():
+    r = Rule.model_validate({"id": "r", "text": "Otherwise", "condition": None, "target_region": "sink_1"})
+    assert r.is_fallback
+    assert not rule("x", "group", "dish", "sink_1").is_fallback

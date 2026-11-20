@@ -2,6 +2,7 @@
   シミュレーション一式
     gazebo:=false (既定) : 運動学だけのロボット + MoveIt (疑似実行) + Unity 通信
     gazebo:=true         : Gazebo + Fetch + MoveIt (Gazebo のコントローラで実行) + Unity 通信
+    nav:=true (既定)     : 台車を ROS 側で動かす (fake_base_driver + move_base + /coground/base/*)。Gazebo なしのときだけ。nav:=false で無効
   例: roslaunch coground_vr_bridge vr_sim.launch gazebo:=true gui:=false
   Unity 側は ROS-TCP-Connector で <PCのIP>:10000 に接続する。
   構成の全体像は Backend/README.md を参照。
@@ -14,10 +15,14 @@
   <arg name="rviz_frame" default="world"/>  <!-- RViz の基準: world (Unity の World) / odom -->
   <!-- 腕の指令ノードで、計画できたら即実行するか (false なら /coground/arm/execute を待つ) -->
   <arg name="auto_execute" default="false"/>
+  <!-- 台車のナビゲーション (Gazebo なしのときだけ有効)。false なら台車の位置は Unity が決める (従来どおり) -->
+  <arg name="nav" default="true"/>
   <arg name="world_launch" default="$(find fetch_gazebo)/launch/playground.launch"/>
   <arg name="tcp_ip" default="0.0.0.0"/>
   <arg name="tcp_port" default="10000"/>
   <arg name="unity_rate" default="30"/>
+  <!-- rosbridge (:9090)。グラウンディングサーバーの Executor が /coground/skill/* を使うのに要る -->
+  <arg name="rosbridge" default="false"/>
 
   <!-- 1a. ロボット: Gazebo + Fetch (実機のときはここが実機に置き換わる) -->
   <group if="$(arg gazebo)">
@@ -35,13 +40,16 @@
   </group>
 
   <!-- 1b. ロボット: Gazebo なし (MoveIt の計画結果をそのまま関節角にする) -->
-  <include unless="$(arg gazebo)" file="$(find coground_vr_bridge)/launch/kinematic_robot.launch"/>
+  <include unless="$(arg gazebo)" file="$(find coground_vr_bridge)/launch/kinematic_robot.launch">
+    <arg name="nav" value="$(arg nav)"/>
+  </include>
 
   <!-- 2. Unity 通信 (共通) -->
   <include file="$(find coground_vr_bridge)/launch/unity_bridge.launch">
     <arg name="tcp_ip" value="$(arg tcp_ip)"/>
     <arg name="tcp_port" value="$(arg tcp_port)"/>
     <arg name="unity_rate" value="$(arg unity_rate)"/>
+    <arg name="rosbridge" value="$(arg rosbridge)"/>
   </include>
 
   <!-- 3. MoveIt (共通)。Gazebo なしのときは疑似コントローラで実行 -->
@@ -55,4 +63,7 @@
   <include if="$(arg moveit)" file="$(find coground_control)/launch/control.launch">
     <arg name="auto_execute" value="$(arg auto_execute)"/>
   </include>
+
+  <!-- 5. 台車のナビゲーション (move_base + /coground/base/*)。Gazebo なしのときだけ -->
+  <include if="$(eval arg('nav') and not arg('gazebo'))" file="$(find coground_control)/launch/nav.launch"/>
 </launch>

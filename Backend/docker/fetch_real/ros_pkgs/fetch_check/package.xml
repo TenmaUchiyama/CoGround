@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>fetch_check</name>
+  <version>0.1.0</version>
+  <description>実機 Fetch でできることを 1 つずつ確かめる確認ツール (CLI / 後で Web UI)</description>
+  <maintainer email="noreply@example.com">CoGround</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rosgraph</exec_depend>
+  <exec_depend>rostopic</exec_depend>
+  <exec_depend>actionlib</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>robot_controllers_msgs</exec_depend>
+  <exec_depend>power_msgs</exec_depend>
+  <exec_depend>fetch_driver_msgs</exec_depend>
+</package>

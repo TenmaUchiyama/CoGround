@@ -76,6 +76,7 @@ class ArmCommandServer:
         rospy.Subscriber("/coground/arm/execute", Empty, self.on_execute, queue_size=1)
         rospy.Subscriber("/coground/arm/stop", Empty, self.on_stop, queue_size=1)
         rospy.Subscriber("/coground/gripper/command", Float64, self.on_gripper, queue_size=1)
+        rospy.Subscriber("/coground/system/reset", String, self.on_reset, queue_size=1)
 
         rospy.loginfo("arm_command_server ready: group=%s planning_frame=%s ee=%s auto_execute=%s",
                       arm_group, self.arm.get_planning_frame(), self.arm.get_end_effector_link(),
@@ -166,6 +167,13 @@ class ArmCommandServer:
     def on_stop(self, _msg):
         self.arm.stop()
         self.publish_status(STATUS_STOPPED)
+
+    def on_reset(self, _msg):
+        """Web UI の「まっさら」: 直前の計画と、latch している古い軌道・状態を消す (腕は pick_place_server が戻す)"""
+        self.arm.stop()
+        self.last_plan = None
+        self.traj_pub.publish(JointTrajectory())
+        self.publish_status("ready")
 
     def on_gripper(self, msg):
         finger = min(max(msg.data / 2.0, 0.0), FINGER_MAX)

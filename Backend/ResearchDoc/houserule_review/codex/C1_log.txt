@@ -1,0 +1,309 @@
+OpenAI Codex v0.169.0
+--------
+workdir: /home/fetch_tbd_lab/tenma/CoGround/Backend/ResearchDoc/houserule_review/codex
+model: gpt-6.2-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a1f442-bc2a-73a1-87fb-9bb805ebc6e4
+--------
+user
+You are an independent critical reviewer (a different model family from the other agents). You have NO tools: do not attempt shell, file, or web tools — answer only from your own knowledge in your final message. Be honest about uncertainty: for every paper give title, authors, year, venue as best you recall, and a confidence (high/med/low). Never fabricate; if unsure of a detail, say so. Your list will be verified by other agents against original sources.
+
+Context: the review spec and the shared brief are appended below.
+
+Tasks:
+1. For each claim A, B, C, D, list the 5–8 prior works you believe most strongly refute or overlap it (robotics, HRI, AI planning, NLP/LLM agents, normative multi-agent systems, deontic logic, embodied AI benchmarks). Include works under different names (social norms, deontic constraints, safety constraints, LTL specifications, personalized preferences, contextual integrity, instructable agents, interactive task learning, constitution for robots).
+2. For claim C specifically: works that decompose rules/norms into target / condition / deontic action (e.g., normative MAS norm representations, ODRL, deontic logic frames, institutional grammar "ADICO"), and any that measured the effect of decomposition on generalization.
+3. For claim D: any evaluation that varies house rules while keeping scene and instruction fixed.
+4. Name concepts from other fields that are the same idea under another name (e.g., Institutional Grammar ADICO = Attribute, Deontic, aIm, Conditions, Or-else; access-control policies; ABAC attribute-based access control; business rules engines; defeasible deontic logic) and judge whether CoGround's R = (N, S, T, C=(W, φ)) is just an instance.
+5. Give your verdict per claim (already done / difference candidate / insufficient evidence) and the single contribution sentence you think is defensible, plus the condition under which it should be retracted.
+Output in English, structured markdown.
+
+===== SPEC =====
+# 家庭内ルールを用いた物体操作の新規性調査計画
+
+作成日 2026年11月19日。以下は予備調査を踏まえた本調査の実行仕様である。
+
+## 1. 調査で判定すること
+
+想定する場面は、人が家庭固有のルールを一度教え、後から「机の上を片づけて」と依頼する場面である。ロボットは新しく出会った物体について、どのルールがどの行動に適用されるかを判断する。最初の調査ではルールの入力媒体を限定しない。実験用画像に書かれた説明とロボット自身が観測できる情報は区別する。
+
+| 検証する主張 | 直接の反証として探すもの |
+|---|---|
+| A. 教えられたルールを別の物体に適用する | 新しい個体を認識し、以前のルールで操作・配置を決めた実証 |
+| B. 保存したルールと後続指示を照合する | ルールと独立の依頼を受け、関連ルールを選択して対象物の行動を変えた実証 |
+| C. ルールを対象・適用条件・規範的な指示に分けることが、未教示の組み合わせでの判断に寄与する | 同等の分解と再利用を示した手法、および分解を使わない条件と比べて効果を測った評価。手法の先取性と効果の実証は個別に判定する |
+| D. 家庭固有ルールの違いを反映しながら、包括的な依頼の実行可能部分を完遂する | 同一場面・同一指示で家庭ルールを変え、禁止対象の回避と許容対象の完遂をともに測った比較 |
+
+## 2. 探索の起点
+
+- Tan et al. は所有規範を学ぶBaxterが、片付け時の訂正を別の物体に一般化し、所有規範に反する後続の依頼を拒否する例を示した。実機デモの各シナリオでどの所有情報が初めから与えられたかを区別して読む。[That's Mine! Learning Ownership Relations and Norms for Robots, Video demonstration・図1–2](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf)
+- TidyBotは少数の例から利用者の片付けルールを一般化し、新しい物体に対して収納先に加えて置く・投げ入れるといった操作も選ぶ。固定の片付け課題で獲得した選好を、独立した依頼における禁止・義務の判断と比較する。[TidyBot, §III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf)
+- Safety Chipは自然言語の制約を時相論理に変換し、計画中の行動を検査する。実機で与えた物体状態、制約の翻訳を検証した人の役割、課題と制約が矛盾する試験を確認する。[Plug in the Safety Chip](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf)
+- Wu et al. の2026年11月公開のプレプリントは、保存済みの文章ルールから、画像とタスク指示の組に適用可能な安全制約を選び、計画を検査・修正する。一般安全と住人が任意に決めるルールの違い、未見とする単位、規則の明示的な分解の有無を調べる。[A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space](https://arxiv.org/abs/2611.18026)
+
+## 3. 並列調査の担当
+
+統合役1名と探索役3名で実施する。探索役は独立に検索し、自分の担当分野から本提案を最も強く反証する研究を提出する。
+
+| 担当 | 調査範囲 | 検索式の出発点 |
+|---|---|---|
+| 1. HRI・規範学習 | 人が教える許可・禁止・所有・家庭固有の方針、教示後の別指示、ロボットによる部分実行や指示の拒否 | robot AND (“norm learning” OR “action permission” OR “instructable agent”) AND (object OR instruction) |
+| 2. 知覚・家庭ロボット | 外見、材質、状態からの適用判断、片付け選好、未見個体・カテゴリへの一般化。ラベルを知覚入力とする実装なら環境中の文字・記号の利用も含める | robot AND (tidying OR manipulation) AND (“user preferences” OR “personalized rules” OR “open-vocabulary grounding”) |
+| 3. 記号推論・タスク計画 | 変数を持つルールへの物体の割当て、規範・例外・優先度、自然言語制約を用いた行動選択。PDDL、ASP、時相論理、LLM/VLMも対象 | robot AND (“norm-aware planning” OR “instruction grounding” OR “constraint applicability” OR “semantic constraints”) AND (object OR task) |
+| 統合役 | 各担当の上位候補を横断比較し、異分野の別名と複数の既存手法の単純な組み合わせでも同じ結果が出る可能性を調べる | 上位論文の引用元・被引用、同著者の後続研究、日本語の「家庭ロボット 規範 教示 物体操作」等 |
+
+年代の下限を設けず、調査日までのHRI、RO-MAN、ICRA、IROS、RSS、CoRL、AAAI、AAMAS、ICAPSなどを対象にする。Google Scholar・OpenAlexで横断検索し、IEEE Xplore、ACM DL、会議録・著者公開版、arXivで原文を確認する。検索日、データベース、検索式、採否理由を記録する。直接の競合には前方・後方引用をたどり、別の担当が最も近い文献を再読する。追加探索で比較表の判定が動かなくなった範囲と、本文未入手などで残った範囲を明記する。
+
+## 4. 全員が提出する比較表
+
+1行を「論文 × 実験条件」とする。各行にURL、根拠となる節・図表、手法への入力、実際に測った出力、今回との一致点と差分を書く。同一論文の別々のデモは、すべてを同時に達成した単一の実証として扱わない。
+
+- **ルールの由来と表現**　住人の明示教示、例からの選好推定、設計者による登録、常識知識。原文のまま保持するか、対象・適用条件・行為と禁止／許可／義務に分けるか。誰が分解するか。
+- **新しさの単位**　教示に出ていない個体、教示に出ていないカテゴリ、既知の属性と行為の新しい組み合わせ、未見の家庭・場面を分ける。基盤モデルの事前学習で見たかどうかとは区別する。
+- **認識の入力**　物体名・属性の正解を入力したか、画像から推定したか、人の教示で知ったか。不明な属性をどう扱うか。
+- **指示との照合**　単発の制約付き指示か、以前のルールを別の依頼で再利用するか。場面全体に関連するルールの検索と、個々の物体・候補行動への適用判定を分ける。
+- **判断と証拠**　操作選択、動作の禁止、部分実行、必要時の質問のどれを実証したか。構想、実装、定性デモ、対照付き定量評価を区別する。記述が見つからないセルは「未確認」とする。
+
+## 5. 差分が残った場合の最小比較実験
+
+1. **家庭ルールだけを変える。** 同じ机・同じ物体・同じ「片づけて」で、家庭Aは「星印のカップはそのまま」、家庭Bは「丸印のカップはそのまま」と教える。これは新たに提案するテストで、星・丸は素材や危険性と相関しないようにする。一般常識で正解しやすい「割れ物」条件も別に残す。
+2. **新しい組み合わせを試す。** 教示と評価で個体を分ける。対象・条件・行為の各要素は既知でも、その組み合わせを教示していない試行を設ける。条件の該当・非該当の双方を入れる。別カテゴリへの転移を主張するときはカテゴリ単位でも分割する。
+3. **分解の効果を切り分ける。** 同じ知覚入力、ルール、候補行動を使い、ルール全文を直接読む方式、関連ルールの原文を検索して読む方式、分解して対象と候補行動に照合する方式を比べる。属性の正解を与える条件と画像認識を含む条件を設け、認識誤りと照合誤りを分ける。
+4. **成功条件を先に決める。** 主要指標は「禁止対象に一度も触れず、許可された対象をすべて正しく片づけた試行の割合」。内訳として禁止違反率、許可対象の完遂率、家庭ルールを入れ替えた対で両方正解した割合を報告する。照合を貢献とする場合は、物体・候補行動ごとの適用規則の適合率と再現率も取る。
+
+## 6. 判定と成果物
+
+- 同じ入出力と同じ条件で先行例があれば、その機能の初出という主張を取り下げる。先行手法が同等でも、これまで測られていない誤り・一般化・人の教示負担を測れれば、評価またはHRI上の貢献として別に判定する。
+- 差が実装の組み合わせに留まる場合は、最も近い先行方式と上記の分解を外した方式を比較する。未見の組み合わせで効果があれば、効果が出た条件を記した限定的な手法主張を候補にする。差が出なければ分解の有効性は主張しない。
+- 最終成果物は、検索記録、出典と節番号付き比較表、最も強い反例3件、主張ごとの「既出／差分候補／証拠不足」、および**論文に書ける貢献文1文と、その文を撤回すべき条件**とする。
+
+
+===== BRIEF =====
+# House-Rule Novelty Review — shared brief for all agents
+
+Spec (authoritative, read fully): /home/fetch_tbd_lab/tenma/CoGround/Backend/ResearchDoc/HouseRule_Research.md
+Today: 2026-11-19. No lower year bound.
+
+## What CoGround actually implements (context; do not assume novelty)
+grounding_server (/home/fetch_tbd_lab/tenma/CoGround/Backend/grounding_server, README.md §家庭ルールと依頼, coground_server/norms/model.py):
+- A resident states house rules in natural language; an LLM compiles them (`norms.compile`) into R = (N, S, T, C), C = (W, φ):
+  N norm = obligation / prohibition / permission; S scope = when (home clock time, requester, state such as near_child);
+  T target = which objects/regions via attribute predicates (e.g. fragile = true, category = plate); W window = which part of plan/execution to check (whole / at_contact / during_base_motion / at_place_complete); φ predicate (contact, placed_in, ...).
+  Rules whose scope/region cannot be resolved from words go to `pending` and are not used until the user confirms (no silent completion).
+- Exceptions (`exception_of`: permission overriding a prohibition, e.g. "only when I ask"), corrections of scope / attributes / zones, with diff of what changed.
+- Later a separate request ("片づけて", `task.request`) fixes the target objects; for each object the server judges destination (obligation) and graspability (prohibition) and makes a plan. Objects that cannot be handled become `deferred` steps with a human-readable reason — the feasible part of the request is executed.
+- Verdicts are 3-valued + undetermined: violated / compliant / not_applicable / undetermined (with `missing` facts, e.g. attr:fragile unknown → hold). basis = predicted (on the plan) or observed.
+- Object attributes come from the scene (Unity / perception); residents can correct attributes.
+- AR (Quest) preview of the plan with reasons (see the earlier review in ../coground_litreview/debate/DEBATE_REPORT.md for the AR-side novelty discussion — not the focus here).
+
+## Claims to test (from the spec)
+A. Apply a taught rule to other objects (new instances).
+B. Match stored rules against a later, independent request; select relevant rules; change the behaviour on target objects.
+C. Decomposing rules into target / applicability condition / normative directive helps judgement on untaught combinations (judge "method precedence" and "evidence of effect" separately).
+D. Reflecting household-specific rule differences while completing the feasible part of a broad request (same scene, same instruction, different house rules; measure both avoidance of forbidden objects and completion of permitted ones).
+
+## Comparison-table row format (one row = paper × experimental condition)
+| Paper (URL) | Condition/demo | Evidence location (§/Fig/Table) | Rule origin (resident explicit / inferred from examples / designer / commonsense) | Rule representation (raw text / decomposed target-condition-action-deontic; who decomposes) | Novelty unit (unseen instance / unseen category / new attribute×action combination / unseen household/scene; vs foundation-model pretraining) | Perception input (GT names/attrs / estimated from images / from human teaching; unknown-attribute handling) | Instruction matching (single constrained instruction vs reuse of earlier rules for a different request; scene-level rule retrieval vs per-object/per-action applicability) | Decision & evidence (manipulation choice / action prohibition / partial execution / asking; concept / implementation / qualitative demo / controlled quantitative eval) | Match with claims A–D | Differences |
+Write "未確認 (unverified)" for any cell you could not confirm in the original text. Separate demos of one paper are separate rows; never merge them into a single proof.
+
+## Rules
+- Verify in the original (arXiv abs/HTML/PDF, ACM DL, IEEE Xplore, proceedings, author PDFs). Never invent titles, authors, venues, numbers. Mark verified true/false per paper.
+- Record search log: date, database, query, inclusion/exclusion reason.
+- Hunt for the STRONGEST refutation of each claim from your area. Do backward/forward citation chasing on direct competitors (Semantic Scholar API may rate-limit; fall back to arXiv listing / Google Scholar "cited by" via web search / OpenAlex https://api.openalex.org/works?search=...).
+- Also note different names for the same idea (e.g., deontic constraints, normative reasoning, social norms, contextual integrity, preference-conditioned rearrangement, safety constraints, LTL constraints, "personalized rules", "instructable agent").
+
+## Output file sections
+1. Search log  2. Comparison table (rows as above)  3. Per-claim verdict from your area: A/B/C/D → 既出 (already done) / 差分候補 (difference candidate) / 証拠不足 (insufficient evidence), with the deciding papers  4. Top-3 strongest counterexamples with why  5. Papers another agent should re-read  6. What remains unverified.
+
+warning: Code Mode is unavailable because failed to spawn code-mode host /home/fetch_tbd_lab/.local/bin/codex-code-mode-host: host executable was not found. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`.
+codex
+## Verdict
+
+| Claim | Verdict | Deciding evidence |
+|---|---|---|
+| **A. Apply a taught rule to a new object instance** | **Already done** | Tan et al. report generalization of taught ownership norms across objects. TidyBot independently establishes that user-specific tidying examples can determine destinations and manipulation choices for objects held out from teaching. |
+| **B. Apply a stored rule to a later, independent request** | **Already done** | Tan et al.’s command-refusal demonstration is the strongest prior example. A stored ownership norm changes the response to a later request. The Wu et al. lead in the brief is the highest-priority check for image-conditioned rule selection and plan revision. |
+| **C. Decompose rules to improve generalization to untaught combinations** | **Already done for the representation. Insufficient evidence for the effect.** | Institutional Grammar, normative multi-agent systems, and ODRL establish the decomposition. Compositional learning papers give indirect experimental evidence for structured representations. I cannot identify a matched ablation of this decomposition for household norm applicability. |
+| **D. Change only the house rules and measure safe partial completion** | **Difference candidate** | TidyBot, Tan et al., and Safety Chip each cover part of the design. I cannot identify a verified experiment that holds the scene and broad instruction fixed, changes only the resident’s rules, and jointly scores forbidden-object avoidance and permitted-object completion. |
+
+**Search log and confidence.** This is a recall-only review. I ran no searches and checked no original sources. Every evidence row is **unverified against the original**. High, med, and low indicate confidence in recalled bibliographic details. I flag uncertainty about individual experiments separately. The Wu et al. entry comes from the supplied brief.
+
+## A. Generalizing taught rules to other objects
+
+| Work | Condition and evidence | Overlap and limits |
+|---|---|---|
+| **That's Mine! Learning Ownership Relations and Norms for Robots** · Xuan Tan, Fanjun Li, Brian Scassellati · AAAI, 2019 · **High** | Baxter’s tidying-correction demonstration. Human feedback teaches symbolic ownership norms that govern actions on other objects. The brief points to the video and Figs. 1–2. | Strongest direct overlap with A. Verify which ownership facts were given, inferred, or taught in this specific demonstration, and which test objects were new to the norm lesson. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **TidyBot: Personalized Robot Assistance with Large Language Models** · Jimmy Wu, Rika Antonova, Adam Kan, Marion Lepert, Andy Zeng, Shuran Song, Jeannette Bohg, Szymon Rusinkiewicz, Thomas Funkhouser · IROS, 2023 · **High** | The personalization benchmark tests held-out objects from user examples. The physical tidying evaluation uses learned preferences to select destinations and manipulation primitives. These are separate conditions. | Strong direct overlap for example-taught placement and handling preferences. Inspect the two conditions separately for how objects and attributes are supplied and whether the split is by instance or category. [Author PDF, §§ III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf) |
+| **VIMA: General Robot Manipulation with Multimodal Prompts** · Yunfan Jiang, Agrim Gupta, Zichen Zhang et al. · ICML, 2023 · **High** | Simulated tabletop manipulation includes visual-constraint tasks and evaluation levels for novel object combinations and novel objects. The prompt carries the current task specification. | Strong embodied benchmark precedent for transferring a constraint or directive to new entities. Verify which visual-constraint task families are evaluated at each split before attributing a particular result to them. |
+| **Learning Goal-Oriented Hierarchical Tasks from Situated Interactive Instruction** · Shiwali Mohan, John E. Laird · AAAI, 2014 · **High** | Situated instruction builds reusable, parameterized task knowledge for later executions. | Prior art for binding learned task knowledge to new entities. The learned content is how to perform a task. The exact held-out-object protocol is unverified. |
+| **VoxPoser: Composable 3D Value Maps for Robotic Manipulation with Language Models** · Wenlong Huang, Chen Wang, Ruohan Zhang, Yunzhu Li, Jiajun Wu, Li Fei-Fei · CoRL, 2023 · **High** | Language specifies manipulation objectives and constraints, grounded through perception into spatial value maps for action. | Prior art for perceptual grounding of constraints on objects and regions. The instruction supplies constraints for the current task. |
+| **CLIPort: What and Where Pathways for Robotic Manipulation** · Mohit Shridhar, Lucas Manuelli, Dieter Fox · CoRL, 2021 · **High** | Language-conditioned tabletop tasks evaluate manipulation generalization to new object instances and configurations. | Strong baseline for visually grounding a directive to a new instance. The learned behavior comes from task demonstrations. |
+
+The narrowest remaining A question is whether **the robot can infer the rule-relevant attribute from its own observation** on a new individual and then apply an arbitrary resident-taught prohibition. Tan is decisive for the broader claim. Its ownership inputs matter for that narrower question.
+
+## B. Reusing stored rules on later requests
+
+| Work | Condition and evidence | Overlap and limits |
+|---|---|---|
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | In the command-refusal demonstration, a later instruction calls for an action governed by a previously acquired ownership norm. | Strong direct precedent for B. Verify the provenance of the norm and the ownership facts in this demonstration separately from the tidying-correction demonstration. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space** · Wu et al., full author list unrecalled · arXiv preprint dated November 2026 in the supplied brief · **Low** | The brief describes retrieval of applicable stored text constraints for an image and task instruction, followed by plan checking and repair. | Potentially the closest pipeline precedent. Check whether selection is at scene, object, or candidate-action level, and whether the split holds out rules, scenes, combinations, or households. [Supplied preprint](https://arxiv.org/abs/2611.18026) |
+| **Plug in the Safety Chip: Enforcing Constraints for LLM-driven Robot Agents** · Yang et al., full author list unrecalled · 2024, venue unrecalled · **Med** | Natural-language constraints are translated into temporal logic and used to check robot plans. The brief points to physical trials. | Close precedent for explicit language-derived constraints changing the action plan. Verify the separation between constraint entry and task entry, the source of state facts, and human involvement in validating the translation. [Author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) |
+| **“Sorry, I Can't Do That”: Developing Mechanisms to Appropriately Reject Directives in Human-Robot Interactions** · Gordon Briggs, Matthias Scheutz · AAAI Fall Symposium on AI for HRI, 2015, venue recalled with some uncertainty · **Med** | Robot directive handling checks conditions relevant to whether an action should be performed and can produce a reasoned refusal. | Direct overlap on checking and rejecting a later command. The mechanism addresses directive handling. The acquisition and persistence of household policies are unverified. |
+| **Norm-Based Behaviour Modification in BDI Agents** · Felipe Meneguzzi, Michael Luck · AAMAS, 2009 · **High** | Active norms modify how a belief–desire–intention agent pursues its goals. Norm applicability and the affected behavior are modeled explicitly. | Strong algorithmic precedent for applying standing norms to actions for a separately supplied goal. The evidence concerns symbolic agents. |
+| **Learning Goal-Oriented Hierarchical Tasks from Situated Interactive Instruction** · Mohan and Laird, 2014 · **High** | An interactive agent retains taught task knowledge for invocation by later instructions. | Strong precedent for separate teaching and execution episodes. The stored knowledge is procedural, so the closest comparison is reuse rather than deontic filtering. |
+
+For B, report **rule retrieval** and **rule applicability** separately. Retrieving a rule because a plate appears in an image and deciding whether that rule prohibits a specific plate–grasp pair are different outputs. The original Wu paper is the priority check for the latter.
+
+## C. Rule decomposition and its effect on generalization
+
+| Work | What it separates | Evidence relevant to generalization |
+|---|---|---|
+| **A Grammar of Institutions** · Sue E. S. Crawford, Elinor Ostrom · *American Political Science Review*, 1995 · **High** | **ADICO** separates Attribute, Deontic, aIm, Conditions, and Or-else. The actor belongs under Attribute. A manipulated object can appear in the aIm or Conditions. | Clear precedence for the grammar. Its contribution is conceptual and analytical. |
+| **A Normative Framework for Agent-Based Systems** · Fabiola López y López, Michael Luck, Mark d’Inverno · *Computational and Mathematical Organization Theory*, 2006 · **High** | Norm addressees, normative goals, activation context, exceptions, and consequences are represented separately. | Close formal precedent for conditional applicability and exceptions. I do not recall a held-out-combination ablation. |
+| **Norm-Based Behaviour Modification in BDI Agents** · Meneguzzi and Luck, 2009 · **High** | Separates norm activation and the behavior affected by it, then applies the norm to agent plans. | Precedent for operational reuse of the components in planning. I do not recall a matched comparison against an undecomposed representation. |
+| **ODRL Information Model 2.2** · editors Renato Iannella, Serena Villata · W3C Recommendation, 2018 · **High** | Permission, Prohibition, and Duty rules specify actions, target assets, parties, and constraints. | Particularly close structural precedent. Its evidence is a specification and worked examples. [W3C Recommendation](https://www.w3.org/TR/odrl-model/) |
+| **Privacy and Contextual Integrity: Framework and Applications** · Adam Barth, Anupam Datta, John C. Mitchell, Helen Nissenbaum · IEEE Symposium on Security and Privacy, 2006 · **High** | Norms govern information flows by roles, information type, and transmission conditions. | Precedent for applying the same context-dependent norm to different entities and parameter assignments. The work formalizes and analyzes policies. |
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | Learned symbolic ownership conditions govern prohibited actions on object variables. | Nearest robotics precedent for both decomposition and reuse. I cannot recall a comparison with a matched rule-text baseline or a split that independently holds out attribute–action combinations. |
+| **Learning Compositional Rules via Neural Program Synthesis** · Maxwell I. Nye, Armando Solar-Lezama, Joshua B. Tenenbaum, Brenden M. Lake · NeurIPS, 2020 · **High** | Induces reusable symbolic rules and composes them to interpret new inputs. | Relevant quantitative evidence on compositional generalization with structured rules. The tasks concern sequence interpretation. The experiment does not isolate the target–condition–deontic split. |
+| **The Neuro-Symbolic Concept Learner: Interpreting Scenes, Words, and Sentences From Natural Supervision** · Jiayuan Mao, Chuang Gan, Pushmeet Kohli, Joshua B. Tenenbaum, Jiajun Wu · ICLR, 2019 · **High** | Separates visual concepts, executable operations, and their composition in a program. | Relevant visual evidence for generalization to novel concept combinations. It concerns visual reasoning, and the effect belongs to the broader architecture. |
+
+I would withdraw novelty for the representation. To support the effect claim, use **held-out combinations of familiar elements**, keep perceptual inputs and candidate actions identical, and compare full-text reasoning, retrieval of the original rule text, and explicit decomposition. Score applicability for each object–action pair. A correct plan can conceal erroneous matches when another rule or a default already dictates the same action.
+
+## D. Changing only household rules while preserving task completion
+
+| Work | Closest condition | What to verify against D |
+|---|---|---|
+| **TidyBot** · Wu et al., 2023 · **High** | Different user preferences govern the same general tidying objective. The benchmark and physical demonstrations provide complementary evidence. | Highest-priority D check. Determine whether preference sets were crossed with identical object sets and the same instruction, and whether the physical metrics jointly count forbidden-object avoidance and completion of allowed work. [Author PDF, §§ III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf) |
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | The tidying demonstration tests the consequences of taught ownership norms. The command-refusal demonstration tests avoidance of a prohibited action. | Look for a paired cleanup trial with a rule change and both outcomes scored within each trial. The separate demonstrations establish separate pieces. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **Plug in the Safety Chip** · Yang et al., 2024 · **Med** | Explicit constraints can change which actions a robot plans for a task. | Check whether conflict trials skip prohibited subgoals and complete permitted ones, and whether the physical scene and task are reused with different constraints. [Author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) |
+| **Learning Trajectory Preferences for Manipulators via Iterative Improvement** · Ashesh Jain, Brian Wojcik, Thorsten Joachims, Ashutosh Saxena · NeurIPS, 2013 · **High** | Human feedback changes how a robot executes a manipulation task. | Close precedent for changing behavior through personal preferences while retaining the task objective. Its main outcome concerns trajectory quality. An identical-scene comparison across users is unverified. |
+| **Deterministic Planning in the Fifth International Planning Competition: PDDL3 and Experimental Evaluation of the Planners** · Alfonso E. Gerevini, Patrik Haslum, Derek Long, Alessandro Saetti, Yannis Dimopoulos · *Artificial Intelligence*, 2009 · **High** | Symbolic planning separates hard trajectory constraints from preferences that can contribute to a plan-quality metric. | Strong precedent for encoding forbidden interactions as hard constraints and rewarding completion of permitted subgoals. I do not recall a benchmark condition with the paired household setup. |
+| **Collective Constitutional AI: Aligning a Language Model with Public Input** · Saffron Huang, Divya Siddarth, Liane Lovitt, Thomas I. Liao, Esin Durmus, Alex Tamkin, Deep Ganguli · ACM FAccT, 2024 · **Med** | Compares models trained with different constitutions through shared language-model evaluations. | Cross-field precedent for comparing outcomes under alternative normative policies on a common evaluation. The policy enters via training. The experiment concerns language responses. |
+
+**D answer.** I cannot name a confirmed same-scene, same-instruction house-rule swap with the joint outcome. The strongest test is a crossover where **each previously forbidden object becomes permitted and each previously permitted object becomes forbidden**. This rules out success by always skipping one object or by using a fixed preference. Score each pair as successful only when both trials avoid all forbidden contacts and correctly complete all permitted placements.
+
+## Equivalent formulations of CoGround’s rule
+
+CoGround’s \(R=(N,S,T,C=(W,\varphi))\) is **an instance of a conditional deontic policy over grounded actions and execution traces**. Its fields have close precedents. The implementation choices worth comparing are how the policy is compiled from teaching, how missing perceptual facts are handled, and how remaining work is selected.
+
+| Established formulation | Mapping to CoGround |
+|---|---|
+| **Institutional Grammar ADICO** | Deontic maps to \(N\). Conditions can encode \(S\), object qualifications from \(T\), and the timing guard \(W\). The aIm expresses the regulated action or outcome \(\varphi\) and can name its object. ADICO’s Attribute normally identifies the actor or role. Its Or-else consequence has no direct field in the supplied tuple. |
+| **ABAC and access-control policy** | The robot or requester supplies subject attributes, the manipulated entity supplies resource attributes, and the operation supplies the action. Time and local state are environment attributes. A contact decision is close to an authorization check. Obligations and plan-wide effects need policy semantics beyond a simple permit/deny decision. |
+| **ODRL and rights-expression languages** | Permission, Prohibition, and Duty map closely to \(N\). The asset, action, and constraints cover much of \(T,\varphi,S\). A constraint or extension can express the execution window. |
+| **Production rules and business rules engines** | \(S\land T\) is a fact-matching antecedent. The conclusion attaches a normative status to \(W,\varphi\). Rule priorities, exception links, and missing-fact handling are established implementation patterns. The tuple alone leaves their resolution semantics open. |
+| **Defeasible deontic logic and normative MAS** | A conditional obligation or prohibition can be defeated by a higher-priority permission. CoGround’s `exception_of` is a concrete override mechanism. The scope of the override and treatment of incomplete information determine the resulting behavior. |
+| **LTL, runtime verification, and constrained planning** | \(W\) selects when the monitor checks \(\varphi\). For example, a scope- and object-qualified prohibition can reject a trace with a forbidden contact. Hard constraints plus a goal for permitted placements express the plan tradeoff. Comparing predictions with observed execution is a familiar planning-and-monitoring distinction. |
+| **Contextual integrity and constitutions for agents** | Contextual integrity gives a close analogy for role- and situation-dependent rules over typed entities and actions. A constitution is a standing policy source. Its representation can range from prose to executable constraints. |
+
+## Strongest counterexamples and rereading priorities
+
+1. **Tan et al.** Read the correction-generalization and later-refusal demonstrations independently. Together they are the strongest reason to withdraw A and B as first-use claims. The decisive details are the rules and ownership facts available before each trial. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf)
+2. **TidyBot.** Reconstruct the pairing of user preferences, object lists, scenes, and instructions. It is the strongest established competitor for A and the most likely to narrow D. Inspect the physical action-selection and completion metrics separately from the benchmark’s held-out-object results. [Author PDF](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf)
+3. **Safety Chip.** Inspect the infeasible-task and conflict trials for residual task execution and any human validation of translated constraints. The Wu preprint is a separate high-priority check and could outrank Safety Chip for B if the supplied description is confirmed. [Safety Chip author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) · [Wu preprint supplied in the brief](https://arxiv.org/abs/2611.18026)
+
+The decisive unresolved points are the **source of ownership and attribute facts** in the strongest robotics trials, whether **identical scenes and instructions were crossed with different rules**, and whether any study **isolated decomposition under a held-out combination split**.
+
+## Defensible contribution sentence
+
+> We evaluate whether a robot can follow different resident-taught rules for the same scene and cleanup request, using paired trials with objects held out from teaching and scoring success only when every forbidden object is left untouched and every permitted object is put away correctly.
+
+Retract this as a novelty claim if a prior evaluation already uses a materially equivalent paired design and joint outcome. Use it as a completed contribution only after CoGround runs that evaluation.
+tokens used
+20,309
+## Verdict
+
+| Claim | Verdict | Deciding evidence |
+|---|---|---|
+| **A. Apply a taught rule to a new object instance** | **Already done** | Tan et al. report generalization of taught ownership norms across objects. TidyBot independently establishes that user-specific tidying examples can determine destinations and manipulation choices for objects held out from teaching. |
+| **B. Apply a stored rule to a later, independent request** | **Already done** | Tan et al.’s command-refusal demonstration is the strongest prior example. A stored ownership norm changes the response to a later request. The Wu et al. lead in the brief is the highest-priority check for image-conditioned rule selection and plan revision. |
+| **C. Decompose rules to improve generalization to untaught combinations** | **Already done for the representation. Insufficient evidence for the effect.** | Institutional Grammar, normative multi-agent systems, and ODRL establish the decomposition. Compositional learning papers give indirect experimental evidence for structured representations. I cannot identify a matched ablation of this decomposition for household norm applicability. |
+| **D. Change only the house rules and measure safe partial completion** | **Difference candidate** | TidyBot, Tan et al., and Safety Chip each cover part of the design. I cannot identify a verified experiment that holds the scene and broad instruction fixed, changes only the resident’s rules, and jointly scores forbidden-object avoidance and permitted-object completion. |
+
+**Search log and confidence.** This is a recall-only review. I ran no searches and checked no original sources. Every evidence row is **unverified against the original**. High, med, and low indicate confidence in recalled bibliographic details. I flag uncertainty about individual experiments separately. The Wu et al. entry comes from the supplied brief.
+
+## A. Generalizing taught rules to other objects
+
+| Work | Condition and evidence | Overlap and limits |
+|---|---|---|
+| **That's Mine! Learning Ownership Relations and Norms for Robots** · Xuan Tan, Fanjun Li, Brian Scassellati · AAAI, 2019 · **High** | Baxter’s tidying-correction demonstration. Human feedback teaches symbolic ownership norms that govern actions on other objects. The brief points to the video and Figs. 1–2. | Strongest direct overlap with A. Verify which ownership facts were given, inferred, or taught in this specific demonstration, and which test objects were new to the norm lesson. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **TidyBot: Personalized Robot Assistance with Large Language Models** · Jimmy Wu, Rika Antonova, Adam Kan, Marion Lepert, Andy Zeng, Shuran Song, Jeannette Bohg, Szymon Rusinkiewicz, Thomas Funkhouser · IROS, 2023 · **High** | The personalization benchmark tests held-out objects from user examples. The physical tidying evaluation uses learned preferences to select destinations and manipulation primitives. These are separate conditions. | Strong direct overlap for example-taught placement and handling preferences. Inspect the two conditions separately for how objects and attributes are supplied and whether the split is by instance or category. [Author PDF, §§ III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf) |
+| **VIMA: General Robot Manipulation with Multimodal Prompts** · Yunfan Jiang, Agrim Gupta, Zichen Zhang et al. · ICML, 2023 · **High** | Simulated tabletop manipulation includes visual-constraint tasks and evaluation levels for novel object combinations and novel objects. The prompt carries the current task specification. | Strong embodied benchmark precedent for transferring a constraint or directive to new entities. Verify which visual-constraint task families are evaluated at each split before attributing a particular result to them. |
+| **Learning Goal-Oriented Hierarchical Tasks from Situated Interactive Instruction** · Shiwali Mohan, John E. Laird · AAAI, 2014 · **High** | Situated instruction builds reusable, parameterized task knowledge for later executions. | Prior art for binding learned task knowledge to new entities. The learned content is how to perform a task. The exact held-out-object protocol is unverified. |
+| **VoxPoser: Composable 3D Value Maps for Robotic Manipulation with Language Models** · Wenlong Huang, Chen Wang, Ruohan Zhang, Yunzhu Li, Jiajun Wu, Li Fei-Fei · CoRL, 2023 · **High** | Language specifies manipulation objectives and constraints, grounded through perception into spatial value maps for action. | Prior art for perceptual grounding of constraints on objects and regions. The instruction supplies constraints for the current task. |
+| **CLIPort: What and Where Pathways for Robotic Manipulation** · Mohit Shridhar, Lucas Manuelli, Dieter Fox · CoRL, 2021 · **High** | Language-conditioned tabletop tasks evaluate manipulation generalization to new object instances and configurations. | Strong baseline for visually grounding a directive to a new instance. The learned behavior comes from task demonstrations. |
+
+The narrowest remaining A question is whether **the robot can infer the rule-relevant attribute from its own observation** on a new individual and then apply an arbitrary resident-taught prohibition. Tan is decisive for the broader claim. Its ownership inputs matter for that narrower question.
+
+## B. Reusing stored rules on later requests
+
+| Work | Condition and evidence | Overlap and limits |
+|---|---|---|
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | In the command-refusal demonstration, a later instruction calls for an action governed by a previously acquired ownership norm. | Strong direct precedent for B. Verify the provenance of the norm and the ownership facts in this demonstration separately from the tidying-correction demonstration. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space** · Wu et al., full author list unrecalled · arXiv preprint dated November 2026 in the supplied brief · **Low** | The brief describes retrieval of applicable stored text constraints for an image and task instruction, followed by plan checking and repair. | Potentially the closest pipeline precedent. Check whether selection is at scene, object, or candidate-action level, and whether the split holds out rules, scenes, combinations, or households. [Supplied preprint](https://arxiv.org/abs/2611.18026) |
+| **Plug in the Safety Chip: Enforcing Constraints for LLM-driven Robot Agents** · Yang et al., full author list unrecalled · 2024, venue unrecalled · **Med** | Natural-language constraints are translated into temporal logic and used to check robot plans. The brief points to physical trials. | Close precedent for explicit language-derived constraints changing the action plan. Verify the separation between constraint entry and task entry, the source of state facts, and human involvement in validating the translation. [Author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) |
+| **“Sorry, I Can't Do That”: Developing Mechanisms to Appropriately Reject Directives in Human-Robot Interactions** · Gordon Briggs, Matthias Scheutz · AAAI Fall Symposium on AI for HRI, 2015, venue recalled with some uncertainty · **Med** | Robot directive handling checks conditions relevant to whether an action should be performed and can produce a reasoned refusal. | Direct overlap on checking and rejecting a later command. The mechanism addresses directive handling. The acquisition and persistence of household policies are unverified. |
+| **Norm-Based Behaviour Modification in BDI Agents** · Felipe Meneguzzi, Michael Luck · AAMAS, 2009 · **High** | Active norms modify how a belief–desire–intention agent pursues its goals. Norm applicability and the affected behavior are modeled explicitly. | Strong algorithmic precedent for applying standing norms to actions for a separately supplied goal. The evidence concerns symbolic agents. |
+| **Learning Goal-Oriented Hierarchical Tasks from Situated Interactive Instruction** · Mohan and Laird, 2014 · **High** | An interactive agent retains taught task knowledge for invocation by later instructions. | Strong precedent for separate teaching and execution episodes. The stored knowledge is procedural, so the closest comparison is reuse rather than deontic filtering. |
+
+For B, report **rule retrieval** and **rule applicability** separately. Retrieving a rule because a plate appears in an image and deciding whether that rule prohibits a specific plate–grasp pair are different outputs. The original Wu paper is the priority check for the latter.
+
+## C. Rule decomposition and its effect on generalization
+
+| Work | What it separates | Evidence relevant to generalization |
+|---|---|---|
+| **A Grammar of Institutions** · Sue E. S. Crawford, Elinor Ostrom · *American Political Science Review*, 1995 · **High** | **ADICO** separates Attribute, Deontic, aIm, Conditions, and Or-else. The actor belongs under Attribute. A manipulated object can appear in the aIm or Conditions. | Clear precedence for the grammar. Its contribution is conceptual and analytical. |
+| **A Normative Framework for Agent-Based Systems** · Fabiola López y López, Michael Luck, Mark d’Inverno · *Computational and Mathematical Organization Theory*, 2006 · **High** | Norm addressees, normative goals, activation context, exceptions, and consequences are represented separately. | Close formal precedent for conditional applicability and exceptions. I do not recall a held-out-combination ablation. |
+| **Norm-Based Behaviour Modification in BDI Agents** · Meneguzzi and Luck, 2009 · **High** | Separates norm activation and the behavior affected by it, then applies the norm to agent plans. | Precedent for operational reuse of the components in planning. I do not recall a matched comparison against an undecomposed representation. |
+| **ODRL Information Model 2.2** · editors Renato Iannella, Serena Villata · W3C Recommendation, 2018 · **High** | Permission, Prohibition, and Duty rules specify actions, target assets, parties, and constraints. | Particularly close structural precedent. Its evidence is a specification and worked examples. [W3C Recommendation](https://www.w3.org/TR/odrl-model/) |
+| **Privacy and Contextual Integrity: Framework and Applications** · Adam Barth, Anupam Datta, John C. Mitchell, Helen Nissenbaum · IEEE Symposium on Security and Privacy, 2006 · **High** | Norms govern information flows by roles, information type, and transmission conditions. | Precedent for applying the same context-dependent norm to different entities and parameter assignments. The work formalizes and analyzes policies. |
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | Learned symbolic ownership conditions govern prohibited actions on object variables. | Nearest robotics precedent for both decomposition and reuse. I cannot recall a comparison with a matched rule-text baseline or a split that independently holds out attribute–action combinations. |
+| **Learning Compositional Rules via Neural Program Synthesis** · Maxwell I. Nye, Armando Solar-Lezama, Joshua B. Tenenbaum, Brenden M. Lake · NeurIPS, 2020 · **High** | Induces reusable symbolic rules and composes them to interpret new inputs. | Relevant quantitative evidence on compositional generalization with structured rules. The tasks concern sequence interpretation. The experiment does not isolate the target–condition–deontic split. |
+| **The Neuro-Symbolic Concept Learner: Interpreting Scenes, Words, and Sentences From Natural Supervision** · Jiayuan Mao, Chuang Gan, Pushmeet Kohli, Joshua B. Tenenbaum, Jiajun Wu · ICLR, 2019 · **High** | Separates visual concepts, executable operations, and their composition in a program. | Relevant visual evidence for generalization to novel concept combinations. It concerns visual reasoning, and the effect belongs to the broader architecture. |
+
+I would withdraw novelty for the representation. To support the effect claim, use **held-out combinations of familiar elements**, keep perceptual inputs and candidate actions identical, and compare full-text reasoning, retrieval of the original rule text, and explicit decomposition. Score applicability for each object–action pair. A correct plan can conceal erroneous matches when another rule or a default already dictates the same action.
+
+## D. Changing only household rules while preserving task completion
+
+| Work | Closest condition | What to verify against D |
+|---|---|---|
+| **TidyBot** · Wu et al., 2023 · **High** | Different user preferences govern the same general tidying objective. The benchmark and physical demonstrations provide complementary evidence. | Highest-priority D check. Determine whether preference sets were crossed with identical object sets and the same instruction, and whether the physical metrics jointly count forbidden-object avoidance and completion of allowed work. [Author PDF, §§ III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf) |
+| **That's Mine!** · Tan, Li, Scassellati, 2019 · **High** | The tidying demonstration tests the consequences of taught ownership norms. The command-refusal demonstration tests avoidance of a prohibited action. | Look for a paired cleanup trial with a rule change and both outcomes scored within each trial. The separate demonstrations establish separate pieces. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf) |
+| **Plug in the Safety Chip** · Yang et al., 2024 · **Med** | Explicit constraints can change which actions a robot plans for a task. | Check whether conflict trials skip prohibited subgoals and complete permitted ones, and whether the physical scene and task are reused with different constraints. [Author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) |
+| **Learning Trajectory Preferences for Manipulators via Iterative Improvement** · Ashesh Jain, Brian Wojcik, Thorsten Joachims, Ashutosh Saxena · NeurIPS, 2013 · **High** | Human feedback changes how a robot executes a manipulation task. | Close precedent for changing behavior through personal preferences while retaining the task objective. Its main outcome concerns trajectory quality. An identical-scene comparison across users is unverified. |
+| **Deterministic Planning in the Fifth International Planning Competition: PDDL3 and Experimental Evaluation of the Planners** · Alfonso E. Gerevini, Patrik Haslum, Derek Long, Alessandro Saetti, Yannis Dimopoulos · *Artificial Intelligence*, 2009 · **High** | Symbolic planning separates hard trajectory constraints from preferences that can contribute to a plan-quality metric. | Strong precedent for encoding forbidden interactions as hard constraints and rewarding completion of permitted subgoals. I do not recall a benchmark condition with the paired household setup. |
+| **Collective Constitutional AI: Aligning a Language Model with Public Input** · Saffron Huang, Divya Siddarth, Liane Lovitt, Thomas I. Liao, Esin Durmus, Alex Tamkin, Deep Ganguli · ACM FAccT, 2024 · **Med** | Compares models trained with different constitutions through shared language-model evaluations. | Cross-field precedent for comparing outcomes under alternative normative policies on a common evaluation. The policy enters via training. The experiment concerns language responses. |
+
+**D answer.** I cannot name a confirmed same-scene, same-instruction house-rule swap with the joint outcome. The strongest test is a crossover where **each previously forbidden object becomes permitted and each previously permitted object becomes forbidden**. This rules out success by always skipping one object or by using a fixed preference. Score each pair as successful only when both trials avoid all forbidden contacts and correctly complete all permitted placements.
+
+## Equivalent formulations of CoGround’s rule
+
+CoGround’s \(R=(N,S,T,C=(W,\varphi))\) is **an instance of a conditional deontic policy over grounded actions and execution traces**. Its fields have close precedents. The implementation choices worth comparing are how the policy is compiled from teaching, how missing perceptual facts are handled, and how remaining work is selected.
+
+| Established formulation | Mapping to CoGround |
+|---|---|
+| **Institutional Grammar ADICO** | Deontic maps to \(N\). Conditions can encode \(S\), object qualifications from \(T\), and the timing guard \(W\). The aIm expresses the regulated action or outcome \(\varphi\) and can name its object. ADICO’s Attribute normally identifies the actor or role. Its Or-else consequence has no direct field in the supplied tuple. |
+| **ABAC and access-control policy** | The robot or requester supplies subject attributes, the manipulated entity supplies resource attributes, and the operation supplies the action. Time and local state are environment attributes. A contact decision is close to an authorization check. Obligations and plan-wide effects need policy semantics beyond a simple permit/deny decision. |
+| **ODRL and rights-expression languages** | Permission, Prohibition, and Duty map closely to \(N\). The asset, action, and constraints cover much of \(T,\varphi,S\). A constraint or extension can express the execution window. |
+| **Production rules and business rules engines** | \(S\land T\) is a fact-matching antecedent. The conclusion attaches a normative status to \(W,\varphi\). Rule priorities, exception links, and missing-fact handling are established implementation patterns. The tuple alone leaves their resolution semantics open. |
+| **Defeasible deontic logic and normative MAS** | A conditional obligation or prohibition can be defeated by a higher-priority permission. CoGround’s `exception_of` is a concrete override mechanism. The scope of the override and treatment of incomplete information determine the resulting behavior. |
+| **LTL, runtime verification, and constrained planning** | \(W\) selects when the monitor checks \(\varphi\). For example, a scope- and object-qualified prohibition can reject a trace with a forbidden contact. Hard constraints plus a goal for permitted placements express the plan tradeoff. Comparing predictions with observed execution is a familiar planning-and-monitoring distinction. |
+| **Contextual integrity and constitutions for agents** | Contextual integrity gives a close analogy for role- and situation-dependent rules over typed entities and actions. A constitution is a standing policy source. Its representation can range from prose to executable constraints. |
+
+## Strongest counterexamples and rereading priorities
+
+1. **Tan et al.** Read the correction-generalization and later-refusal demonstrations independently. Together they are the strongest reason to withdraw A and B as first-use claims. The decisive details are the rules and ownership facts available before each trial. [Author PDF](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf)
+2. **TidyBot.** Reconstruct the pairing of user preferences, object lists, scenes, and instructions. It is the strongest established competitor for A and the most likely to narrow D. Inspect the physical action-selection and completion metrics separately from the benchmark’s held-out-object results. [Author PDF](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf)
+3. **Safety Chip.** Inspect the infeasible-task and conflict trials for residual task execution and any human validation of translated constraints. The Wu preprint is a separate high-priority check and could outrank Safety Chip for B if the supplied description is confirmed. [Safety Chip author PDF](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf) · [Wu preprint supplied in the brief](https://arxiv.org/abs/2611.18026)
+
+The decisive unresolved points are the **source of ownership and attribute facts** in the strongest robotics trials, whether **identical scenes and instructions were crossed with different rules**, and whether any study **isolated decomposition under a held-out combination split**.
+
+## Defensible contribution sentence
+
+> We evaluate whether a robot can follow different resident-taught rules for the same scene and cleanup request, using paired trials with objects held out from teaching and scoring success only when every forbidden object is left untouched and every permitted object is put away correctly.
+
+Retract this as a novelty claim if a prior evaluation already uses a materially equivalent paired design and joint outcome. Use it as a completed contribution only after CoGround runs that evaluation.

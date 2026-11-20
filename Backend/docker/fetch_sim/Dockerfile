@@ -23,6 +23,7 @@ RUN rm -f /etc/apt/sources.list.d/ros*.list \
       ros-noetic-rgbd-launch \
       ros-noetic-robot-controllers \
       ros-noetic-robot-controllers-interface \
+      ros-noetic-rosbridge-server \
       ros-noetic-simple-grasping \
       ros-noetic-teleop-twist-keyboard \
  && rm -rf /var/lib/apt/lists/*
@@ -69,5 +70,5 @@ RUN chmod +x /entrypoint.sh \
 ENV BASH_ENV=/etc/ros_env.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-EXPOSE 10000
+EXPOSE 10000 9090
 CMD ["roslaunch", "coground_vr_bridge", "vr_sim.launch"]

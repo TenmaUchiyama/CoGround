@@ -1,0 +1,12 @@
+global_costmap:
+  global_frame: world
+  robot_base_frame: base_link
+  # 進入禁止の範囲 (keepout_layer) を替えたあと、すぐ計画に効くように速めにする
+  update_frequency: 5.0
+  publish_frequency: 2.0
+  static_map: true
+  rolling_window: false
+  plugins:
+    - {name: static_layer, type: "costmap_2d::StaticLayer"}
+    - {name: keepout_layer, type: "costmap_2d::StaticLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}

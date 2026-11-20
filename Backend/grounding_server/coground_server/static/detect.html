@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.ico"><title>Detection Lab · CoGround</title><link rel="stylesheet" href="/detect/assets/detect.css"><script src="/detect/assets/detect.js" defer></script></head>
+<body>
+<header><a href="/detect/ui" class="brand">◈ CoGround <span> / DETECTION LAB</span></a><button id="refresh" class="quiet">Check connection</button></header>
+<main>
+<div class="intro"><div><div class="eyebrow">IMAGE → OBJECTS</div><h1>Find. Verify.</h1><p>Send an image and check YOLO-World's detection results.</p></div><span id="status" class="badge">Checking connection…</span></div>
+<div id="message" role="status" aria-live="polite"></div>
+<section class="card live"><div class="section-head"><h2>Live from clients (Quest)</h2><span id="live-status" class="badge">No requests yet</span></div>
+<p id="live-clients" class="muted">Nothing has reached POST /detect since the detector started. When the Quest app is running, its frames show up here.</p>
+<div class="live-grid"><div class="stage"><div id="live-placeholder"><span>▧</span><p>The latest frame received from a client appears here</p></div><canvas id="live-canvas" hidden></canvas></div>
+<div><div class="metrics"><div><span>Frames / s</span><strong id="live-fps">—</strong></div><div><span>Inference</span><strong id="live-infer">—</strong></div><div><span>Frame size</span><strong id="live-size">—</strong></div></div><div id="live-results" class="results"></div></div></div>
+</section>
+<div class="layout">
+<section class="workspace card">
+<div class="section-head"><h2>Test an image</h2><span id="filename" class="muted">None selected</span></div>
+<label id="drop" class="drop" tabindex="0" role="button" aria-label="Choose an image"><input id="file" type="file" accept="image/jpeg,image/png,image/webp" hidden><strong>+ Choose / drop an image</strong><span>JPEG, PNG, WebP · one at a time</span></label>
+<div class="controls"><label>Long side of sent image <select id="size"><option value="640">640 px</option><option value="1280" selected>1280 px</option><option value="1920">1920 px</option><option value="0">Original size</option></select></label><button id="run" disabled>Detect ↗</button></div>
+<div class="stage"><div id="placeholder"><span>▧</span><p>The image and detection boxes appear here</p></div><canvas id="canvas" hidden></canvas></div>
+<div class="metrics"><div><span>Detections</span><strong id="count">—</strong></div><div><span>Network + inference time</span><strong id="elapsed">—</strong></div><div><span>Sent size</span><strong id="dimensions">—</strong></div></div>
+<div class="result-head"><label><input id="boxes" type="checkbox" checked> Show detection boxes</label><div><button id="save-image" class="quiet" disabled>Save image with boxes</button><button id="save-json" class="quiet" disabled>Save JSON</button></div></div>
+<div id="results" class="results"><p class="muted">Detection results appear here.</p></div>
+<details><summary>Response JSON</summary><pre id="json">Not run yet.</pre></details>
+</section>
+<aside>
+<section class="card"><div class="section-head"><h2>What to detect</h2><span class="badge">VOCABULARY</span></div><p class="muted">Specify an English description and the category name to return.</p><div class="vocab-labels"><span>English description</span><span>Category name</span></div><div id="vocabulary"></div><div class="controls"><button id="add" class="quiet" disabled>+ Add row</button><button id="apply" disabled>Apply vocabulary</button></div><p class="note">Applying affects all connected clients. Restarting reverts to the settings file.</p></section>
+<section class="card info"><h2>Test flow</h2><ol><li>Choose an image showing the targets</li><li>Send it to the server with "Detect"</li><li>Check the boxes, categories and confidence</li><li>Change the vocabulary or sent size and rerun</li></ol><p class="note">Images are converted to JPEG in the browser. Display and coordinates are relative to the sent image. The confidence threshold and model are changed in the server settings.</p><p id="config" class="note"></p></section>
+</aside>
+</div>
+<footer>CoGround · Verify detection without a Quest <a href="/docs">API docs ↗</a></footer>
+</main></body></html>

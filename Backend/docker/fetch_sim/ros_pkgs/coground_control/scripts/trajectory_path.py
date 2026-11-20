@@ -66,8 +66,19 @@ class TrajectoryPath:
         rospy.Subscriber("/joint_states", JointState, self.on_joint_states, queue_size=1)
         rospy.Subscriber("/coground/arm/planned_trajectory", JointTrajectory, self.on_trajectory, queue_size=1)
         rospy.Subscriber("/coground/arm/status", String, self.on_status, queue_size=10)
+        rospy.Subscriber("/coground/system/reset", String, self.on_reset, queue_size=1)
         rospy.Timer(rospy.Duration(1.0 / self.record_rate), self.on_record_timer)
         rospy.loginfo("trajectory_path ready: tip=%s frame=%s", self.tip_link, self.frame)
+
+    def on_reset(self, _msg):
+        """Web UI の「まっさら」: latch している計画・実行の軌跡を消す"""
+        self.recording = False
+        self.planned = Path()
+        self.planned.header.frame_id = self.frame
+        self.executed = Path()
+        self.executed.header.frame_id = self.frame
+        self.publish()
+        rospy.loginfo("[path] reset")
 
     # ---- 計画した軌道 ----
     def on_joint_states(self, msg):

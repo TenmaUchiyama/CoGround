@@ -19,7 +19,7 @@ class Pong(BaseModel):
 async def ping(ctx: RequestContext, _: EmptyParams) -> dict[str, Any]:
     try:
         pong = await ctx.services.llm.generate(
-            name="ping", system="接続確認です。", prompt='reply に "pong" とだけ入れて返してください。', output=Pong
+            name="ping", system="This is a connection check.", prompt='Return with only "pong" in reply.', output=Pong
         )
     except LlmError as e:
         raise RpcError(ErrorCode.LLM_FAILED, str(e)) from e

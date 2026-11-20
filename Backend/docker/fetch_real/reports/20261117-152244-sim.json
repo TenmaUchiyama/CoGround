@@ -1,0 +1,40 @@
+{
+  "created_at": "2026-11-17T15:22:44+0000",
+  "mode": "sim",
+  "master_uri": "http://localhost:11311",
+  "results": [
+    {
+      "id": "sys.nodes",
+      "title": "全ノードに届くか",
+      "level": 0,
+      "status": "fail",
+      "summary": "19/19 ノードに届かない: /coground_arm_command_server, /coground_base_command_server, /coground_fake_base_driver, /coground_pick_place_server, /coground_scene_sync",
+      "details": {
+        "unreachable": {
+          "/coground_arm_command_server": "lookupNode 失敗: Idle",
+          "/coground_base_command_server": "lookupNode 失敗: Request-sent",
+          "/coground_fake_base_driver": "lookupNode 失敗: Idle",
+          "/coground_pick_place_server": "lookupNode 失敗: Request-sent",
+          "/coground_scene_sync": "lookupNode 失敗: Idle",
+          "/coground_trajectory_path": "lookupNode 失敗: Request-sent",
+          "/joint_state_publisher": "lookupNode 失敗: Idle",
+          "/move_base": "lookupNode 失敗: Request-sent",
+          "/move_group": "lookupNode 失敗: Idle",
+          "/move_group_commander_wrappers_1794928190721060104": "lookupNode 失敗: Request-sent",
+          "/move_group_commander_wrappers_1794928190744661762": "lookupNode 失敗: Idle",
+          "/moveit_python_wrappers_1794928190898859066": "lookupNode 失敗: Idle",
+          "/robot_state_publisher": "lookupNode 失敗: Request-sent",
+          "/rosapi": "lookupNode 失敗: Idle",
+          "/rosbridge_websocket": "lookupNode 失敗: Request-sent",
+          "/rosout": "lookupNode 失敗: Idle",
+          "/unity/joint_states_throttle": "lookupNode 失敗: Idle",
+          "/unity/odom_throttle": "lookupNode 失敗: Request-sent",
+          "/unity_endpoint": "lookupNode 失敗: Idle"
+        }
+      },
+      "hint": "ROS_MASTER_URI / ROS_IP (ROS_HOSTNAME) と、お互いのホスト名が引けるか (/etc/hosts) を確認。docs/REAL_FETCH_QUICKSTART.md の Phase 1",
+      "started_at": 1794928964.524889,
+      "duration_s": 0.013326644897460938
+    }
+  ]
+}

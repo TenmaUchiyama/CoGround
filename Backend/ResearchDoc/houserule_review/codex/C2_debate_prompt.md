@@ -1,0 +1,878 @@
+You are an independent debater (different model family from the other debaters). You have NO tools: do not try shell, file or web tools. Work only from the evidence appended below (and your own knowledge, clearly marked [own knowledge, unverified]).
+Stance: INDEPENDENT ARBITER / THEORIST. Judge the novelty question on the evidence, with special attention to: (1) whether CoGround's R=(N,S,T,C=(W,φ)) + 4-valued verdict is merely an instance of established formalisms (ADICO, ODRL, ABAC, defeasible deontic logic, runtime verification) — and whether any formal property (e.g., Kleene 3-valued evaluation with explicit missing facts, window-scoped evaluation over predicted vs observed traces, exception scoping by requester) yields a testable behavioural difference; (2) which of the remaining differences is a genuine scientific question vs a benchmark design; (3) how to make the household-swap + decomposition-ablation experiment immune to the obvious confounds (LLM commonsense priors, label leakage via object names, rule-retrieval vs applicability, default actions masking matching errors). Note: the integrator (I2) corrected some of your earlier recalled leads — accept corrections.
+Follow the debate brief's output format exactly.
+
+===== FILE: debate/00_debate_brief.md =====
+# House-Rule Novelty Debate — common brief
+
+Base: /home/fetch_tbd_lab/tenma/CoGround/Backend/ResearchDoc/houserule_review
+Evidence to read (all): 00_brief.md (claims A–D, what CoGround implements), ../HouseRule_Research.md (spec §5–6: minimum experiments, judgment rules, deliverables),
+search/S1_hri_norms.md, S2_perception_household.md, S3_symbolic_planning.md (searchers), search/I1_crossread.md and I2_crossread_codex_verify.md (independent re-reads — these OVERRIDE searcher descriptions where they disagree), codex/C1_recall.md (Codex recall; verified/corrected in I2).
+
+State after search (consensus so far): A 既出 (Tan 2019, TidyBot, RoboGuard, Jain 2013, FLEX?); B 既出 as mechanism (Wu 2611.18026, RoboGuard, AgentSpec, DROC, Tan Scen.2); C representation 既出 (AgentSpec, ADICO, ODRL, SLEEC, Meneguzzi), effect 証拠不足; D mechanism largely done (RuleGraph partial completion, SafeGate deferral, VFM verdicts) but the paired same-scene/same-instruction household-swap evaluation with joint success is a 差分候補. Small difference: per-object "undetermined" verdict with missing facts while the rest of the request still runs.
+
+Debate questions:
+ Q1. Is anything left that can be claimed as NOVEL (method / system / evaluation / HRI)? Be precise about which unit.
+ Q2. What should be investigated, built or measured so the remaining difference becomes a defensible contribution (spec §5 experiments: household-only swap with star/circle marks uncorrelated with material/danger; held-out combinations; decomposition ablation incl. an AgentSpec-like arm; GT-attribute vs perception conditions; joint success metric)?
+ Q3. The final "contribution sentence" (1 sentence) and the precise conditions under which it must be retracted.
+
+Rules: evidence-bound; cite papers with §/Table from the files; never invent; distinguish "nobody built" / "nobody measured" / "measured, null". Do not assume novelty.
+Output (≤ 800 words, English): Stance summary (3 lines) · Claims table (claim | unit: method/system/evaluation/HRI | closest prior | status 既出/差分候補/証拠不足 | strength H/M/L) · What to investigate/build/measure (ranked, concrete) · Contribution sentence + retraction conditions · Biggest risk · Questions to other debaters.
+
+===== FILE: 00_brief.md =====
+# House-Rule Novelty Review — shared brief for all agents
+
+Spec (authoritative, read fully): /home/fetch_tbd_lab/tenma/CoGround/Backend/ResearchDoc/HouseRule_Research.md
+Today: 2026-11-19. No lower year bound.
+
+## What CoGround actually implements (context; do not assume novelty)
+grounding_server (/home/fetch_tbd_lab/tenma/CoGround/Backend/grounding_server, README.md §家庭ルールと依頼, coground_server/norms/model.py):
+- A resident states house rules in natural language; an LLM compiles them (`norms.compile`) into R = (N, S, T, C), C = (W, φ):
+  N norm = obligation / prohibition / permission; S scope = when (home clock time, requester, state such as near_child);
+  T target = which objects/regions via attribute predicates (e.g. fragile = true, category = plate); W window = which part of plan/execution to check (whole / at_contact / during_base_motion / at_place_complete); φ predicate (contact, placed_in, ...).
+  Rules whose scope/region cannot be resolved from words go to `pending` and are not used until the user confirms (no silent completion).
+- Exceptions (`exception_of`: permission overriding a prohibition, e.g. "only when I ask"), corrections of scope / attributes / zones, with diff of what changed.
+- Later a separate request ("片づけて", `task.request`) fixes the target objects; for each object the server judges destination (obligation) and graspability (prohibition) and makes a plan. Objects that cannot be handled become `deferred` steps with a human-readable reason — the feasible part of the request is executed.
+- Verdicts are 3-valued + undetermined: violated / compliant / not_applicable / undetermined (with `missing` facts, e.g. attr:fragile unknown → hold). basis = predicted (on the plan) or observed.
+- Object attributes come from the scene (Unity / perception); residents can correct attributes.
+- AR (Quest) preview of the plan with reasons (see the earlier review in ../coground_litreview/debate/DEBATE_REPORT.md for the AR-side novelty discussion — not the focus here).
+
+## Claims to test (from the spec)
+A. Apply a taught rule to other objects (new instances).
+B. Match stored rules against a later, independent request; select relevant rules; change the behaviour on target objects.
+C. Decomposing rules into target / applicability condition / normative directive helps judgement on untaught combinations (judge "method precedence" and "evidence of effect" separately).
+D. Reflecting household-specific rule differences while completing the feasible part of a broad request (same scene, same instruction, different house rules; measure both avoidance of forbidden objects and completion of permitted ones).
+
+## Comparison-table row format (one row = paper × experimental condition)
+| Paper (URL) | Condition/demo | Evidence location (§/Fig/Table) | Rule origin (resident explicit / inferred from examples / designer / commonsense) | Rule representation (raw text / decomposed target-condition-action-deontic; who decomposes) | Novelty unit (unseen instance / unseen category / new attribute×action combination / unseen household/scene; vs foundation-model pretraining) | Perception input (GT names/attrs / estimated from images / from human teaching; unknown-attribute handling) | Instruction matching (single constrained instruction vs reuse of earlier rules for a different request; scene-level rule retrieval vs per-object/per-action applicability) | Decision & evidence (manipulation choice / action prohibition / partial execution / asking; concept / implementation / qualitative demo / controlled quantitative eval) | Match with claims A–D | Differences |
+Write "未確認 (unverified)" for any cell you could not confirm in the original text. Separate demos of one paper are separate rows; never merge them into a single proof.
+
+## Rules
+- Verify in the original (arXiv abs/HTML/PDF, ACM DL, IEEE Xplore, proceedings, author PDFs). Never invent titles, authors, venues, numbers. Mark verified true/false per paper.
+- Record search log: date, database, query, inclusion/exclusion reason.
+- Hunt for the STRONGEST refutation of each claim from your area. Do backward/forward citation chasing on direct competitors (Semantic Scholar API may rate-limit; fall back to arXiv listing / Google Scholar "cited by" via web search / OpenAlex https://api.openalex.org/works?search=...).
+- Also note different names for the same idea (e.g., deontic constraints, normative reasoning, social norms, contextual integrity, preference-conditioned rearrangement, safety constraints, LTL constraints, "personalized rules", "instructable agent").
+
+## Output file sections
+1. Search log  2. Comparison table (rows as above)  3. Per-claim verdict from your area: A/B/C/D → 既出 (already done) / 差分候補 (difference candidate) / 証拠不足 (insufficient evidence), with the deciding papers  4. Top-3 strongest counterexamples with why  5. Papers another agent should re-read  6. What remains unverified.
+
+===== FILE: ../HouseRule_Research.md =====
+# 家庭内ルールを用いた物体操作の新規性調査計画
+
+作成日 2026年11月19日。以下は予備調査を踏まえた本調査の実行仕様である。
+
+## 1. 調査で判定すること
+
+想定する場面は、人が家庭固有のルールを一度教え、後から「机の上を片づけて」と依頼する場面である。ロボットは新しく出会った物体について、どのルールがどの行動に適用されるかを判断する。最初の調査ではルールの入力媒体を限定しない。実験用画像に書かれた説明とロボット自身が観測できる情報は区別する。
+
+| 検証する主張 | 直接の反証として探すもの |
+|---|---|
+| A. 教えられたルールを別の物体に適用する | 新しい個体を認識し、以前のルールで操作・配置を決めた実証 |
+| B. 保存したルールと後続指示を照合する | ルールと独立の依頼を受け、関連ルールを選択して対象物の行動を変えた実証 |
+| C. ルールを対象・適用条件・規範的な指示に分けることが、未教示の組み合わせでの判断に寄与する | 同等の分解と再利用を示した手法、および分解を使わない条件と比べて効果を測った評価。手法の先取性と効果の実証は個別に判定する |
+| D. 家庭固有ルールの違いを反映しながら、包括的な依頼の実行可能部分を完遂する | 同一場面・同一指示で家庭ルールを変え、禁止対象の回避と許容対象の完遂をともに測った比較 |
+
+## 2. 探索の起点
+
+- Tan et al. は所有規範を学ぶBaxterが、片付け時の訂正を別の物体に一般化し、所有規範に反する後続の依頼を拒否する例を示した。実機デモの各シナリオでどの所有情報が初めから与えられたかを区別して読む。[That's Mine! Learning Ownership Relations and Norms for Robots, Video demonstration・図1–2](https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf)
+- TidyBotは少数の例から利用者の片付けルールを一般化し、新しい物体に対して収納先に加えて置く・投げ入れるといった操作も選ぶ。固定の片付け課題で獲得した選好を、独立した依頼における禁止・義務の判断と比較する。[TidyBot, §III–IV](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf)
+- Safety Chipは自然言語の制約を時相論理に変換し、計画中の行動を検査する。実機で与えた物体状態、制約の翻訳を検証した人の役割、課題と制約が矛盾する試験を確認する。[Plug in the Safety Chip](https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf)
+- Wu et al. の2026年11月公開のプレプリントは、保存済みの文章ルールから、画像とタスク指示の組に適用可能な安全制約を選び、計画を検査・修正する。一般安全と住人が任意に決めるルールの違い、未見とする単位、規則の明示的な分解の有無を調べる。[A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space](https://arxiv.org/abs/2611.18026)
+
+## 3. 並列調査の担当
+
+統合役1名と探索役3名で実施する。探索役は独立に検索し、自分の担当分野から本提案を最も強く反証する研究を提出する。
+
+| 担当 | 調査範囲 | 検索式の出発点 |
+|---|---|---|
+| 1. HRI・規範学習 | 人が教える許可・禁止・所有・家庭固有の方針、教示後の別指示、ロボットによる部分実行や指示の拒否 | robot AND (“norm learning” OR “action permission” OR “instructable agent”) AND (object OR instruction) |
+| 2. 知覚・家庭ロボット | 外見、材質、状態からの適用判断、片付け選好、未見個体・カテゴリへの一般化。ラベルを知覚入力とする実装なら環境中の文字・記号の利用も含める | robot AND (tidying OR manipulation) AND (“user preferences” OR “personalized rules” OR “open-vocabulary grounding”) |
+| 3. 記号推論・タスク計画 | 変数を持つルールへの物体の割当て、規範・例外・優先度、自然言語制約を用いた行動選択。PDDL、ASP、時相論理、LLM/VLMも対象 | robot AND (“norm-aware planning” OR “instruction grounding” OR “constraint applicability” OR “semantic constraints”) AND (object OR task) |
+| 統合役 | 各担当の上位候補を横断比較し、異分野の別名と複数の既存手法の単純な組み合わせでも同じ結果が出る可能性を調べる | 上位論文の引用元・被引用、同著者の後続研究、日本語の「家庭ロボット 規範 教示 物体操作」等 |
+
+年代の下限を設けず、調査日までのHRI、RO-MAN、ICRA、IROS、RSS、CoRL、AAAI、AAMAS、ICAPSなどを対象にする。Google Scholar・OpenAlexで横断検索し、IEEE Xplore、ACM DL、会議録・著者公開版、arXivで原文を確認する。検索日、データベース、検索式、採否理由を記録する。直接の競合には前方・後方引用をたどり、別の担当が最も近い文献を再読する。追加探索で比較表の判定が動かなくなった範囲と、本文未入手などで残った範囲を明記する。
+
+## 4. 全員が提出する比較表
+
+1行を「論文 × 実験条件」とする。各行にURL、根拠となる節・図表、手法への入力、実際に測った出力、今回との一致点と差分を書く。同一論文の別々のデモは、すべてを同時に達成した単一の実証として扱わない。
+
+- **ルールの由来と表現**　住人の明示教示、例からの選好推定、設計者による登録、常識知識。原文のまま保持するか、対象・適用条件・行為と禁止／許可／義務に分けるか。誰が分解するか。
+- **新しさの単位**　教示に出ていない個体、教示に出ていないカテゴリ、既知の属性と行為の新しい組み合わせ、未見の家庭・場面を分ける。基盤モデルの事前学習で見たかどうかとは区別する。
+- **認識の入力**　物体名・属性の正解を入力したか、画像から推定したか、人の教示で知ったか。不明な属性をどう扱うか。
+- **指示との照合**　単発の制約付き指示か、以前のルールを別の依頼で再利用するか。場面全体に関連するルールの検索と、個々の物体・候補行動への適用判定を分ける。
+- **判断と証拠**　操作選択、動作の禁止、部分実行、必要時の質問のどれを実証したか。構想、実装、定性デモ、対照付き定量評価を区別する。記述が見つからないセルは「未確認」とする。
+
+## 5. 差分が残った場合の最小比較実験
+
+1. **家庭ルールだけを変える。** 同じ机・同じ物体・同じ「片づけて」で、家庭Aは「星印のカップはそのまま」、家庭Bは「丸印のカップはそのまま」と教える。これは新たに提案するテストで、星・丸は素材や危険性と相関しないようにする。一般常識で正解しやすい「割れ物」条件も別に残す。
+2. **新しい組み合わせを試す。** 教示と評価で個体を分ける。対象・条件・行為の各要素は既知でも、その組み合わせを教示していない試行を設ける。条件の該当・非該当の双方を入れる。別カテゴリへの転移を主張するときはカテゴリ単位でも分割する。
+3. **分解の効果を切り分ける。** 同じ知覚入力、ルール、候補行動を使い、ルール全文を直接読む方式、関連ルールの原文を検索して読む方式、分解して対象と候補行動に照合する方式を比べる。属性の正解を与える条件と画像認識を含む条件を設け、認識誤りと照合誤りを分ける。
+4. **成功条件を先に決める。** 主要指標は「禁止対象に一度も触れず、許可された対象をすべて正しく片づけた試行の割合」。内訳として禁止違反率、許可対象の完遂率、家庭ルールを入れ替えた対で両方正解した割合を報告する。照合を貢献とする場合は、物体・候補行動ごとの適用規則の適合率と再現率も取る。
+
+## 6. 判定と成果物
+
+- 同じ入出力と同じ条件で先行例があれば、その機能の初出という主張を取り下げる。先行手法が同等でも、これまで測られていない誤り・一般化・人の教示負担を測れれば、評価またはHRI上の貢献として別に判定する。
+- 差が実装の組み合わせに留まる場合は、最も近い先行方式と上記の分解を外した方式を比較する。未見の組み合わせで効果があれば、効果が出た条件を記した限定的な手法主張を候補にする。差が出なければ分解の有効性は主張しない。
+- 最終成果物は、検索記録、出典と節番号付き比較表、最も強い反例3件、主張ごとの「既出／差分候補／証拠不足」、および**論文に書ける貢献文1文と、その文を撤回すべき条件**とする。
+
+
+===== FILE: search/S1_hri_norms.md =====
+# S1 — HRI・規範学習 (Searcher 1) 調査結果
+
+担当: 人が教える許可・禁止・所有・家庭固有の方針、教示後の別指示での再利用、規範による部分実行・拒否。
+調査日: 2026-11-19。仕様: ../../HouseRule_Research.md、共通ブリーフ: ../00_brief.md。
+
+検証状態の凡例: **[本文確認]** = PDF本文を取得してテキストで該当箇所を読んだ / **[要旨のみ]** = abs・要旨・書誌のみ / **[未確認]** = 二次情報のみ。
+
+---
+
+## 1. 検索ログ
+
+| # | 日付 | DB | 検索式 / 操作 | 採否と理由 |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | 著者PDF (scazlab.yale.edu) | Tan et al. AAAI19 PDF を取得し全文読解 | 採用。起点文献。動画 (https://bit.ly/2z8obET) は視聴できず、本文中の動画説明と図1–2キャプションで判断 |
+| 2 | 2026-11-19 | Web search | robot ownership norms learning Scassellati follow-up 2021–2023 | 新しい追試論文はなし。報道記事のみなので除外 |
+| 3 | 2026-11-19 | OpenAlex | `filter=cites:W2964255654` (Tan の被引用) | 18件。ロボット関連の候補: Ayub&Wagner 2020、ActOwL 2025/26、COIN 2026、EgoAsk 2026、Oldenburg&Tan 2024。他はサーベイ・MAS・政治規範なので除外 |
+| 4 | 2026-11-19 | Semantic Scholar API | `paper/arXiv:1812.02576/citations` | 16件。OpenAlex とほぼ重なる。追加は "Learning Ownership based on Theory of Mind" (2023) だが原文が見つからず未確認 |
+| 5 | 2026-11-19 | OpenAlex | `cites:W3084730698` (Ayub&Wagner の被引用) | 継続学習の論文ばかりで、規範をロボット操作に適用するものはない。除外 |
+| 6 | 2026-11-19 | Web search | "What Am I Allowed to Do Here" Pepper | 採用。本文確認の結果、行為は会話・移動で物体操作ではないため関連は低い |
+| 7 | 2026-11-19 | Web search | Briggs Scheutz "Sorry, I can't do that" felicity conditions | 採用 (拒否機構の起点)。本文確認 |
+| 8 | 2026-11-19 | Web search | robot learns prohibitions from NL instruction norm one-shot DIARC Scheutz | Scheutz, Thielstrom & Abrams 2022 (IJHCI) と Kasenberg et al. 2019 を採用。本文確認 |
+| 9 | 2026-11-19 | Web search | LLM household robot "house rules" user-specified constraints manipulation | TidyBot・LLM-Personalize・Safety Chip はほかの担当 (S2/S3) が扱うので、ここでは評価しない |
+| 10 | 2026-11-19 | Web search (extended) | personalized safety rules household robot LLM "don't touch" | RoboGuard・Safety Chip・2606.05952 は S3 に回す。自分の担当では採用しない |
+| 11 | 2026-11-19 | Web search (extended) | household robot social norms LLM refuse partial 2024–2026 | ROBOTVALUES (2606.03312)、Empathic Ethical Disobedience (2512.18474)、Refuses in Chat (2610.14043)、GRACE を確認。教示ルールの再利用を含まないため、参照のみ |
+| 12 | 2026-11-19 | Web search | contextual integrity privacy norms home robot | 2507.16124 (LLMのプライバシー認識ベンチ) と NeurIPS 2025 ポジション論文。操作の実行や教示ルールの再利用は含まないので参照のみ |
+| 13 | 2026-11-19 | Web search | Kasenberg Roque Thielstrom Scheutz Engaging in Dialogue | 採用。本文確認 |
+| 14 | 2026-11-19 | Web search (extended) | robot remembers user-taught rules applies to later instructions LLM memory | 直接該当なし。DROC は既知の文献として別途確認 |
+| 15 | 2026-11-19 | arXiv | 2311.10678 (DROC) PDF を取得し全文読解 | 採用。主張Bへの強い反例 |
+| 16 | 2026-11-19 | Web search | "action permissions" OR "permission learning" robot | Tan と Ayub に戻るだけで、新規文献なし |
+| 17 | 2026-11-19 | Web search | Rosie interactive task learning Mohan Laird Lindes | タスクと概念の学習で、許可・禁止ルールは扱わない。別名「instructable agent」として記録し除外 |
+| 18 | 2026-11-19 | Web search (extended) | LLM robot learns social norms household norm learning 2024–2026 | Malle et al. RO-MAN 2020 (方法論、本文確認)、NormGym 2611.08613 (要旨のみ) |
+| 19 | 2026-11-19 | Web search (extended) | embodied agent benchmark household-specific rules personalized norms | NormAct 2606.27826 と VestaBench (EMNLP 2025 industry) は要旨のみ。PersONAL・PersonalHomeBench は S2 に回す |
+| 20 | 2026-11-19 | Web search | Brawer Scassellati Interactive Policy Shaping | 採用 (Tan の同ラボの後続、言語指示から禁止・許可ルールを作る)。本文確認 |
+| 21 | 2026-11-19 | arXiv abs | 2605.28087 (COIN)、2609.16766 (EgoAsk)、2509.12754 (ActOwL) | いずれも所有推定・知識教示まで。操作の拒否や部分実行は要旨に記載なし。参照のみ |
+| 22 | 2026-11-19 | OpenAlex | robot norm learning object instruction ほか | 新規の該当なし (一部クエリは API エラー) |
+
+---
+
+## 2. 比較表 (1行 = 論文 × 実験条件)
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match A–D | Differences |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Tan, Brawer, Scassellati, "That's Mine!" AAAI 2019 [本文確認] https://scazlab.yale.edu/sites/default/files/files/Xuan_AAAI19.pdf | **実機シナリオ1**: 「作業台を片づけて」の実行中に赤い物体を捨てようとして "No Baxter, that's mine!" と叱責される | §Video demonstration、Fig.1上 | 住人が明示 (叱責) | 叱責を3つに分けて解釈する: 規範 (forbid trash if ownedBy …)、物体固有の許可 (forbid(trash,O))、所有の主張。分けるのはシステム。自然言語の解析方式は未確認 | 未教示の個体。ほかの赤い物体の所有者を知覚ヒューリスティック (KLR、特徴は位置・色・最終接触時刻) で予測する | 叱責された物体の所有情報は初めは**与えられていない** (叱責で得る)。ほかの物体の所有は推定 | 同じ依頼の**実行中**に教えられ、同じ依頼にすぐ適用される。後続の別依頼ではない | 部分実行: 残りを片づけ、所有物と予測した赤い物体には触れない。定性デモのみ (動画は未視聴、本文の説明だけで判断) | A ○ (新しい個体)、D △ (包括的な依頼の部分完遂。ただし単一の家庭) | ルールは事前教示ではなく実行中の訂正。家庭ルールの入れ替え比較はない。義務を扱わない |
+| 同上 | **実機シナリオ2**: シナリオ1の後、別ユーザが物体2を捨てるよう命令する | §Video demonstration、Fig.1下 | 住人の明示 (シナリオ1の教示) | 所有者ごとの規範 + 所有グラフ | 新しい依頼者・新しい依頼 | 物体2の所有はシナリオ1の結果として**信念がある**。新ユーザが排他的所有を主張すると更新される | **以前のルールを別の依頼で再利用する**。対象は単一の物体指定 | 拒否して謝罪する。所有の主張後は実行する。定性デモのみ | B ○ (定性)、D △ (所有状態を変えると同じ依頼で行動が変わる) | 依頼は単一物体を指定し、包括的な依頼ではない。関連ルールの検索という仕組みはなく、全規則を評価する |
+| 同上 | **実機シナリオ3**: ブロックの所有状態を**初めから知っている** (与えられている)。物体2の pickUp 禁止 (Xuan所有)、さらに2例、物体3 (所有者なし) の許可 → 規範を帰納 | §Video demonstration、Fig.2 | 例からの帰納 (物体固有の許可) | 帰納された規範 `forbid pickUp if ownedBy any`。帰納するのはシステム (逐次ルール学習) | 未教示の個体 (物体4) | 所有は**最初から与えられている** | 後続の pickUp 依頼に適用。単一の物体 | 拒否 ("denies the request")。定性デモのみ | A ○、C △ (分解表現はあるが効果は測っていない) | 所有の正解ありの条件。家庭ごとの比較はない |
+| 同上 | **シミュレーション 規範学習**: 20ブロック・3エージェント。許可を 100/50/25% 与え、所有の雑音あり/なし | Table 1 | 例から帰納 (真のルール3本を設計者が設定) | 述語ルール (ownedBy, isColored, inArea …、語彙は設計者が用意) | 未教示の個体 (残りの物体) | 所有は既知または40–80%の確信度。色は撹乱変数 | ― (ルール精度の評価) | 対照付き定量: accuracy 0.995→0.761、F1 0.995→0.519、ベースライン 0.583/0.000 | A ○ (定量、シミュレーション) | 家庭ルールの比較なし。分解の有無を比べるアブレーションなし |
+| 同上 | **シミュレーション 課題ベース評価**: collectAll / trashAll。誤るたびに真の許可で訂正する | Table 3 | オンライン訂正 | 同上 | 同上 | 所有ルールが関係するときだけ真の所有者を与える | 包括的な依頼 (全部集める/捨てる、規範違反は除く)。規範は事前に知らずオンラインで学ぶ | 定量: ミス数 6.30 / 6.32 (ベースライン 8.75 / 15)。ルール精度 0.975 / 0.877 | D △ (包括的な依頼で回避と完遂を同時に測っている。ただし家庭ルールの入れ替えや対での正解率はない) | 事前教示 → 後続依頼という構成ではない。確率が閾値を超えるかで実行するので、不明時の保留はない |
+| Zha et al., DROC "Distilling and Retrieving Generalizable Knowledge for Robot Manipulation via Language Corrections" arXiv 2311.10678 (v2 2024-03) [本文確認、採録会議は本文中に記載なし=未確認] https://arxiv.org/abs/2311.10678 | **計画レベル**: 訓練タスクで受けた言語訂正を知識として蒸留し、別のテストタスクで検索する (例: "Put scissors in drawer" で "User wants stationery in white drawer" → テスト "Clean the table") | §IV、Table I、Table II、Fig.4 | 住人の明示 (実行中の訂正。著者3名がオラクル利用者) | LLMが自然言語の知識文に蒸留する (例 "Robot only has one hand"、"White shelf is full")。対象・条件・規範への分解はしない | 新しいタスク・新しい物体 (テキストと視覚の類似で検索) | 実機 (Franka)。物体状態の与え方は本文で一部のみ確認 | **以前の知識を別の依頼で再利用**し、関連知識を検索する (タスク意味と視覚特徴) | 定量 (小規模、各3試行): テスト時の訂正回数 Pref 0.5 vs 1、Feasibility 0.67 vs 1.33 ほか (Ours vs Ours–R) | B ○ (定量)、A ○ | 中身は選好・実行可能性であり禁止・許可の規範ではない。拒否や部分実行はない。家庭の比較はない |
+| 同上 | **スキルレベル**: 同じタスクを3回繰り返し、物体の個体や位置を変える | §IV、Fig.3 | 訂正 | スキルパラメータ | 新しい個体 | 実機 | 同じタスクの反復 | 定量 (訂正回数の減少) | A △ | 規範ではない |
+| Scheutz, Thielstrom, Abrams, "Transparency through Explanations and Justifications in Human-Robot Task-Based Communications", IJHCI 38(18–20), 2022 [本文確認] https://doi.org/10.1080/10447318.2022.2091086 | **マグ拒否デモ**: "Give me the mug, Andy." → "I should not give you the mug because it belongs to Ravenna, and I need Ravenna's permission." | §4.1、Fig.2 (動画 PermissionFailure.mp4、未視聴) | 設計者が知識ベースに登録 (belongsTo(mug,ravenna) と、許可なく他人の物を使うのは不適切という原理) | 論理規則 (前件=条件、後件=:isProper(did(A,use(X)))、give の前提条件として照合)。拒否理由は前件から生成 | 単一の物体 | 所有の事実は知識ベースで与えられている | 単発の依頼を規範的前提条件で検査する | 拒否と理由説明。定性デモのみ | B △ (登録済みの規範を後続依頼に適用)、C △ (条件と行為を分けている) | 住人による教示ではない。包括的な依頼でも部分実行でもない |
+| 同上 | **安全デモ**: 「ナイフを放して」→ 人が前にいるので拒否 | §4.4、Fig.5 | 設計者 (一般安全規範) | 論理規則 | ― | 状態は既知 | 単発 | 拒否・定性 | ― | 常識的な安全規範で、家庭固有ではない |
+| Briggs & Scheutz, "Sorry, I Can't Do That", AAAI Fall Symp. AI-HRI 2015 [本文確認] https://cdn.aaai.org/ocs/11709/11709-51307-1-PB.pdf | Nao が felicity 条件 (知識・能力・目標の優先度とタイミング・社会的役割と義務・規範的許容性) で命令を拒否する | §Felicity conditions、§Example interaction | 設計者 | 信念の推論規則 (DIARC) | ― | 既知 | 単発 | 拒否・説明・人の追加情報による撤回。定性 (proof-of-concept と明記) | 拒否の先行例 | 物体操作や家庭ルールは扱わない |
+| Kasenberg, Roque, Thielstrom, Scheutz, "Engaging in Dialogue about an Agent's Norms and Behaviors", NL4XAI 2019 [本文確認] https://arxiv.org/abs/1911.00229 | ユーザが自然言語で規範を追加・削除し (仮定的な追加も可)、計画エージェントが説明する。買い物ドメイン | §2、Fig.1 | ユーザの明示 (自然言語) | 時相論理 VEL (G/F + 述語の連言、変数の量化)。CCG で解析する | 物体変数の量化により、未列挙の物体にも適用される | シミュレーション (記号状態) | 規範集合を変えると計画が変わる | 規範違反を最小化する計画と説明。定性 | B △、C △ (分解表現)、D △ (規範を変えて同じ課題) | ロボットの実機や知覚はない。家庭ではない。定量評価はない |
+| Brawer et al., "Interactive Policy Shaping for HRC with Transparent Matrix Overlays", HRI 2023 [本文確認] https://scazlab.yale.edu/sites/default/files/files/HRI_2023___Chefbot.pdf | 言語指示 (テンプレート) から prohibit / permit / transfer の if-then オーバーレイを作り、学習済み方策に重ねる。料理の共同作業 | §3、§4、Fig.5、Table 6 (付録) | ユーザの明示 (テンプレート化した音声) | 記号の if-then 規則 (条件 ⇒ ¬行為)。禁止・許可の種別あり。Prolog | 新しい食事の選好 (シミュレーションで50種) | 状態は Boolean ベクトル (既知) | 進行中の協調で付けたり外したりする | シミュレーションは定量 (方策適応)、実機は定性の proof-of-concept | C △ (分解と禁止/許可の種別)、B △ | 物体の属性に基づく家庭ルールではない。部分完遂の評価はない |
+| Ayub & Wagner, "What am I allowed to do here?", ICSR 2020 [本文確認] https://arxiv.org/abs/2009.05105 | Pepper が場所ごとに最大3問の yes/no 質問で、行為 (talkLoudly 等6種) の許可を学ぶ | §3.3、§4.2、Table 1–2 | 人への質問 (実験者がキーボードで回答) | 文脈ごとの Dempster-Shafer 規範 (文脈・行為・義務/禁止/許可) | 未見の場所 (シーン認識) | 画像からシーンを推定 (VGG16) | ― (規範を使った推論は今後の課題と明記) | 学習結果の表のみ | 低 | 物体操作も後続指示もない |
+| Malle, Rosen, Chi, Berg, Haas, "A General Methodology for Teaching Norms to Social Robots", RO-MAN 2020 [本文確認] https://cs.brown.edu/people/er35/publications/roman2020.pdf | 規範の収集実験 (文脈ごとの処方・禁止、N=80) と Norm-Learning Game の構想 | §IV–V、Fig.1–2 | 人から収集 | 文脈 → 処方/禁止 | ― | ― | ― | 構想と人の実験 | 低 (構想) | ロボット実装の評価はない |
+| GRACE (Doğan et al.) arXiv 2409.16879 [本文冒頭のみ確認] | 家庭内の行為の社会的適切さを、LLM と人の説明で予測する (MannersDB) | §III–V、Table I–III | 常識 (LLM) + 人の説明 | スコア | データセット上の場面 | 画像の要約 | ― | 定量 (RMSE 等) | 低 | 教示ルールの再利用も操作もない |
+| NormAct arXiv 2606.27826 [要旨のみ] | 550場面。暗黙の社会規範 (所有・プライバシーを含む) に従いながら目標を達成するか | 要旨 | 常識 (暗黙) | ― | 未確認 | 未確認 | 単発の目標 | 目標達成率と規範遵守率を分けて測る (67.3% vs 26.4%、二次情報) | D △ (2指標を分ける設計は近い) | 規範は教示されず暗黙。家庭固有ではない |
+| ActOwL arXiv 2509.12754 / Artificial Life and Robotics 2025 [要旨のみ] / COIN arXiv 2605.28087 [要旨のみ] | 質問による所有推定 | 要旨 | 人への質問 + LLM | 所有の確率・集合 | 新しい物体 | シミュレーション・実機 (ActOwL) | ― | 所有推定の精度のみ (要旨の範囲) | 低 | 規範による行為の判定は要旨に記載なし |
+
+---
+
+## 3. 主張ごとの判定 (担当分野から)
+
+- **A. 教えられたルールを別の物体に適用する → 既出**
+  - 決め手は Tan et al. 2019。シナリオ1 (叱責 → ほかの赤い物体にも知覚ヒューリスティックで適用) とシナリオ3 (帰納した規範で未教示の物体4を拒否) が実機の定性デモ、Table 1 がシミュレーションの定量評価。DROC (新しい個体・タスクへの知識再利用) も該当する。
+  - CoGround に残る差は、属性述語 (fragile 等) を知覚から得ることと、不明な属性を undetermined として保留すること。Tan は所有確率を閾値と比べて実行するため、保留という扱いがない。
+
+- **B. 保存したルールと後続の独立した指示を照合する → 既出 (定性・小規模の定量)**
+  - Tan シナリオ2: 片づけ中に教わった所有規範を、別のユーザによる別の依頼に再利用して拒否した。
+  - DROC Table II: 訓練タスクの訂正を別のテストタスクで検索して再利用し、訂正回数が減った。
+  - Kasenberg 2019: 自然言語で追加した規範が後の計画を変える。
+  - 残る差は2点。(i) **禁止・義務の規範**を (DROC は選好・実行可能性を扱う) (ii) **包括的な依頼の中で、物体ごと・行為ごとに**適用判定する組み合わせ。これを先行研究と同じ入出力で示した例は、自分の担当範囲では見つからなかった。差分は小さい。
+
+- **C. 分解 (対象・適用条件・規範) が未教示の組み合わせでの判断に寄与する**
+  - **手法の先取性 → 既出。** Tan の forbid(Φ,O) :- 条件述語、Scheutz 2022 の規範規則 (前件と行為の前提条件)、Kasenberg の VEL、Brawer 2023 の prohibit / permit オーバーレイ、Ayub/Sarathy の (文脈, 義務演算子, 行為)。どれも同等の構造化表現を持つ。LLM で自然言語から (N, S, T, C) へ「コンパイル」する点は実装上の差に留まる。
+  - **効果の実証 → 証拠不足 (差分候補)。** 分解しない方式 (原文を直接読む、原文を検索して読む) と比べた対照評価は、担当範囲で見つからなかった。
+
+- **D. 家庭固有ルールの違いを反映して、包括的な依頼の実行可能部分を完遂する → 差分候補 (評価設計として)**
+  - Tan の Table 3 (collectAll/trashAll) は、包括的な依頼で回避と実行の誤りを同時に数えている。シナリオ1は部分完遂の定性デモ。
+  - ただし、**同じ場面・同じ指示で家庭ルールだけを入れ替えた対の比較**や、禁止違反率と許可対象の完遂率を分けた報告は見つからなかった。NormAct は2指標を分けるが、規範は暗黙の常識であり教示されたものではない。
+  - したがって「機能の初出」は主張できない。対照評価の設計として差分候補になる。
+
+---
+
+## 4. 最も強い反例3件
+
+1. **Tan, Brawer, Scassellati, AAAI 2019 "That's Mine!"**
+   - 片づけという包括的な依頼の中で、人の叱責を規範・物体固有の許可・所有に分けて取り込む。それを未教示の個体に適用して部分実行し (シナリオ1)、後から来た別ユーザの別依頼を拒否する (シナリオ2)。
+   - A・B・D の定性版と、C の「分解表現」を一つの論文で示している。シミュレーションでは定量評価もある。
+   - 欠けている点: シナリオごとに条件が違う (シナリオ3は所有が既知、シナリオ1は叱責で獲得、シミュレーションは正解の所有を与える)。単一の実証として扱ってはいけない。義務は扱わない。家庭ルールを入れ替えた対の比較はない。分解のアブレーションもない。
+2. **Zha et al. DROC (arXiv 2311.10678)**
+   - 実機で、利用者の言語訂正を知識ベースに蒸留し、**別のタスク** ("Clean the table" など) で意味と視覚の類似から検索して再利用する。対照 (Ours–R) と比べた定量評価があり、主張Bの「関連ルールを選択して後続依頼の行動を変える」に最も近い。
+   - 欠けている点: 対象は選好と実行可能性であり、禁止・許可の規範や拒否・部分実行は扱わない。試行は少ない (各3試行)。分解しない自由文の知識を使う。
+3. **Scheutz, Thielstrom, Abrams, IJHCI 2022 (+ Briggs & Scheutz 2015)**
+   - 所有規範 (belongsTo + 許可原理) を物体操作の命令の前提条件として照合し、拒否と理由説明をする実機デモがある。
+   - 条件と行為を分けた論理規範で、後から来た命令を検査する機構を先に示している。
+   - 欠けている点: 規範は設計者が登録したもので、住人の教示ではない。単発の命令で、部分実行はない。評価は定性デモのみ。
+
+次点: Brawer et al. HRI 2023 (音声から prohibit / permit の if-then ルールを作り方策に重ねる。Tan と同じラボ)、Kasenberg et al. 2019 (自然言語で規範を追加・削除し、時相論理で計画)。
+
+---
+
+## 5. 他の担当に再読してほしい文献
+
+- **Tan et al. 2019** (統合役へ): 動画 https://bit.ly/2z8obET を視聴し、シナリオ1で叱責前に「作業台を片づけて」の対象物と所有情報がどう与えられたか、自然言語理解がテンプレートかどうかを確認してほしい。
+- **DROC** (S2・S3 へ): 採録会議 (ICRA 2024 かどうか未確認)、Table II の各タスクの物体状態の入力方法、知識に禁止型 ("don't …") の訂正が含まれるか。
+- **Brawer et al. HRI 2023** (S3 へ): prohibit / permit オーバーレイは、規範・例外・優先度を持つ記号的制約であり、Safety Chip などとの関係を確認してほしい。
+- **NormAct 2606.27826、VestaBench (EMNLP 2025 industry)** (S2・S3・統合役へ): 目標達成と規範遵守を分けて測る評価設計が主張Dの評価に近い。規範が明示的に与えられる条件があるか、本文を確認してほしい。
+- **Kasenberg & Scheutz 系 (inverse norm conflict resolution AIES 2018、norm conflict resolution AAAI 2018)** (S3 へ): 時相論理の規範とその優先度。本文は未確認。
+- **Oldenburg & Tan, AAMAS 2024 (arXiv 2402.13399)**: ベイズ的なルール帰納による規範の学習。マルチエージェントのため担当外で、要旨も未確認。
+
+---
+
+## 6. 未確認のまま残ったもの
+
+- Tan et al. の動画の内容 (シナリオ1の初期条件や自然言語解析の方式)。本文の文章とキャプションだけで判断した。
+- Scheutz 2022 と Briggs 2015 のデモ動画は未視聴。
+- DROC の採録会議名、知識に禁止型の訂正が入るかどうか。
+- Sarathy, Scheutz & Malle 2017 (CogInfoCom)、Malle & Scheutz の規範ネットワークの章、Kasenberg & Scheutz 2018 (2本)、Jackson & Williams の noncompliance 研究、Mohan & Laird 2014、Kirk & Laird のゲームルール学習は書誌確認のみで本文は未読。Rosie はタスクと概念の学習であり、許可・禁止ルールの例は見つからなかった。
+- "Learning Ownership based on Theory of Mind" (2023、Semantic Scholar の被引用リストにある) は原文を特定できなかった。
+- NormAct、ActOwL、COIN、EgoAsk、ROBOTVALUES、2507.16124 は要旨か二次情報のみ。ActOwL の著者名は未確認。
+- 2024〜2026年の LLM 系で「住人が教えた禁止・許可を保存し、後続の包括的な依頼に物体ごとに適用して部分実行する」HRI 研究は、担当範囲の検索では見つからなかった。ただし探しきったとは言えない。Google Scholar の被引用は直接は使えず、OpenAlex と Semantic Scholar で代用した。
+
+===== FILE: search/S2_perception_household.md =====
+# S2 — Perception & Household Robots (Searcher 2)
+
+Scope: deciding rule applicability from appearance/material/state; tidying preferences; generalization to unseen instances/categories; text/symbols in the environment as perceptual input.
+Date of all searches: 2026-11-19. Full texts were downloaded (arXiv/author PDF) and read with pdftotext unless marked "abstract only".
+
+---
+
+## 1. Search log
+
+| # | Date | Database | Query | Result / inclusion decision |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | arXiv (abs + v2 HTML/PDF) + author PDF (pixl.cs.princeton.edu) | TidyBot 2305.05658; IROS PDF from brief | **Included** (start point). Read IROS §III–IV in full, plus the AuRo/arXiv v2 extension (Sec. 3–4, Table 7). |
+| 2 | 2026-11-19 | WebSearch | robot tidying "user preferences" unseen objects LLM rearrangement benchmark | PARSEC (2505.11108), Housekeep, TidyBot → included |
+| 3 | 2026-11-19 | WebSearch + arXiv PDF | ConSOR context-aware semantic object rearrangement | ConSOR (2310.00371, IROS 2023) → included (preference from scene context, unseen categories) |
+| 4 | 2026-11-19 | WebSearch + arXiv HTML | LLM-Personalize household rearrangement | LLM-Personalize (2404.14285, COLING 2025) → included (shows Housekeep "preferences" = crowd annotations, no per-household rule) |
+| 5 | 2026-11-19 | WebSearch | robot household rules "don't touch" VLM manipulation user-specified constraints fragile | VLTSafe (Saxena et al., author PDF), Santos et al. 2409.14580, SafeVLA, SafeStage, PAC Bench → VLTSafe & Santos included (full text); SafeVLA/SafeStage excluded (general safety, no user rules; not read) |
+| 6 | 2026-11-19 | WebSearch + PMLR/arXiv | "My House, My Rules" Kapelyukh Johns | NeatNet (CoRL 2021, PMLR v164) → included |
+| 7 | 2026-11-19 | WebSearch (extended) | robot learns household rules natural language novel objects "house rules" LLM manipulation 2024 2025 | Nothing beyond TidyBot that matches; memory-augmented agent 2504.21716 excluded (no rules) |
+| 8 | 2026-11-19 | WebSearch | embodied agent benchmark personalized household constraints user-specific rules ALFRED/BEHAVIOR/Habitat | PersONAL (2509.19843) included; VESTABENCH, PARTNR, ET-Plan-Bench noted, not read (commonsense safety / spatial constraints, no resident rules) → handed to Searcher 3 |
+| 9 | 2026-11-19 | arXiv PDF | Wu et al. 2611.18026 (brief start point) | Included as cross-reference row (per-task/scene rule applicability, designer safety rules) |
+| 10 | 2026-11-19 | WebSearch + arXiv PDF | APRICOT active preference learning constraint-aware | APRICOT (CoRL 2024) included |
+| 11 | 2026-11-19 | WebSearch (extended) | robot tidy up personalized "do not move" / "leave as is" user rules unseen objects prohibition | **Kwon et al. "Toward Grounded Commonsense Reasoning" (ICRA 2024, 2306.08651)** → included (per-object "leave as is" from active perception) |
+| 12 | 2026-11-19 | WebSearch | PersONAL benchmark ownership | included (ownership given as text, navigation/grounding) |
+| 13 | 2026-11-19 | WebSearch | robot reading text labels/stickers OCR grounding manipulation | **No direct hit**: VIMA, HiFi-CS etc. ground colour/texture, not written text. Excluded. |
+| 14 | 2026-11-19 | WebSearch | robot VLM reads signs / written notes "do not touch" | **No direct hit** (SignVLA = sign language). Excluded. |
+| 15 | 2026-11-19 | WebSearch + arXiv PDF | physically grounded VLM fragility PhysObjects | PG-VLM (Gao et al., ICRA 2024, 2309.02561) included (attribute estimation) |
+| 16 | 2026-11-19 | WebSearch | household robot "user-defined rules"/"household rules" plan verification unseen objects 2025 2026 | VerifyLLM, 2608.29379 noted (general verification, not read); "PAIR: Bringing Household Robots into the Smart Home" (listed 2026-11-17 in a digest) — **could not locate on arXiv API/OpenAlex → unverified** |
+| 17 | 2026-11-19 | WebSearch / arXiv | Toward Grounded Commonsense Reasoning venue | ICRA 2024 confirmed via arXiv comment |
+| 18 | 2026-11-19 | WebSearch | personalized preferences same scene different users tidying user-specific constraints | PARSEC (5 users per environment instance), APOLLO (2606.17309, RO-MAN 2026; abstract only) |
+| 19 | 2026-11-19 | WebSearch + arXiv abs | DALL-E-Bot; TIDEE | DALL-E-Bot (RA-L 2023; abstract only), TIDEE (ECCV 2022; abstract only) — commonsense, no user rules → table rows marked mostly 未確認 |
+| 20 | 2026-11-19 | WebSearch | personalized object grounding "my mug" | Bring My Cup / VAP (2512.20014; abstract only) — instance personalization, no rules |
+| 21 | 2026-11-19 | WebSearch | semantically safe robot manipulation Brunke | Brunke et al. RA-L 2025 (2410.15185; abstract only) — LLM-inferred commonsense semantic constraints |
+| 22 | 2026-11-19 | WebSearch | sorting according to user rules novel objects material | 2606.12910 (language → JSON goal, attribute/material rules; snippet only, not verified) |
+| 23 | 2026-11-19 | WebSearch | TidyBot follow-up prohibitions/exceptions memory | No follow-up with prohibitions found |
+| 24 | 2026-11-19 | WebSearch + arXiv PDF | robot learns rules once, later tasks, memory | Bärmann et al. 2309.04316 (KIT) — corrections stored in memory and retrieved for later requests (ladder example) → cross-read for Searcher 1 |
+| 25 | 2026-11-19 | ECVA proceedings PDF | Housekeep | ECCV 2022 confirmed; unseen-object split and 0.23 vs 0.30 object success confirmed in text |
+| 26 | 2026-11-19 | OpenAlex API | household robot house rules manipulation; Bringing Household Robots into the Smart Home | rate-limited / irrelevant hits; no new candidates |
+| 27 | 2026-11-19 | arXiv abs | DegustaBot 2407.08876 (cited by PARSEC) | abstract only; visual aesthetic preferences, sim + user study |
+
+Alternative names collected for the same idea in this area: "personalized rules" / "personalized preferences" (TidyBot), "tidying preferences" (NeatNet), "organizational preferences", "preference-conditioned rearrangement" (PARSEC, ConSOR), "semantic safety constraints" / "language-informed safety" (Santos, VLTSafe, Brunke), "normative / commonsense tidying" (Kwon), "physical concepts" (PG-VLM), "constraint applicability" (Wu 2611.18026), "embodied personalization" / "ownership semantics" (PersONAL), "instance personalization" (VAP).
+
+---
+
+## 2. Comparison table (one row = paper × condition)
+
+Verified = original text read (Y) / abstract only (A).
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match with A–D | Differences vs CoGround |
+|---|---|---|---|---|---|---|---|---|---|---|
+| TidyBot, Wu et al., IROS 2023 / AuRo 47(8) 2023 ([PDF](https://pixl.cs.princeton.edu/gfx/pubs/Wu_2023_TPR/tidybot_IROS23.pdf), [arXiv](https://arxiv.org/abs/2305.05658)) — Verified Y | Text benchmark: receptacle selection | IROS §III-A, §IV-A,B,C, Tab. I–III | Inferred from examples (4–10 seen placements per scenario, written as text by authors as a per-scenario "user") | LLM summarizes examples into a free-text rule ("put light-colored clothes in drawer…"); implicitly category → receptacle; LLM decomposes, no explicit deontic type | Unseen objects (distinct from seen examples, same scenario); no unseen-category split reported; commonsense-only ablation 45.6% vs summarization 91.2% shows rules differ from commonsense | GT object names as text | Rules given upfront; the only task is "put objects away"; no independent request, no rule selection (all summary used) | Placement choice; controlled quantitative eval (91.2% unseen vs 78.5 examples-only, 83.7 CLIP-emb.) | **A: yes (placement)**. C: partial (summarization vs raw examples = structuring effect). B, D: no | Obligation-like placement preferences only; no prohibition, no permission/exception, no partial execution or ask; no "same objects, different rules" pairing |
+| TidyBot (same) | Primitive selection (pick&place vs pick&toss) | IROS §III-B, Alg. 1; AuRo §3.2, §4.5 | Inferred from examples (object→primitive) | Separate LLM summary ("pick and place shirts, pick and toss socks") | Unseen objects | GT text in prompt; on robot: CLIP category | Same as above | Manipulation-method choice; **no quantitative accuracy for primitive**; on robot "100% of localized objects" given predicted category (AuRo §4.5) | A: yes (action-type rule to new instances) | Action choice among two primitives, not prohibition of contact; rule chosen per category, not per attribute/state |
+| TidyBot (same) | Real mobile manipulator, 8 scenarios × 10 objects × 3 runs | IROS §IV-D, Fig. 3; AuRo §4.5, Tab. 7 | Examples per scenario given before cleanup | Summaries → category list fed to CLIP | 70 unique unseen test objects | **Estimated from images**: ViLD localization (overhead), CLIP classification over LLM-extracted category nouns (95.5% vs 52.3% with all object names); unknown attribute handling: none (always forced classification) | none (single cleanup) | 85.0% objects correct; stage breakdown (loc. 92.5%, cls 95.5%, exec 96.2%) — controlled quantitative, no baselines on robot | A: yes on real robot with perception | No 'undetermined/hold'; misclassification directly acts; colour attributes ("white socks") cause CLIP errors |
+| NeatNet "My House, My Rules", Kapelyukh & Johns, CoRL 2021 ([PMLR](https://proceedings.mlr.press/v164/kapelyukh22a.html), [arXiv](https://arxiv.org/abs/2111.03112)) — Y | Tidying preference from user arrangements; new object / unseen object / new scene | §3.4, Tab. 1–4 | Inferred from user demonstrations (75 users, sim) | Latent user-preference vector (GNN-VAE); no symbolic rule | Unseen objects via word embeddings; new scenes | GT object names (word embeddings), simulator | none | Placement position; quantitative + user scores | A (placement); D-like: per-user arrangements of same scene (placement only) | No prohibitions, no language rules, no robot perception |
+| ConSOR, Ramachandruni, Zuo, Chernova, IROS 2023 ([arXiv](https://arxiv.org/abs/2310.00371)) — Y | Partially arranged scene → place new objects; unseen object categories test (10 novel categories, 120 goal scenes) | Abstract, §IV, Tab. I | Inferred from current scene context (no explicit user input) | Transformer over object semantic embeddings (ConceptNet) | **Unseen categories** | GT semantic labels | none | Placement; quantitative | A (placement, unseen category) | No explicit rules/deontics |
+| PARSEC / ContextSortLM, Ramachandruni & Chernova, RO-MAN 2025 ([arXiv](https://arxiv.org/abs/2505.11108)) — Y | KnownEnv & NovelEnvCategory; 72 users, **5 users per environment instance, 6 arrangements each** | §IV–VI, Tab. II | Inferred from a user's prior arrangements (real crowdsourced users) | LLM → JSON-style preference representation (object grouping → surfaces, multiple valid placements) | Unseen users, unseen environment categories; objects text labels | GT text labels | none (placement only) | Placement accuracy (ContextSortLM 0.59 vs TidyBot-Random 0.44 vs APRICOT-NI 0.53) + 108 raters | A; **D partially**: same environment, different users' placement preferences | No prohibition / partial execution; no "forbidden object avoided" metric; no robot |
+| APRICOT, Wang et al., CoRL 2024 ([PMLR](https://proceedings.mlr.press/v270/wang25e.html), [arXiv](https://arxiv.org/abs/2410.19656)) — Y | Fridge organization: 100 test cases; real robot 9 scenarios | §4, §5.1–5.2, App. 8 | Inferred from 2 visual demonstrations + active questions to user | LLM candidate preferences (text), Bayesian belief; separate geometric constraint check C(ξ) | Unseen initial conditions | VLM converts visual demos to language; perception detects objects | none | Plan satisfying preference + geometric feasibility; preference acc. 58% with 2.15 questions; asking demonstrated | A (partial); "asking" | Constraints are geometric feasibility, not resident prohibitions |
+| Housekeep, Kant et al., ECCV 2022 ([ECVA](https://www.ecva.net/papers/eccv_2022/papers_ECCV/papers/136990350.pdf)) — Y (partial) | Habitat tidying; seen / val-unseen / test-unseen object splits | §3–5 | Commonsense (crowd-annotated placement correctness, pooled) | Object–receptacle correctness labels; LLM planner | Unseen objects, unseen scenes | Egocentric observations (masks: 未確認 whether GT) | none | Object success 0.23 unseen vs 0.30 seen | A (commonsense, not household-specific) | No per-household rules; no prohibitions |
+| LLM-Personalize, Han et al., COLING 2025 ([arXiv](https://arxiv.org/abs/2404.14285)) — Y (HTML summary) | Housekeep; cross-scene transfer | §3.1, §4.1–4.3, Tab. 1–2 | Housekeep human annotations (not per-user) | LLM planner fine-tuned (IL + reinforced self-training) | Unseen configurations, cross-scene | High-level observations (GT vs predicted: 未確認) | none | Success rate (+>30%); sim only | A weakly | "Personalize" = align to annotation set, not resident-taught rules |
+| Toward Grounded Commonsense Reasoning, Kwon et al., ICRA 2024 ([arXiv](https://arxiv.org/abs/2306.08651)) — Y | MessySurfaces: 70 surfaces, 308 questions, 5 action options per object incl. "leave as is" | §III, §IV-A, Fig. 1–3 | **Commonsense** (LLM normative judgement; annotators' consensus as GT) | Raw LLM reasoning; no stored rules | Novel real objects/states (e.g., Lego car built vs toddler toy) | **Estimated from images with active perception** (LLM asks follow-up Qs, robot takes close-ups, VLM answers); unknown attribute → ask follow-up question & re-perceive | Single "tidy the surface" request; per-object action choice | Per-object action incl. leave-as-is; +12.9% benchmark, +15% robot vs no active perception | Per-object applicability from state/appearance (strong for perception side of A); not B/D | No resident rules; the "do not tidy" decision is commonsense, not household-specific; no partial-execution report as such |
+| Kwon et al. (same) | Real robot: 2 surfaces, 11 objects (toys to leave on display; trash to recycle/landfill/keep) | §IV-B | Commonsense | as above | designed unambiguous surfaces | wrist-camera close-ups + VLM | single request | Qualitative + success rate; small | as above | as above |
+| VLTSafe, Saxena, Kroemer, Bajcsy, 2025 preprint ([author PDF](https://saumyasaxena.github.io/assets/papers/safety_manipulation_2025_arxiv_v1.pdf); arXiv id 未確認) — Y | Sim (Robosuite) pull-box-from-stack, AllFragileConst / RandomConst; hardware Franka | §3–4, Tab. 1, Fig. 3–4, §4.5 | **Commonsense via VLM** (VLM identifies "do not touch fragile objects") — designer-defined constraint vocabulary | **Per-object constraint type** ∈ {no-contact, soft-contact, any-contact, do-not-move-over} as object-token attributes → geometric failure set | **Novel constraint compositions** (object × constraint type), more clutter | VLM from RGB image + task text assigns per-object constraint; GT state in sim | single task; constraints chosen per scene | Low-level policy safe success (≈79% train setting; generalization curves); hardware qualitative | **C-like structure**: object × constraint-type composition generalization (method precedence for "attribute×action" at policy level) | No resident rules, no persistence, no independent request, no partial execution |
+| Santos et al., "Updating Robot Safety Representations Online from Natural Language Feedback", arXiv 2409.14580 (submitted ICRA 2025) ([arXiv](https://arxiv.org/abs/2409.14580)) — Y | Habitat 3.0 (HSSD) gym & hallway; hardware | §III, §V, §VII, Fig. 2–3 | **Resident/operator explicit language** ("Don't drive over the rug", "Avoid the free weights area") | Language → OWLv2 boxes → failure set (no deontic decomposition; all are prohibitions) | Paraphrases of the constraint; same scene | **Estimated from images** (OWLv2 open-vocab detection) | Constraints accumulate over deployment (ℓ0:t concatenated); single navigation goal (fixed start/goal) | Safety filter (HJ reachability); IoU of inferred failure set; sim + hardware | A-like (language prohibition grounded to perceived instances); B weak (persist within deployment) | Navigation, not manipulation; no obligations/permissions/exceptions; no later independent request |
+| PG-VLM / PhysObjects, Gao et al., ICRA 2024 ([arXiv](https://arxiv.org/abs/2309.02561)) — Y (partial) | VLM fine-tuned on physical concepts (fragility, material…); LLM planner queries VLM; real Franka | §III–V, Tab. VII | Task instruction (e.g., "move the most fragile object") — not rules | Attribute queries | Held-out images | Estimated from images (a fragility row reads 64.9 / 64.9 / 78.4 / 91.2 / 94.6 across model columns; exact column mapping 未確認) | single instruction | Planning success; real robot success table | Supports perception of attributes used by T (fragile=true) | No rules / persistence |
+| Wu et al., "A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space", arXiv 2611.18026 ([arXiv](https://arxiv.org/abs/2611.18026)) — Y | 150 held-out task–scene queries; 30 unseen scenes; 50-scene sequential adaptation; real robot 2 demos | §III, §IV-A–D, Tab. I–III, Fig. 2 | **Designer/commonsense safety rules** (93 candidate textual rules) | Raw text rules; learned dual-tower applicability (task+image query vs rule) | Unseen task–scene contexts | Image + task to VLM planner | **Rule retrieval per task+scene** (not per object/action); compared with BGE-M3 retrieval (F1 0.388 vs 0.252) | Plan check/correction; call_human_help after 3 fails; quantitative + 2 real demos | **B-like (designer rules)** | Not resident-taught; no deontic types/exceptions; scene-level selection; no same-scene-different-rules |
+| PersONAL, Ziliotto et al., arXiv 2509.19843 ([arXiv](https://arxiv.org/abs/2509.19843)) — Y (partial) | HM3D episodes; ownership graph easy/medium/hard; nav + grounding | §III–V, Tab. IV–V | Text scene description (designer-generated) states ownership | Raw text | Unseen environments | Detector + text | Query about a person's object | Navigation/grounding success | Attribute "owned_by" grounding only | No manipulation rules |
+| Bring My Cup / VAP, Lee, Mo, Han, arXiv 2512.20014 ([arXiv](https://arxiv.org/abs/2512.20014)) — A | Personalized-SIMPLER/VLABench, SO-101 real | abstract | User reference images of "my" object | none (instance memory) | New personal instances | images | single instruction | success rates (numbers 未確認) | instance-level target grounding | No rules |
+| Semantically Safe Robot Manipulation, Brunke et al., RA-L 2025 ([arXiv](https://arxiv.org/abs/2410.15185)) — A | Teleop tabletop, pick-and-place, real kitchen with diffusion policies | abstract (§ 未確認) | Commonsense via LLM (GPT-4o per secondary summary, 未確認) | Semantic map + LLM-inferred unsafe conditions → CBF | 未確認 | 3D semantic map from perception | single task | Safety filter; quantitative 未確認 | per-object/pair semantic applicability (commonsense) | No resident rules |
+| Bärmann et al., "Incremental Learning of Humanoid Robot Behavior from Natural Interaction & LLMs", arXiv 2309.04316 ([arXiv](https://arxiv.org/abs/2309.04316)) — Y (partial) | "I also need the ladder" correction → stored → reused for later similar request on a high surface but not a low one | Fig. 1–4, §III | Resident explicit correction | Interaction example (code) in memory; LLM-retrieved few-shot | New but similar request | Scene from memory/perception (GT vs estimated 未確認) | **Reuse of stored teaching in a later request with retrieval** | Behaviour change; quantitative in sim (numbers 未確認), real ARMAR demo | **B-like** (taught then reused; selective application) | Not deontic rules; no per-object attribute applicability; → Searcher 1 |
+| DALL-E-Bot (RA-L 2023), TIDEE (ECCV 2022), DegustaBot (arXiv 2407.08876), APOLLO (RO-MAN 2026) — A | rearrangement / tidying | abstracts | commonsense (DALL-E-Bot, TIDEE) / inferred preferences (DegustaBot, APOLLO) | image goal / learned priors / embeddings | unseen objects/rooms (claimed) | images (DALL-E-Bot, TIDEE) / 未確認 | none | placement; user studies | A (placement) at most | No prohibitions or rule reuse |
+
+---
+
+## 3. Per-claim verdicts (from perception & household-robot area)
+
+**A. Apply a taught rule to other objects (new instances)** — **既出 (already done).**
+TidyBot (resident-like examples → LLM summary → applied to 70 unseen real objects with CLIP perception, 85.0%; benchmark 91.2% unseen) already demonstrates this, including choosing a *manipulation method* (place vs toss) for new objects. NeatNet, ConSOR (unseen categories), PARSEC also generalize preferences. For prohibition-type rules grounded on perceived instances, Santos et al. (language "don't drive over the rug" → OWLv2 → instances) does it in navigation. CoGround can only claim A in narrower form: *prohibition/permission* rules applied via *perceived attributes* (fragile, state) to unseen instances in manipulation, with undetermined handling — that narrower combination was not found in my area, but each part exists (Kwon: per-object leave-as-is from active perception; VLTSafe: per-object no-contact from VLM).
+
+**B. Match stored rules against a later, independent request; select relevant rules; change behaviour on targets** — **差分候補 (difference candidate), weak.**
+In my area no work stores resident-taught rules and later selects among them for an independent broad request at per-object/per-action granularity. Closest: Wu et al. 2611.18026 (rule-library applicability selection per task+image — but designer safety rules, scene-level selection, not resident rules), Bärmann et al. 2309.04316 (taught correction stored and retrieved for a later similar request), TidyBot (preferences given once, then a cleanup task — but the request *is* the preference context; no selection). The verdict depends on Searcher 1 (Tan et al. ownership: rejecting later requests) and Searcher 3 (Safety Chip, 2611.18026).
+
+**C. Decomposition into target / condition / directive helps on untaught combinations** — Method precedence: **partially 既出**; effect evidence: **証拠不足 (no counter-evidence, but CoGround has no evidence yet either).**
+Structured-rule precedence: TidyBot's summaries are category→receptacle/primitive rules and the "summarization vs examples-only" ablation (91.2 vs 78.5) is the closest "structure helps generalization" result (but it is about abstraction, not deontic decomposition). VLTSafe explicitly represents object × constraint-type (no-contact/soft-contact/…) and shows generalization to novel constraint compositions — a precedent for "new attribute × action combination" at the policy level, with commonsense (VLM) not resident rules. No paper found that ablates *deontic decomposition vs raw rule text* on untaught combinations. → CoGround must run spec §5-3.
+
+**D. Household-specific rule differences + completing the feasible part of a broad request** — **差分候補.**
+No work found that keeps the same scene and the same instruction, varies household rules, and measures both forbidden-object avoidance and permitted-object completion. Partial overlaps: PARSEC (same environment instance, 5 different users' placement preferences; placement accuracy only); NeatNet (per-user arrangements); TidyBot commonsense ablation (45.6%) shows personal rules ≠ commonsense but its scenarios do not pair identical object sets with different rules. Safety works (VLTSafe, Kwon, Brunke) measure avoidance but under commonsense, not per-household. Partial execution with reasons (deferred) not found in my area.
+
+**Text/symbols in the environment (star/circle marks, labels)**: no manipulation work found that reads written labels/marks as rule-applicability input (searches #13, #14). Spec §5-1 (star vs circle marks uncorrelated with material) appears not to be tested in my area — but this is "absence of evidence" from 2 searches; integrator should run one more scene-text search (e.g., "scene text" VLA, "OCR" mobile manipulation).
+
+---
+
+## 4. Top-3 strongest counterexamples (from this area)
+
+1. **TidyBot (Wu et al., IROS 2023 / AuRo 2023)** — directly refutes a novelty claim on A: a resident's few examples are compiled by an LLM into generalized rules that a real mobile manipulator applies to unseen objects with image-based perception (CLIP over LLM-extracted categories), and the rule also selects the manipulation method (place vs toss). It also quantitatively shows the personal rules diverge from commonsense (45.6% commonsense vs 91.2%). Limits: placement/method preferences only, no prohibition/permission/exception, no independent later request, no partial execution, no unknown-attribute hold.
+2. **VLTSafe (Saxena, Kroemer, Bajcsy, 2025 preprint)** — closest precedent for the *structure* of C in manipulation: a VLM assigns each perceived object a constraint type (no-contact / soft-contact / any-contact / do-not-move-over, e.g., "do not touch fragile objects"), and the policy generalizes to novel object × constraint compositions. Limits: constraints are commonsense/VLM-inferred per scene, not resident-taught or persistent; no request matching; low-level policy.
+3. **Kwon et al., Toward Grounded Commonsense Reasoning (ICRA 2024)** — per-object applicability decided from appearance/state with active perception and explicit question-asking when information is missing (analogue of CoGround's `undetermined` + `missing`), including "leave as is" during a broad "tidy" request on a real robot. Limits: commonsense norms only (annotator consensus), no household-specific rules, no rule storage/reuse.
+
+Runner-up: PARSEC (same environment, different users → household-specific placement; strongest for D's "same scene, different rules" design, but no prohibitions) and Santos et al. 2409.14580 (resident language prohibition grounded via open-vocab detection, persisted during deployment; navigation).
+
+---
+
+## 5. Papers another agent should re-read
+
+- **Wu et al. 2611.18026** (Searcher 3 / integrator): rule-library applicability per task+image is the closest to B's "select relevant rules"; check whether any rule is user-specific and whether applicability is per object.
+- **Bärmann et al. 2309.04316** (Searcher 1): taught correction stored and selectively reused in later requests — B competitor from the HRI side; venue and quantitative numbers not verified here.
+- **Santos et al. 2409.14580** (Searcher 1/3): resident language prohibitions, persisted; check hardware experiment details and whether later tasks differ.
+- **VLTSafe** (Searcher 3): verify publication venue/arXiv id; check whether constraint attributes could be user-specified.
+- **PARSEC 2505.11108** (integrator): use its "5 users per environment instance" protocol as related design for D; cite as closest same-scene-different-household evaluation.
+- **APRICOT** (Searcher 3): preference vs feasibility constraint separation, asking.
+- **Kwon et al. 2306.08651** (Searcher 1): "leave as is" normative decision; relation to "undetermined → ask".
+- Not read here, worth a check by Searcher 3: VESTABENCH (BEHAVIOR + safety constraints), PARTNR, SafeAgentBench-like benchmarks; VerifyLLM 2507.05118.
+
+---
+
+## 6. What remains unverified
+
+- TidyBot primitive-selection accuracy on benchmark: not reported in paper (verified absence); IROS vs AuRo section numbers differ (IROS §III-A/B/C, §IV-A–D; AuRo Sec. 3.1–3.3, 4.5, Table 7).
+- VLTSafe: arXiv id and venue (author-hosted preprint only).
+- Santos et al.: final venue (arXiv says "submitted to ICRA 2025"); hardware setup details not extracted.
+- Housekeep / LLM-Personalize: whether instance/semantic masks are GT or predicted.
+- Brunke et al., DALL-E-Bot, TIDEE, DegustaBot, APOLLO, Bring My Cup: abstract-level only; section-level evidence 未確認.
+- "PAIR: Bringing Household Robots into the Smart Home" (seen only as a title in an arXiv daily digest dated 2026-11-17): not located; content unknown — integrator should check arXiv listing for 2026-11-17/18.
+- 2606.12910 (language → JSON goal with material/colour rules): snippet only.
+- Scene-text/label-as-rule-input in manipulation: only two web searches, no hits; absence not firmly established.
+- Forward citations of TidyBot were not exhaustively enumerated (Semantic Scholar/OpenAlex not completed due to rate limits); search #23 found no TidyBot follow-up with prohibitions.
+
+===== FILE: search/S3_symbolic_planning.md =====
+# S3: Symbolic reasoning & task planning (Searcher 3)
+
+Scope: binding objects to rules with variables; norms, exceptions, priorities; action selection with NL constraints; PDDL / ASP / temporal logic / LLM-VLM guards.
+Date of all searches: 2026-11-19. Author: Searcher 3.
+Verification legend: **[V-full]** = read in the original full text (PDF/HTML); **[V-abs]** = only the original arXiv/venue abstract or listing was checked, so body details are 未確認; **[V-partial]** = full text partly read (noted).
+
+---
+
+## 1. Search log
+
+| # | Date | Database / tool | Query / action | Result kept (reason) / excluded (reason) |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | Author PDF (h2r.cs.brown.edu/yang24.pdf), pdftotext | Read Safety Chip in full | Kept: starting point (1). IEEE ICRA 2024 version, DOI 10.1109/ICRA57147.2024.10611447 |
+| 2 | 2026-11-19 | arXiv abs + HTML v2 (2611.18026) | Read Wu et al. (2 passes: method/experiments; rule examples/origin) | Kept: starting point (2), the closest competitor for claim B |
+| 3 | 2026-11-19 | Web search | `RoboGuard guardrail LLM robots contextual grounding safety rules temporal logic` | Kept RoboGuard (arXiv 2503.07885); read HTML (first 100k chars) |
+| 4 | 2026-11-19 | Web search | `Semantically safe robot manipulation ... Brunke` | Kept as a commonsense-safety row (abstract level). Rules are inferred by an LLM, not stated by residents |
+| 5 | 2026-11-19 | Web search + arXiv HTML | `Generating Robot Constitutions & Benchmarks for Semantic Safety ASIMOV` | Kept: ASIMOV (CoRL 2025, PMLR 305). Read HTML §3–7 (first 100k chars) |
+| 6 | 2026-11-19 | Web search (extended) | `robot "house rules" LLM household norms object manipulation planning arXiv` | Only TidyBot / LLM-Personalize found (S2's area). Excluded here and handed to S2 |
+| 7 | 2026-11-19 | Web search (extended) | `robot LLM persistent user-specified constraints reused across later tasks natural language rules memory household planning` | SELP, L3M+P, memory-RAG. Kept SELP (abstract). L3M+P excluded: it stores environment memory, not normative rules |
+| 8 | 2026-11-19 | Web search + arXiv HTML v3 | `AgentSpec customizable runtime enforcement ...` | Kept AgentSpec (arXiv 2503.18666, ICSE 2026 per SMU repository). Read the embodied part |
+| 9 | 2026-11-19 | Web search | `Kasenberg Scheutz norm conflict resolution stochastic domains LTL` | Kept AAAI 2018 (abstract level) for priorities/weights |
+| 10 | 2026-11-19 | Web search | `Sarathy Scheutz exceptions norms consent "When exceptions are the norm"` | Kept as a conceptual row (THRI 2019, abstract level). It is a position paper with no system |
+| 11 | 2026-11-19 | Web search (extended) | `LLM embodied agent norms deontic obligations prohibitions permissions household tasks benchmark` | Kept NormAct (2606.27826) and IS-Bench / SafeAgentBench. VestaBench, EmbodiedBench, PARTNR excluded: generic, with no per-household rules |
+| 12 | 2026-11-19 | Web search (extended) | `answer set programming robot norms household defeasible exceptions priorities LLM translation` | Found SLEEC/Datalog (CEUR Vol-3881), LLM→ASP (KR 2023), RobotValues (2606.03312). Kept SLEEC and RobotValues |
+| 13 | 2026-11-19 | Web search | `VeriPlan CHI 2025 ...` | Kept (abstract level). The setting is non-robot end-user planning |
+| 14 | 2026-11-19 | Web search | `SafeAgentBench ...; SafePlan ...` | Kept as benchmark/method rows (abstract level) |
+| 15 | 2026-11-19 | arXiv HTML | NormAct 2606.27826, RobotValues 2606.03312 | Read up to 100k chars each |
+| 16 | 2026-11-19 | Web search | `SLEEC rules robot normative requirements "unless" defeaters` | Kept SLEEC (Getir Yaman et al., arXiv 2307.03697; LEGOS-SLEEC 2501.12544) at abstract level |
+| 17 | 2026-11-19 | Web search (mandated query) | `robot "norm-aware planning" object task LLM` | No paper uses this exact phrase in its title. "How to Raise a Robot" (2312.08820) is a position paper with preliminary results, excluded for lack of an evaluated system. Safe Planner (2411.06920) kept at abstract level |
+| 18 | 2026-11-19 | Web search (mandated) | `robot "semantic constraints" ... PDDL` | Kept CaStL (2410.22225, abstract level). ICAPS'25 demo on NL→PDDL3 noted, not read |
+| 19 | 2026-11-19 | Web search (mandated) | `"constraint applicability" OR "rule applicability" robot LLM ...` | No robot paper names "constraint applicability" as a concept. Kept From-Words-to-Safety (2511.05889, HTML read). The driving paper 2609.34145 was excluded as out of domain but noted |
+| 20 | 2026-11-19 | Web search | `Lang2LTL ... CoRL 2023` | Kept (abstract level), plus LIMP 2402.11498 |
+| 21 | 2026-11-19 | arXiv abs + HTML | 2312.08820, 2511.05889 | See #17 and #19 |
+| 22 | 2026-11-19 | Semantic Scholar API | Forward citations of Safety Chip (arXiv:2309.09919), 139 citing papers | Screened titles. Fetched arXiv abstracts for U-Define, CLIPR, CORE, SafeMem, SafeGate, open-world-safety position paper, NEXUS, HomeGuard, VFM (Pitis et al.), LM-as-formalizer. Kept: SafeGate (read HTML), NEXUS, CORE, VFM, U-Define, CLIPR. Others were commonsense-hazard only |
+| 23 | 2026-11-19 | OpenAlex | search Safety Chip | Rate-limited, so I fell back to Semantic Scholar (#22) |
+| 24 | 2026-11-19 | Web search (extended) | `deontic logic robot LLM obligations prohibitions ...` | Found defeasible deontic logic formalization with LLMs (2506.08899, legal) and AgenticRei (2606.19464, software agents). Noted only, as neither is a robot |
+| 25 | 2026-11-19 | Web search + arXiv PDF | `Kasenberg Roque Thielstrom Scheutz Engaging in Dialogue ...` | Kept. Read full text (arXiv 1911.00229, NL4XAI 2019) |
+| 26 | 2026-11-19 | Web search (extended) | `LLM robot planning user-defined rules per-object attribute predicates unknown attribute ask clarification "undetermined"` | Found SafeGate (read) and Safe Planner |
+| 27 | 2026-11-19 | Web search (extended) | `embodied agent benchmark user-specific rules same task different users ...` | PersonalHomeBench (smart home, not read) and PENGUIN (text-only). Neither is a robot with per-household rule swaps, so excluded |
+| 28 | 2026-11-19 | Web search (extended) + arXiv HTML | `robot LLM "household rules" OR "house rules" ... 2026` | Found RuleGraph 2610.24603 and read its HTML. Kept as the strongest partial-execution counterexample |
+| 29 | 2026-11-19 | arXiv API | Abstracts of SELP, Safe Planner, CaStL, AutoTAMP, nl2spec, KnowNo, LIMP, ASIMOV, SafeAgentBench, IS-Bench, LogicGuard, EKG safety, SAFER, Safety Chip arXiv | Rows at abstract level |
+| 30 | 2026-11-19 | Web search | `"standing instructions" OR "persistent instructions" robot LLM ...` | Found HELPER (EMNLP Findings 2023, memory of user-specific routines). This is S1's "instructable agent" area, so I flagged it for cross-reading and did not read it |
+
+Saturation note: after #22 (forward citations of Safety Chip, screened by title) and #26–#30, no new candidate changed any A–D verdict.
+
+---
+
+## 2. Comparison table (one row = paper × condition)
+
+Column abbreviations: Origin = rule origin; Repr = rule representation; Novelty = novelty unit; Percep = perception input; Match = instruction matching; Decision = decision & evidence.
+
+| Paper (URL) | Condition/demo | Evidence location | Origin | Repr | Novelty | Percep | Match | Decision | Match with A–D | Differences vs CoGround |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Yang, Raman, Shah, Tellex. Plug in the Safety Chip (ICRA 2024) https://h2r.cs.brown.edu/wp-content/uploads/yang24.pdf **[V-full]** | VirtualHome "Four Room" (navigation constraints over 4 rooms) | §IV-A, §IV-C, Table I, Fig. 4 | Designer: "LTL experts" write NL constraints, then verify the LLM-translated LTL (§III-A, §III-C, §IV-C) | NL → Lang2LTL-style lifted formula + grounded propositions (referring-expression extraction → lifted LTL → substitution; Fig. 3); conjunction stored as automaton. Translation by LLM; **human expert verifies** | None: 20 fixed tasks × up to 5 constraints | Simulator ground truth ("we access the simulator for ... locations and states of objects for truth values", §IV-A) | Constraints given separately from the goal; base agent unaware of them (§IV-B). Constraints are written per task ("five satisfiable constraints for each task"), not reused for independent requests | Action pruning + reprompting. Controlled quantitative eval: success rate and safety rate; NL-constraints baseline vs Safety Chip, with/without expert verification (Table I) | B weak (constraints separate from goal, but per-task); C partial (formal vs raw NL comparison: safety rate 38–56% NL vs 84% unverified / 100% verified) | Rules are designer/expert-written, not resident-written; no attribute-based target; no per-object applicability; no unknown-attribute handling |
+| same | VirtualHome "Mobile Manipulation" (6 object predicates: is_switchedon, is_open, is_grabbed, is_touched, is_on, is_in; ~105 objects/env) | §IV-C, Table I | Same as above | Same; predicates take objects/locations as arguments (named instances, not attribute-quantified) | None | Simulator GT | Same | Same; Safety Chip* reaches 100% safety and 98% success | C partial (structured beats raw NL on safety) | Targets are named objects (e.g., "fridge"); no attribute variables such as fragile=true |
+| same | Spot real robot: 23 objects/landmarks, 2 mobile-manipulation tasks, up to 10 constraints, each task run twice | §V-A, §V-B, Table II | LTL experts; "we assume no mistranslation" | Same | None | "access to object states" plus a scanned graph and a precondition checker (§V-A). Not perception-estimated attributes | Same | Quantitative but small (2 tasks × 2 runs × constraint counts). Safety rate: Safety Chip 100%, NL 34%, CaP 55% | — | Real robot, but object states are given; not a house-rule reuse setting |
+| same | "Task abortion tests": 3 tests where constraints contradict the task | §V-B (last paragraph) | Experts | Same | — | Same | Single task with contradicting constraints | **Abort the whole task** (no unsafe state visited). Qualitative, n=3, no table | D negative example: abort rather than partial execution | CoGround defers only the infeasible objects and executes the rest. Safety Chip aborts |
+| Wu, Liu, Liang, Chen, Ma, Deng, Li, Li, Zhang. A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space (arXiv 2611.18026v2, Nov 2026) https://arxiv.org/abs/2611.18026 **[V-full, HTML]** | Constraint applicability: 50 train scenes (C1) / 50 new scenes (C2); 150 queries | §III-A, §III-B, §IV-A, Table I | "93 candidate safety rules"; source/authorship **not stated**; applicability labels "manually annotated". Rule texts are **not shown** anywhere. No mention of resident/user/household rules | **Raw text** embedded by BGE-M3; no target/condition/action/deontic fields (§III-B) | Unseen scenes and task instructions ("C2 may contain rules also present in C1"). No unseen-category or unseen-rule split | VLM caption D_t = V(I_t) from image; planner also gets the image; Grounding DINO + SAM2 at execution. No GT attributes; unknown attributes not discussed | **Stored rules × later independent (task, scene) query**: dual-tower hyperplane selection per query Q_t = T_t ⊕ D_t (scene-level retrieval, **not per object/action**) | Rule selection metrics: recall 37.48%, precision 40.23%, F1 0.388, EMR 2.67% vs BGE-M3 top-n (Table I). No ablation without the Constraint Space, and no raw full-rule-text comparison | **B: strong** (stored reusable rules selected for an independent task + scene) | General safety, not resident-arbitrary; scene-level selection; no deontic decomposition; no rule swap per household |
+| same | Safety Inspector: 30 unseen scenes, 390 samples | §III-C, §IV-B, Table II | Same | Inspector reconstructs the constraint set and proposes a corrected plan | Unseen scenes | Image | Inspector checks the plan against the selected rules and fixes wrong selections | PASS/FAIL + re-planning loop; after 3 failures calls `call_human_help()` (§III-C, §III-E). Quantitative: IDA up to 97.7%, CEM up to 67.1% (72B+LoRA) | B; "ask human" only as a last resort | No partial execution: a plan runs only after PASS. No 3/4-valued per-rule verdict |
+| same | Test-time adaptation (sequential stages, 50 scenes); new rules appended (ΔC_t) | §III-D, Table III | New rules come from Inspector corrections after post-review | Raw text | Sequential stages | Image | Updates the selector and the Constraint Space | Recall 0 → 23.08% (peak 46.15%), HVPR 30 → 50% (Table III) | Close to "rules accumulate" | Rules are added by the system, not taught by residents |
+| same | Real robot: ball→brush pot (moves bottle first); tape→shelf (removes scissors first) | Fig. 2 | Same | Same | 2 qualitative cases | Image + Grounding DINO/SAM2 | Selected rules change the plan | **Qualitative demo only**; no platform, trial counts or rates | B (behaviour on non-target objects changes) | Plan modification (adds safety steps), not avoiding forbidden targets or deferring |
+| Ravichandran et al. Safety Guardrails for LLM-Enabled Robots (RoboGuard; arXiv 2503.07885, RA-L accepted 2026 per preprint label) https://arxiv.org/abs/2503.07885 **[V-partial: HTML 0–100k chars]** | Sim + real (Clearpath Jackal), jailbreak attacks | §III-A, §III-B, §IV, Tables I–IV, App. B–D | **Designer**, offline configuration (e.g., "not physically harm anyone", "avoid potentially hazardous areas") | High-level NL rules → **per-entity LTL** by a root-of-trust LLM given the world model (e.g., `G(!goto(ground_21))`, `G(!inspect(knife_1))`, App. D-A) | **Unseen/randomized maps; new perceived objects** get grounded rules | **Perceived semantic graph** (SPINE, GroundingDINO, GroundGrid) | Rules fixed; user prompts are independent and may be malicious. Grounding is per entity in the world model | Control synthesis "maximally follows the LLM-generated plan" while satisfying specs (minimal violation). ASR from 92.3% to 2.3% (sim) and from 100% to 0% (real); safe-task success 100%. **Ablation** (Table II): no-CoT raises ASR from 4.3% to 12.8% | **A strong** (lifted rule → per-object instances from perception); **B strong**; D partial (maximal plan retention) | Rules are general safety, not household-arbitrary; mostly navigation/inspect actions, not grasp/place; no unknown-attribute "hold"; asking exists only for vague instructions (`clarify()`) |
+| Wang, Poskitt, Sun. AgentSpec (arXiv 2503.18666, ICSE 2026 per SMU repository) https://arxiv.org/abs/2503.18666 **[V-partial: HTML embodied sections]** | SafeAgentBench embodied agent, manually written rules | §3.1, §5.1–5.2, Table 1, Table 4, Fig. 7 | Designer (authors), from risk descriptions | **Decomposed DSL rule: trigger (action, e.g., pour/pick/put) + check predicates (Python booleans, e.g., `is_fragile_object`, `!is_into_wettable_object`) + enforce (`stop`, `user_inspection`, `llm_self_examine`, `invoke_action`)** | Generic over tasks, since predicates are attribute-like | Predicates are hand-coded functions; `is_into_wettable_object` uses a hand-maintained list (§5.2). Whether simulator GT is used: 未確認. Unknown predicates: not described | **Per-action applicability at runtime for any task** (rule persists across tasks) | Unsafe-task success 0% in all categories (Table 4); safe-task success from 58.62% to 54.26% | **C method: strong precedent** (trigger/condition/enforcement decomposition with attribute predicates); B (persistent rules over independent tasks) | No deontic obligation/permission or exceptions; rules not resident-taught; no image-based attributes; no per-object partial completion metric |
+| same | LLM-generated rules (OpenAI o1) | §5.3, Table 6 | LLM from 10 manually summarized guidelines + 3 example rules | Same DSL | — | Same | Same | 95.56% enforcement rate (the abstract calls it "precision"), 70.96% recall. Failures: missed candle; over-broad "ban all pouring" | C (automatic compilation of NL into decomposed rules) | Rule compilation is from designer guidelines, not resident speech |
+| Obi et al. SafeGate & Task Safety Contracts (arXiv 2604.05427) https://arxiv.org/abs/2604.05427 **[V-partial: HTML]** | 230-task benchmark, 30 AI2-THOR scenarios, real robot | §IV-C (Eq. 1), §IV-D–F, Tables I–II, §VI-C | Authors' hazard template library derived from ISO 13482/12100; user profile (age, mobility...); users can add templates | Structured hazard proposals (level × category, severity, preventability) → contracts = **invariants / guards / abort conditions**, with variables bound per command | — | Symbolic state; explicit **unknown set**: "flag unknown user properties rather than assume safe" | Per command | **Authorize / Defer (with a clarification question on critical unknowns) / Reject**. F1 97.1% vs SELP 79.6%, RoboGuard 67.0% (Table I). Real robot qualitative only | **Undetermined-with-missing-facts → ask: strong precedent**; C (structure) | Whole-command gating, no partial execution (the paper says repair is future work); rules are standards-derived, not household |
+| Taheri, Taban, Wang, Li. Refuse the Harm, Complete the Task via Graph-of-Rules Planning (RuleGraph; arXiv 2610.24603, Oct 2026) https://arxiv.org/abs/2610.24603 **[V-partial: HTML]** | RoboGuard benchmark (n=70) and "Compound" mixed-intent (n=97); 40 purely safe instructions | §3.2, §4, Table 1, §4.6 | Fixed **general safety principles** (author not stated), grounded by a Rule Generator agent into world-specific rules | Short NL **conditionals** (hazard condition → prohibited action); parameterized rule per hazard family; no explicit deontic fields | World-specific grounding on 3D Scene Graph scenes / Jackal semantic map | Symbolic world state (GT vs perceived: 未確認) | Rules generated per world; candidate plans verified against relevant rules | **Partial execution measured**: refuse harmful chunks, complete legitimate ones. TSR 84.54% / ASR 0% on Compound vs baselines 16–22% TSR. Ablation: single-node graph drops TSR to 74.23% | **D (complete the feasible part while refusing the harmful part): strong precedent for the metric design**; C-effect (structured rule graph vs single node) | No resident/household rules; no swap of rule sets on the same scene and instruction; harmfulness is commonsense-correlated |
+| Kasenberg, Roque, Thielstrom, Scheutz. Engaging in Dialogue about an Agent's Norms and Behaviors (NL4XAI@INLG 2019; arXiv 1911.00229) **[V-full]** | Shopping-domain demo (glasses, watch; "don't leave holding unbought items") | §2, Figs. 1–4 | **User adds/removes norms in NL** ("you must/mustn't", "you don't have to") | **Object-oriented temporal logic VEL with quantifiers over object variables** (∀x. G ¬(...)); CCG semantic parsing | Quantified norms apply to every object | Symbolic | Norms persist; the agent re-plans and reports violations; "suppose" hypotheticals | Priority: "moral rule against stealing dominates"; explanation of violated rules. **Concept/demo only**, no evaluation | A (variables over objects, user-added norms), priorities | Toy symbolic domain; no perception; no manipulation |
+| Kasenberg & Scheutz. Norm Conflict Resolution in Stochastic Domains (AAAI 2018) https://ojs.aaai.org/index.php/AAAI/article/view/11295 **[V-abs]** | Simulated vacuum-cleaning MDP | 未確認 (abstract) | Designer | LTL norms with real-valued weights; suspend the minimal-weight set of norms on conflict | — | MDP | — | Implementation in simulation (details 未確認) | Priorities/conflicts | No NL, no household-specific rules, no perception |
+| Getir Yaman et al. SLEEC rules (arXiv 2307.03697; LEGOS-SLEEC 2501.12544) **[V-abs]** | Assistive-dressing robot, firefighting drone (specification/verification) | 未確認 | Stakeholders/designers | DSL "when E then R within t **unless** D (defeaters, with alternative response)" | — | — | — | Specification analysis (conflict/redundancy), not execution | Exceptions (defeaters) as a structured precedent for `exception_of` | No LLM compilation, no object attributes, no execution |
+| Sarathy, Arnold, Scheutz. When Exceptions Are the Norm: Consent in HRI (THRI 2019) https://arxiv.org/abs/1902.01320 **[V-abs]** | Position paper | — | — | Consent as exception to norms | — | — | — | Concept | Exceptions ("only when I ask" is consent-like) | No system |
+| Sermanet, Majumdar, Irpan, Kalashnikov, Sindhwani. Robot Constitutions / ASIMOV (CoRL 2025, PMLR 305) https://arxiv.org/abs/2503.08663 **[V-partial: HTML 0–100k]** | ASIMOV benchmark (image + instruction → undesirable?) | §4, §5, §6.1, Tables 2–4, §7 | LLM-generated from RoboVQA scenes + NEISS injury reports; human-written baselines | Flat NL rules ("I shall never point a running chainsaw..."); no priorities or decomposition (§7) | New images/situations | Images to VLM | Constitution in prompt; per-instruction judgement | Offline binary classification, alignment rate 84.3%; no robot execution | B weak (stored constitution × new instruction) | Commonsense safety; no household customization described; no execution |
+| Zhao et al. NormAct (arXiv 2606.27826v3) https://arxiv.org/abs/2606.27826 **[V-partial: HTML 0–100k]** | 550 scenarios in TongSim, cue ladder (none / category / specific rule) | §3, §4.1, §5, Table 1, Fig. 3 | Benchmark annotation (one norm per scenario); unspoken by default | Norm metadata; cues as text | New scenarios | Segmentation view with IDs | Same scenario under different cue conditions; no "taught then later task" design | Goal / Norm compliance / Joint success measured separately; a specific cue raises joint success from 20.3% to 50.6% | D partial (jointly measures goal and norm compliance) | Social norms, not household-arbitrary; one norm per scene; no rule swap |
+| Han, Kim, Jo. RobotValues (arXiv 2606.03312v2) **[V-partial]** | 8,707 image-grounded instances; value-conditioned choice | §2, §5, Table 2 | Value taxonomy (Li et al. 2019 household robot norms) | Values per candidate action | — | Images | Same scene with a different target value (prompt) | Action choice only; conflicting-condition accuracy 13–25%, rising to 78% after fine-tuning; no execution | D weak (same scene, different priority) | Values, not house rules; no execution or completion metric |
+| Feng, Zhang, Bansal. From Words to Safety: Language-Conditioned Safety Filtering (arXiv 2511.05889) **[V-partial: HTML]** | Habitat 3.0 (12 envs) + TurtleBot 2 | §III, §IV-A/B, §V, §VI | User NL instructions issued online, kept as an **active persistent set** separate from the goal | JSON template (type, object, buffer, velocity); exclusion / kinematic / abstract-intent classes | Per category via open-vocab segmentation | Perceived (CLIP + panoptic) | Persistent constraints applied while navigating to separate goals | 52/60 queries parsed correctly; hardware demo (avoid going under a desk) | A/B/C partial (user constraint templates bound to object categories, persisting across goals) | Navigation only; no deontic types or exceptions |
+| Wu, Xiong et al. SELP (ICRA 2025; arXiv 2409.19471) **[V-abs]** | Drone navigation / manipulation (details 未確認) | 未確認 | "User-specified constraints" in NL commands | NL → LTL with equivalence voting; constrained decoding | 未確認 | 未確認 | Constraint inside the same command | 未確認 | C-method (formalization) | Single constrained command, not reuse |
+| Cui et al. NEXUS (arXiv 2605.09387) **[V-abs]** | SafeAgentBench | 未確認 | Hazards detected during execution → **reusable LTL constraints accumulated across tasks** | PDDL domain + LTL safety spec | Across tasks | 未確認 | Accumulated constraints enforced on later tasks | Distinguishes physical unreachability from safety-induced refusal (abstract) | B partial (constraints reused across later tasks) | Constraints learned from hazards, not resident-taught |
+| Guo, Kingston, Kavraki. CaStL (ICRA 2025 per lab page; arXiv 2410.22225) **[V-abs]** | 3 PDDL domains | 未確認 | Constraints within the NL task | Classified into goal conditions / action ordering / **action blocking** → PDDL + Python | — | Symbolic | Same command | Quantitative (details 未確認) | C-method (typed constraint decomposition) | No reuse across requests; not normative |
+| Liu et al. Lang2LTL (CoRL 2023) / Quartey et al. LIMP (arXiv 2402.11498) **[V-abs]** | City-scale navigation; 150 real-world instructions | 未確認 | User command | Lifted LTL + grounded referring expressions | Unseen environments | VLM grounding (LIMP: open-vocab) | Single command | Quantitative | Mechanism of lifting targets out of rule text (C-method lineage) | Task commands, not stored norms |
+| Cosler et al. nl2spec (arXiv 2303.04864) / Chen et al. AutoTAMP (ICRA 2024) **[V-abs]** | Formalization benchmarks / TAMP | 未確認 | User NL | Temporal logic (STL for AutoTAMP); nl2spec maps sub-formulas back to NL for human editing | — | — | Single specification | Quantitative | Human verification of translation (as in Safety Chip) | Not household; no reuse |
+| Ren et al. KnowNo (CoRL 2023, arXiv 2307.01928) **[V-abs]** | Sim + real, ambiguous instructions | 未確認 | — | — | — | — | — | Conformal prediction triggers asking for help | Asking under uncertainty | Uncertainty over plan options, not missing attribute facts for a norm |
+| Pitis et al. Runtime Verification of Multiple NL Criteria (VFM; arXiv 2611.23074) **[V-abs]** | Text agents (DynaBench etc.) | 未確認 | Criteria corpus | Per-criterion **ternary verdict: satisfied / violated / inapplicable** | — | Text | Hundreds of criteria scored against one output | Quantitative | Precedent for per-rule not_applicable verdicts | No robot; no "undetermined/missing facts" value (per abstract) |
+| Lee, Porfirio et al. VeriPlan (CHI 2025, arXiv 2502.17898) / U-Define (arXiv 2605.02765) **[V-abs]** | End-user planning user studies (n=12 for VeriPlan) | 未確認 | **End user** writes constraints in NL | Rule translator → model checking; hard vs soft types | — | — | Constraints applied to LLM plans | User study | HRI-style user-defined rules with verification | Not robot manipulation; no object attributes |
+| Brunke et al. Semantically Safe Robot Manipulation (RA-L 2025, arXiv 2410.15185) **[V-abs]** | Tabletop teleop + diffusion policy in a real kitchen | 未確認 | LLM commonsense | Per object-relation pair judged by LLM → CBF | Perceived scenes | 3D semantic map | Scene-level | Quantitative + real | A-like (commonsense rules bound to perceived objects) | Commonsense, not resident; motion-level |
+| Ravichandran et al. CORE (arXiv 2602.19983) **[V-abs]** | Sim + real, unseen environments | 未確認 | VLM infers context-dependent rules online | Spatial safe sets via CBF | Unseen envs | VLM from images | Online | Probabilistic guarantees | — | Commonsense context, not household rules |
+| Yin et al. SafeAgentBench (arXiv 2412.13178) / Lu et al. IS-Bench (arXiv 2506.16402) **[V-abs]** | 750 tasks, 10 hazards (AI2-THOR) / 161 scenarios | 未確認 | Benchmark designers | Hazard labels / safety principles | — | Sim | Hazards implicit in a single task | Rejection rate, success | Testbeds used by AgentSpec/NEXUS/SafeMem | General hazards only |
+| Hyk & Saisubramanian. CLIPR (arXiv 2605.12682) **[V-abs]** | Preference-ambiguous datasets (non-robot) | 未確認 | **Elicited from user conversation** | Compact set of NL rules; revised when accuracy drops | Transfers across LLMs | — | Rules used at inference on later decisions | Quantitative | B in a non-robot setting (user rules reused later) | Not embodied |
+
+---
+
+## 3. Per-claim verdicts from S3's area
+
+**A. Applying a taught rule to other objects (new instances): 既出 (as a mechanism).**
+- In symbolic/LLM planning, rules with variables are applied to new instances by construction. RoboGuard grounds high-level rules into per-entity LTL over a perceived world model in randomized or unseen maps (App. D-A, Tables I/IV). Kasenberg et al. 2019 let a user add norms in NL that are quantified over object variables (VEL ∀x). AgentSpec predicates such as `is_fragile_object` fire for any object. Wu et al. apply stored rules to unseen scenes.
+- Narrow residual (差分候補, weak): none of these rules is a resident-chosen arbitrary house rule whose correct application cannot be guessed from commonsense. S1 (Tan et al., ownership) and S2 (TidyBot) are the decisive papers for the resident-taught case.
+
+**B. Matching stored rules against a later independent request, selecting the relevant ones, and changing behaviour on targets: 既出.**
+- Deciding papers:
+  - Wu et al. 2611.18026: a stored Constraint Space, selected per (task, scene) query on unseen scenes, which changes the plan (§III-B, §IV-A, Fig. 2).
+  - RoboGuard: fixed rules versus independent and possibly adversarial prompts.
+  - AgentSpec: persistent per-action rules across tasks.
+  - NEXUS (abstract): accumulated constraints reused in later tasks.
+- What remains open (差分候補):
+  - The rules are resident-arbitrary house rules, not general safety.
+  - Applicability is judged **per object × per candidate action**, separately from scene-level retrieval. Wu et al. select at scene level only (Q_t = T_t ⊕ D_t). AgentSpec and RoboGuard do work per action or entity, but with designer rules.
+
+**C. Decomposing rules into target / applicability condition / normative directive helps on untaught combinations.**
+- *Method precedence: 既出 (largely).* Each piece has a precedent, though none matches CoGround's exact tuple:
+  - AgentSpec: trigger / check predicates / enforcement.
+  - SLEEC: when / then / unless-defeaters.
+  - SafeGate: invariants / guards / aborts with bound variables.
+  - From Words to Safety: type / object templates.
+  - Lang2LTL / Safety Chip: lifted formula plus grounded referents.
+  - CaStL: goal / ordering / action-blocking.
+  - VEL: quantified object norms.
+  - Deontic types with exceptions and priorities appear in Kasenberg & Scheutz 2018 (weights) and SLEEC (defeaters).
+  - I found no paper with exactly N/S/T/C(W, φ) plus a `pending` state for unresolved scope.
+- *Evidence of effect: 差分候補.* No paper compares decomposed-rule matching with raw-text rule reading on held-out object × rule combinations under the same perception input. Nearest effect evidence:
+  - Safety Chip Table I: formal LTL vs raw NL constraints, safety rate 100% vs 54–62%. This is not on untaught combinations, and the constraints are expert-verified.
+  - RoboGuard Table II: ablation of the reasoning step.
+  - RuleGraph §4.6: multi-node vs single-node rule graph.
+  - Wu et al.: explicitly no ablation (§V).
+  - CoGround must cite Safety Chip's NL-vs-LTL comparison as the closest prior "structured beats raw text" result.
+
+**D. Reflecting household-specific rule differences while completing the feasible part of a broad request: 差分候補 (the components exist, the paired design does not).**
+- Partial execution with a completion metric exists. RuleGraph (2610.24603) measures "safe task completion": it refuses harmful chunks and completes legitimate ones (TSR/ASR, Table 1), and RoboGuard maximally retains the plan.
+- Same-task, varied-constraint designs exist only weakly:
+  - Safety Chip varies the number of constraints (1–5 or 1–10) on the same tasks and reports success and safety, but contradicting cases abort (§V-B).
+  - NormAct varies the cue on the same scenario.
+  - RobotValues varies the target value on the same scene, with no execution.
+- I found no paper that swaps resident rule sets on the same scene and instruction and measures, per object, both forbidden-object avoidance and permitted-object completion.
+
+**Auxiliary features (not claims A–D, but likely to be challenged):**
+- 4-valued verdict with `missing` facts leading to hold/ask: the components are 既出. SafeGate defers with a clarification question on critical unknowns. VFM returns per-criterion satisfied / violated / inapplicable. KnowNo asks under uncertainty. Wu et al. call `call_human_help()` as a fallback. I found no robot paper with a per-object × per-rule verdict that includes an explicit "undetermined because attribute X is unknown" value combined with partial execution of the rest.
+- Exceptions (a permission overriding a prohibition, e.g. "only when I ask"): 既出 in concept. SLEEC defeaters cover it, as do Sarathy et al. 2019 (consent) and Kasenberg & Scheutz (weights/priority). I found no LLM-compiled version for household manipulation.
+- Human verification before use (`pending`): 既出 in spirit. Safety Chip has experts verify the LTL, nl2spec lets humans edit sub-translations, and VeriPlan/U-Define have users define rules. CoGround's twist is that a resident, not an LTL expert, confirms only the unresolved scope or region.
+
+---
+
+## 4. Top-3 strongest counterexamples from S3's area
+
+1. **Wu et al., arXiv 2611.18026 (Nov 2026).** It refutes the "first" framing of claim B and partly A.
+   - The Constraint Space stores reusable textual rules separately from tasks. A trained selector picks the applicable rules for an unseen (task, scene), a VLM planner changes the manipulation plan, an inspector re-plans, and the system asks a human as a fallback. It includes real-robot qualitative demos and new rules accumulate at test time.
+   - Differences that remain: general safety rules (93, origin unstated, texts not shown), raw text with no decomposition, scene-level selection rather than per object, no partial execution or deferral, no rule swap between households, and no ablation.
+2. **RoboGuard, arXiv 2503.07885.** It refutes "binding rules to new instances" (A) and independent-request matching (B) as mechanisms.
+   - Designer rules are stored offline and grounded by an LLM into per-entity LTL over a *perceived* semantic map in unseen or randomized environments. Plans from independent prompts are minimally modified by synthesis, and there is an ablation of the reasoning step.
+   - Differences that remain: no resident rules, mostly navigation/inspect, no attribute-unknown handling.
+3. **RuleGraph, arXiv 2610.24603 (Oct 2026).** It refutes novelty of "complete the feasible part while refusing the forbidden part" (D's execution side), with a controlled metric (TSR with 0% ASR) and a structural ablation.
+   - Differences that remain: general safety principles, no household-specific rule sets, no same-scene rule swap, and GT vs perceived state 未確認.
+
+Runner-up for claim C (method side): **AgentSpec, arXiv 2503.18666.** It uses a decomposed trigger / predicate / enforcement rule with object-attribute predicates (`is_fragile_object`), persistent across tasks, with LLM compilation from NL guidelines (recall 70.96%). There are no deontic types, exceptions, resident rules or perception.
+
+---
+
+## 5. Papers another agent should re-read
+
+- **Integrator:**
+  - Wu et al. 2611.18026. Confirm the rule origin and whether any rules are user-specific; this needs the PDF/appendix if one exists, since the HTML shows none.
+  - RuleGraph 2610.24603. Confirm GT vs perceived state, and whether the "Compound" benchmark can be re-run with resident rules.
+- **S1 (HRI / norm learning):**
+  - Kasenberg et al. 2019 (NL norm addition with VEL quantifiers).
+  - Kasenberg & Scheutz AAAI 2018 (priorities).
+  - Sarathy et al. THRI 2019 (consent as exception).
+  - HELPER (Sarch et al., EMNLP Findings 2023: memory of user-specific routines). Check whether it reuses user rules on later requests.
+  - CLIPR (2605.12682: user rules elicited in conversation, reused later; non-robot).
+- **S2 (perception / household):**
+  - RoboGuard App. D-A (per-entity grounding from perception).
+  - Brunke et al. RA-L 2025 (per object-pair semantic constraints).
+  - CORE 2602.19983.
+  - From Words to Safety 2511.05889 (user constraint templates bound to open-vocabulary categories).
+- **All:**
+  - Safety Chip §V-B (task abortion under contradiction), to contrast with CoGround's deferral.
+  - SafeGate §IV-C (Defer on critical unknowns), the closest precedent for `undetermined` → hold/ask.
+
+---
+
+## 6. What remains unverified
+
+- Wu et al.: actual rule texts, rule authorship/source, and the robot platform are not given in the HTML. The PDF appendix was not checked separately.
+- RoboGuard: the last ~6k characters of the HTML were not read, and the venue (RA-L 2026) comes from the preprint label only.
+- AgentSpec: whether embodied predicates read simulator GT, and the 10 vs 12 rule-count inconsistency (Table 6 vs §5.4).
+- Read only at abstract level (body details 未確認): SELP, NEXUS, CaStL, Lang2LTL/LIMP, nl2spec, AutoTAMP, KnowNo, VeriPlan, U-Define, VFM, CLIPR, Brunke, CORE, SafeAgentBench, IS-Bench, Safe Planner, SAFER, LogicGuard, the SLEEC papers, Kasenberg & Scheutz AAAI 2018, and Sarathy et al. 2019.
+- ASIMOV and NormAct were read only up to ~100k characters. Appendix content (e.g., any per-object analysis in NormAct) is 未確認.
+- Safety Chip: the online appendix (https://yzylmc.github.io/safety-chip/) was not read. The exact constraint lists for the Spot tasks are 未確認.
+- Not covered in depth: ASP-based household norm systems with LLM translation. The searches found only SLEEC/Datalog (CEUR Vol-3881) and LLM→ASP on puzzles (KR 2023), and neither was read. Defeasible deontic logic formalization with LLMs (2506.08899) is legal-domain and was not read.
+- Forward-citation chasing was done only for Safety Chip (Semantic Scholar, 139 citing papers, screened by title). Wu et al. (Nov 2026) is too new for forward citations. RoboGuard and AgentSpec forward citations were not chased.
+
+===== FILE: search/I1_crossread.md =====
+# I1 — Integrator-1 cross-read of the closest papers
+
+Role: the spec rule that "a different agent re-reads the closest papers" (HouseRule_Research.md §3). I re-read every paper below **in the original**, downloaded the PDFs and ran `pdftotext`, and did not rely on S1/S2/S3/C1. Date: 2026-11-19.
+Legend: **[本文確認]** = I read the passage in the original full text. **[要旨のみ]** = abstract or listing only. **未確認 (unverified)** = not found in the original.
+
+---
+
+## 1. Search / reading log
+
+| # | Date | Source | Query / action | Result |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | Author PDF scazlab.yale.edu/…/Xuan_AAAI19.pdf (= arXiv 1812.02576v1) and arXiv 1812.02576v2 | Full text read; diffed v1 against v2 | v1 lists "Zong Xuan Tan", v2 lists "Zhi-Xuan Tan"; otherwise the text is the same except for layout |
+| 2 | 2026-11-19 | ojs.aaai.org/index.php/AAAI/article/view/4808 (via web search) + OpenAlex W2964255654 | Bibliographic check | AAAI-19, Proc. AAAI 33(01):8058–8065. Authors: **Zhi-Xuan Tan, Jake Brawer, Brian Scassellati** |
+| 3 | 2026-11-19 | bit.ly/2z8obET (`curl -I`) | Tried to resolve the demo video | Redirects to Google Photos (photos.app.goo.gl/XMovjoBMpTJJLsnFA). Cannot be played from this environment, so the video stays **未確認** |
+| 4 | 2026-11-19 | Science News article (sciencenews.org/?p=224668), secondary source | Description of the demo | Used only to corroborate the scenario-1 initial conditions (see §2 note T1). Not used as primary evidence |
+| 5 | 2026-11-19 | IROS PDF pixl.cs.princeton.edu/…/tidybot_IROS23.pdf + arXiv 2305.05658v2 (= AuRo version) | Full text read: §III–IV (IROS), §3–4.6 (v2) | OpenAlex W4388720459: Autonomous Robots 47(8):1087–1102, 2023, DOI 10.1007/s10514-023-10139-z |
+| 6 | 2026-11-19 | arXiv 2611.18026v2 PDF (16 Nov 2026) | Full text read, including references | No appendix. Rule texts are never shown |
+| 7 | 2026-11-19 | arXiv 2503.07885 PDF (RA-L preprint, "accepted February 2026") | Full text read, including App. A–D | — |
+| 8 | 2026-11-19 | OpenAlex `filter=cites:W2964255654` (Tan) | Forward citations | 18 citing works. None adds resident-taught prohibitions/obligations to a tidying robot task in 2024–26 (see §5) |
+| 9 | 2026-11-19 | OpenAlex `filter=cites:W4388720459` (TidyBot), pages 1–3 (489 records with abstracts) | Keyword screen in Python (prohibit, forbid, don't, norm, rule, constraint, safety, permission, personal…), restricted to 2024–26, then read ~20 abstracts | Candidates in §5 |
+| 10 | 2026-11-19 | Semantic Scholar API (Tan, TidyBot citations) | — | HTTP 429 (rate-limited). Not used |
+| 11 | 2026-11-19 | WebSearch (extended) | robot tidying user-taught prohibitions "do not touch" household rules LLM same scene different users 2025 2026 | Found FLEX (arXiv 2610.28893, CoRL 2026) and APOLLO (arXiv 2606.17309) |
+| 12 | 2026-11-19 | arXiv 2606.17309 PDF | What "abstention" means in APOLLO | Read the relevant parts (§I, §IV) |
+| 13 | 2026-11-19 | arXiv abs 2610.28893 + MIT News 2026-11-09 | FLEX | [要旨のみ] + news |
+| 14 | 2026-11-19 | WebSearch | "That's Mine" … 2025 OR 2026 follow-up tidying LLM | No LLM-era follow-up found |
+
+---
+
+## 2. Verified comparison-table rows
+
+Columns follow 00_brief.md.
+
+### 2.1 Tan, Brawer, Scassellati, "That's Mine! Learning Ownership Relations and Norms for Robots", AAAI 2019 — verified TRUE
+
+**Author-list conflict resolved:** the authors are **Zhi-Xuan Tan** (printed "Zong Xuan Tan" in arXiv v1 / author PDF), **Jake Brawer**, and **Brian Scassellati**, all at Yale; Tan also has an A*STAR affiliation. This is confirmed by the PDF header (v1 and v2), AAAI OJS 4808, and OpenAlex. **S1 is correct. Codex ("Xuan Tan, Fanjun Li, Brian Scassellati") is wrong:** Fanjun Li is not an author.
+
+Facts that hold across all Tan scenarios:
+- The paper **never describes how speech or language is understood** (no ASR, no parser, no template). Whether understanding is template-based is therefore **未確認**. Only the utterances are quoted ("No Baxter, that's mine!").
+- The paper **never describes the object perception pipeline on Baxter** (no camera, detector, or marker is mentioned). What it does give is the feature set used to predict ownership: "an object's 3D position, color, and the most recent time each agent interacted with that object" (§Predicting ownership relations). The rule vocabulary is designer-defined: `ownedBy`, `isColored`, `inArea` ("relations readily perceived by robotic hardware", §Ownership norms). Whether these feature values come from vision or are given as ground truth is **未確認**.
+- Only prohibitions are modelled: "we focused on rules that forbid specific actions under certain conditions. Actions not explicitly forbidden were assumed to be allowed" (§Ownership norms). There are **no obligations**.
+- Execution uses a threshold: a rule evaluates to a probability, and the robot avoids the action "if 0.75 is above a user-specified threshold for rule obedience, but will go ahead otherwise." There is **no undetermined/hold state**.
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match A–D | Differences |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Tan et al. AAAI 2019 [本文確認] https://ojs.aaai.org/index.php/AAAI/article/view/4808 | **Real S1**: told to "clear the workspace", Baxter tries to throw away a red object and is reprimanded "No Baxter, that's mine!" | §Video demonstration ¶2; Fig. 1 top | Resident explicit, given **during execution** as a verbal reprimand | The single reprimand is "simultaneously interpreted as direct instruction of a norm, an object-specific permission, as well as an ownership claim". The system splits it into a predicate norm (`forbid trash if ownedBy any`), `forbid(trash,O)`, and `ownedBy(O,Xuan)`. The NL→logic method is **未確認** | Untaught instances: the "other red objects" | Ownership of the other red objects is **predicted** by KLR on position, colour, and last-interaction time. The paper does not say whether any ownership was known before the reprimand. A secondary source (Science News) says none was given and that the robot inferred the red blocks were Tan's because he had interacted only with them (see T1). Object sensing: **未確認** | The same broad request continues after the correction. It is not a later, independent request | **Partial execution**: "completing its task while avoiding touching any of the other red objects, which it correctly predicts to belong to the user". Qualitative demo only (video unwatchable) | A ○ (instances). D △: avoids forbidden objects and completes the rest of a broad request, but in one household with no rule swap | Rule is taught mid-task, not beforehand. Generalisation runs through an ownership attribute predicted from interaction history, not through a perceived physical attribute. No hold on unknowns. No obligations |
+| same | **Real S2**: follows S1 chronologically. A new user (Jake) commands "throw away object 2" | §Video demonstration ¶3; Fig. 1 bottom | Resident explicit (from S1) | Owner-specific norm plus ownership graph | New requester, new single-object command | Ownership of object 2 is a **belief carried over from S1**. It is updated when Jake "claims exclusive ownership" | **A stored rule is reused for a later, independent request** (single object named) | **Refuses and apologises**. After the ownership claim, the same command is executed. Qualitative | B ○ (qualitative). D-like micro-contrast: same scene, same command, different normative facts → different action, on one object | The change is to a **fact** (ownership), not to the household rule set. No broad request. No rule retrieval step: all rules are evaluated |
+| same | **Real S3**: norm induction from examples | §Video demonstration ¶4; Fig. 2 caption | Inferred from examples (object-specific permissions) | Induced `forbid pickUp if ownedBy any` (sequential rule learning; Alg. 1–4) | Untaught instance (object 4) | The system "is **initially aware of the ownership status** of the blocks" (GT-like ownership) | Later single-object pickUp request | **Refusal** ("denies the request in accordance with the learned norm"). Qualitative | A ○, C △ (structured rule; no effect measurement) | Ownership is given, not perceived. Single object |
+| same | **Sim: norm learning** (20 blocks, 3 agents, colour as a distractor) | §Norm learning; Table 1 | Inferred from permissions generated by 3 designer rules (incl. `forbid collect if isColored red`) | Predicate Horn clauses | Untaught instances | Ownership known (noiseless) or 40–80% certain (noisy). Symbolic | — (rule accuracy only) | Controlled quantitative: acc/F1 from 0.995/0.995 (noiseless, all permissions) down to 0.761/0.519 (noisy, 0.25). Baseline 0.583/0.000 | A ○ (sim) | Note T2: the text says "100%, 75%, or 25%" but Table 1 columns are 1.00/0.50/0.25 |
+| same | **Sim: task-based** collectAll / trashAll, "except where doing so would violate a set of norms it had to learn" | §Task-based evaluation; Table 3 | Online correction with true permissions. True owners are given "if ownership was relevant" | same | — | Symbolic | **Broad request** with norm exceptions, but norms are learned online during the same task | Quantitative: mistakes 6.30 / 6.32 vs baseline 8.75 / 15. Rule accuracy 0.975 / 0.877 | D △: avoidance and action errors are counted together, not separately | No prior teaching followed by a later request. No household swap. Errors are not split into forbidden-touch vs permitted-missed |
+
+**T1 (S1 open question, partly resolved).** The video cannot be played. The paper does not state the initial ownership information for S1. It says only that the reprimand doubles as an ownership claim, and that the other red objects are "correctly predict[ed]" via perceptual heuristics. Science News (secondary) says no ownership facts were given in advance and that the inference came from Tan having interacted only with the red blocks. That matches the paper's KLR features (last-interaction time). **Conclusion:** in S1 the norm is taught by the reprimand, and ownership of the other objects is inferred from interaction-history features. In S3 ownership is given. Language handling and object sensing remain **未確認** in every scenario.
+
+### 2.2 TidyBot — Wu, Antonova, Kan, Lepert, Zeng, Song, Bohg, Rusinkiewicz, Funkhouser; IROS 2023 and Autonomous Robots 47(8) 2023 — verified TRUE
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match A–D | Differences |
+|---|---|---|---|---|---|---|---|---|---|---|
+| TidyBot [本文確認] https://arxiv.org/abs/2305.05658 (v2 = AuRo) / IROS PDF | **Text benchmark**: 96 scenarios (4 room types × 24); 2–5 receptacles; 4–10 seen and an equal number of unseen placements; 672 + 672 placements; **1,076 unique objects** | IROS §IV-A–C, Tab. I–III; v2 §4.1–4.3, Tab. 1–4 | Inferred from examples, written as text by the authors per scenario ("we created a benchmark dataset") | LLM summary in free text (e.g., "Put light-colored clothes in the drawer and dark-colored clothes in the closet"). No deontic type, no target/condition split | **Unseen objects** ("distinct from the seen examples") in the same scenario. **There is no instance-vs-category split**: an unseen object may be a new category or a new instance of a seen category. v2 Tab. 1 tags scenarios by sorting criterion: Category 86/96, Attribute 27/96, Function 24/96, Subcategory 31/96, Multiple 17/96 | GT object names as text | Rules given once; the only task is put-away; no rule selection | Placement accuracy (unseen): 91.2% vs examples-only 78.5%, CLIP-embedding 83.7%, WordNet 67.5%; commonsense 45.6%; human summary 97.5% (v2 Tab. 2, 4) | A ○ (placement); C △ (summarisation vs raw examples measures abstraction, not deontic decomposition) | Preferences only: no prohibition, permission, or exception; no partial execution |
+| same | **Same objects × different preferences?** (claim D) | IROS §IV-A; v2 §4.1 | — | — | — | — | — | **Not reported.** No condition holds the object set and instruction fixed while changing the preference set. 1,076 unique objects over 1,344 placements suggests little reuse; the scenario files were not checked | D ✗ | The commonsense ablation shows only that personal rules differ from commonsense, not a paired swap |
+| same | **Primitive selection** (pick&place vs pick&toss) | IROS §III-B; v2 §3.2 | Inferred from examples | Separate LLM summary ("pick and place shirts, pick and toss socks") | Unseen objects | Text in the prompt | — | **No benchmark accuracy for primitive choice** (confirmed absent). On the robot it is reported jointly with the receptacle (below) | A ○ (choice of manipulation method) | A choice between two methods, not a ban on contact |
+| same | **Real robot**: 8 scenarios, "each with its own set of 10 objects", 2–5 receptacles, 4–10 seen examples, 3 runs each (240 object attempts); 70 unique unseen test objects, 11 receptacles | IROS §IV-D, Fig. 3; v2 §4.5, Fig. 4–6, Tab. 7 | Text examples for "a particular user", given before cleanup | Summary → **category list** extracted by the LLM and used as CLIP labels | Unseen real objects | **Estimated from images**: two overhead cameras + ViLD localise objects (92.5%); a base camera + CLIP classify over the summarised categories (95.5%; vs 70.7% with scenario object names, 52.3% with all names). Receptacle locations **hard-coded**; robot pose from ArUco. CLIP "will always output a prediction", so there is **no unknown/hold**. Failure modes: background objects; "white socks" matching anything white | One cleanup request per scenario. Rules are applied **per category, not per instance** | 85.0% put away correctly. Given the predicted category, the LLM chose the right receptacle **and** primitive for 100% of localised objects; execution 96.2%. Quantitative, but no robot baseline | A ○ with real perception | Each scenario uses a different object set, so no rule swap on the same scene. Forced classification. No prohibition |
+
+### 2.3 Wu, Liu, Liang, Chen, Ma, Deng, Li, Li, Zhang, "A Generalizable Approach to Safety-Aware Robotic Behavior Planning with an Explicit Constraint Space", arXiv 2611.18026v2 (16 Nov 2026) — verified TRUE
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match A–D | Differences |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Wu et al. [本文確認] https://arxiv.org/abs/2611.18026 | **Constraint applicability**: trained on 50 scenes with C1, tested on 50 new scenes with C2; 3 task configurations each (single / double / multi), giving 150 held-out queries; 93 candidate rules | §III-B, §IV-A, Table I | **Not stated.** "Constraint Space consisting of textual safety rules"; labels are "manually annotated". No text mentions a user, resident, household rule, or preference (grep confirmed). Examples are general hazards (liquid near electronics, sharp objects near humans) | **Raw text** embedded by a frozen BGE-M3; a dual-tower MLP produces a query-conditioned hyperplane. No target/condition/deontic fields; rule texts never listed | "evaluation task instructions and scene descriptions are unseen during training, although C2 may contain rules also present in C1". This is an unseen scene and task, **not** an unseen rule, category, or household | Image → VLM caption D_t = V(I_t) used for the query; the planner also gets the image. No GT attributes; unknown attributes are not discussed | Stored rules × later (task, image). **Unit of selection = whole query Q_t = T_t ⊕ D_t (scene + task level)**. Each rule gets a binary applicable decision per query, **not per object or per candidate action** | Recall 37.48 / Prec 40.23 / F1 0.388 / EMR 2.67% vs BGE-M3 top-n_t 24.32 / 26.11 / 0.252 / 0.00% | B ○ (scene-level retrieval for a later request); C ✗ | General safety, not resident-arbitrary. No per-object applicability |
+| same | **Safety Inspector** (LoRA, 3 Qwen VLMs) on 30 unseen scenes / 390 samples | §III-C, §IV-B, Table II | — | Inspector checks the **whole primitive plan** and reconstructs the full applicable set Ĝ_t | Unseen scenes | Image | Per plan | IDA 90.0–97.7%, CEM 35.3–67.1%, REC 97.8–98.1% | — | Plan-level PASS/FAIL. After 3 failures, `call_human_help()`. **No partial execution** ("Only plans receiving PASS are executed") |
+| same | **Sequential test-time adaptation** over 50 scenes in 5 stages | §IV-C, Table III, §V | Validated Inspector feedback adds rules (ΔC_t) | — | — | — | — | Recall 0 → 20.5–46.2%; HVPR 20–50%, non-monotonic | — | The paper says the components are **not isolated** ("rather than isolating the stage-wise contribution", §IV-C/§V) |
+| same | **Real robot**: two tasks (ball → brush pot near a bottle; tape → shelf near scissors) | §IV-D, Fig. 2 | — | — | — | Grounding DINO + SAM2 + CoPa (§III-E). Platform not named ("a physical robotic platform") | Single instruction | Qualitative "direct plan vs safety-aware plan". The safety-aware plan **inserts** extra Grasp/Put actions before the task | — | Adds actions rather than skipping forbidden objects |
+| same | **Ablations?** | whole paper | — | — | — | — | — | Only the selection-method comparison against BGE-M3 top-n (Table I) and the qualitative direct-vs-safety-aware plan (Fig. 2). **No ablation** of planner with vs without selected constraints, full rule text vs selected, or structured vs raw rules | C-effect ✗ | — |
+
+### 2.4 Ravichandran, Robey, Kumar, Pappas, Hassani, "Safety Guardrails for LLM-Enabled Robots" (RoboGuard), arXiv 2503.07885 (RA-L preprint, accepted Feb 2026) — verified TRUE
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match A–D | Differences |
+|---|---|---|---|---|---|---|---|---|---|---|
+| RoboGuard [本文確認] https://arxiv.org/abs/2503.07885 | **Sim**: 7 harmful behaviours × 10 rephrasings × 3 randomised environments (small indoor, large indoor, outdoor); 3 rules ("respect privacy", "not physically harm anyone", "avoid potentially hazardous areas"); 10 safe tasks | §III-A/B, §IV, Table I (the text calls it "Table IV"), Fig. 2–3 | **Designer**, configured offline ("safety rules that are defined by a system designer during an offline configuration process"). §III-A also calls them "user-defined rules", so the wording is inconsistent, but in practice they are designer rules | Root-of-trust GPT-4o with CoT turns each NL rule into **per-entity LTL** over contextual propositions AP(M,F), e.g. `G(!goto(ground_21))`, `G(!inspect(knife_1))`, `G(goto(doorway_1) -> F(!goto(doorway_1)))` (App. D-A, Listing 5). The JSON lists (constraint, reasoning) per rule. The LLM does the decomposition | **Per-object grounding: yes.** Each perceived entity (person_1, knife_1, …) gets its own constraint. Maps are randomised by adding and removing regions/objects | Semantic graph (objects and regions). In simulation the graph comes from real robot maps with randomised elements (App. C-C); real robot below | Fixed rules × independent (possibly adversarial) prompts; grounded per entity in the world model | ASR with RoboGuard 0.2–5.2% (e.g. RoboPAIR 92.3% → 2.3%); safe tasks 100% → 100% | A ○ (lifted rule → instances); B ○ (rules vs later prompts) | **Action space has no manipulation**: goto, map_region, inspect, answer, clarify, replan (Listing 3). Rules are general safety |
+| same | **Ablation: reasoning** | §IV-B, Table II, Fig. 3 | — | — | — | — | — | ASR 4.3% (full) → 12.8% (no CoT) → 25.7% (no CoT + temp 0.5); temperature alone has no effect | C-effect △: structured CoT grounding beats direct LTL, but this is not a deontic-decomposition ablation | — |
+| same | **Ablation: rule set** (App. D-B) | App. D-B, Table A.II | Designer swaps rule sets: disaster response ("do not obstruct first responders", "avoid hazardous areas") vs construction ("respect privacy", "do not harm others") | same | **Different rule sets, but also different environments** (large indoor vs outdoor) and different tasks | Sim | — | Disaster: RoboPAIR 97.5% → 2.5%, safe tasks 100%. "Only allowing for one unsafe behavior" | D △: a rule-set swap, but not on the same scene or instruction, and only ASR / safe-task success are measured | Not a household swap; no per-object completion metric |
+| same | **Real robot** Clearpath Jackal, 35 harmful + 10 safe | §IV-D, Table IV, Fig. 4, App. C-B | same 3 rules | same | Online world model grows; e.g. a person discovered mid-task produces `!goto(person)` | **Estimated**: ZED 2 RGB-D + Ouster LiDAR, SPINE mapping, GroundingDINO object nodes, GroundGrid regions | Per prompt | RoboPAIR ASR 100% → 0%; safe tasks 100% | A ○ (online grounding to newly perceived entities) | Navigation only |
+| same | **Partial execution?** | §III-B Alg. 1, Thm III.2 | — | — | — | — | — | **Design claim only**: "maximally follows the LLM-generated plan … comply with the proposed plan if possible". Alg. 1 returns either φ_proposed (if accepted) or φ_safe. **No metric for retained or completed permitted sub-goals.** Listing 5 ends "Plan is unsafe." | D: not measured | `clarify()` exists in the planner API only for vague instructions; it is not a guard-level "undetermined" state |
+
+---
+
+## 3. Agreements / disagreements with the searchers and Codex (cell level)
+
+### Tan 2019
+| Item | S1 | Codex C1 | I1 (verified) |
+|---|---|---|---|
+| Authors | Tan, Brawer, Scassellati ✔ | "Xuan Tan, Fanjun Li, Brian Scassellati" ✘ | Zhi-Xuan Tan (v1: Zong Xuan Tan), Jake Brawer, Brian Scassellati |
+| S1 ownership at start | "not given (obtained from the reprimand)" | "verify" | Paper is silent. The reprimand is the claim; other objects are predicted by KLR from position, colour, and last interaction. A secondary source says nothing was given in advance. **Agree with S1, with the caveat that this is not stated explicitly in the paper** |
+| S3 ownership | given ✔ | — | "initially aware of the ownership status" ✔ |
+| Language understanding | 未確認 ✔ | — | 未確認: no parsing or ASR described; video unplayable |
+| Object perception | "perceptual heuristics (KLR)" ✔ | — | KLR is **ownership** prediction. Object sensing is **未確認** (no sensor described). S1's cell mixes the two |
+| Table 1 condition | "100/50/25%" | — | Table says 1.00/0.50/0.25, but the text says "100%, 75%, or 25%". The inconsistency is in the paper; S1 followed the table |
+| Codex "command-refusal demo reuses a stored norm on a later request" | — | ✔ | ✔ (S2). Note that the S2 norm is owner-specific, and the contrast is a change of ownership **fact**, not of rule |
+| Codex "generalization of taught ownership norms across objects" | — | ✔ | ✔ S1 (via predicted ownership) and S3 (via given ownership) |
+
+### TidyBot
+| Item | S2 | Codex | I1 |
+|---|---|---|---|
+| Bibliography | IROS 2023 / AuRo 47(8) ✔ | IROS 2023, 9 authors ✔ | ✔ (AuRo 47(8):1087–1102) |
+| Instance vs category | "no unseen-category split reported" ✔ | "inspect" | ✔. Unseen = distinct objects. v2 Tab. 1 also gives sorting criteria (Attribute in 27/96 scenarios), which S2 omitted. The robot applies rules per **category** (CLIP), never per instance |
+| Same scene × different users (D) | "scenarios do not pair identical object sets" ✔ | "highest-priority D check" | ✔ Not reported. Real scenarios each have "its own set of 10 objects" |
+| Real-robot perception | ViLD + CLIP, 95.5% vs 52.3% ✔ | — | ✔. Add: receptacle locations hard-coded, ArUco pose, forced classification |
+| Primitive accuracy | not on benchmark; 100% on robot ✔ | — | ✔ |
+| Numbers 91.2 / 78.5 / 83.7 / 45.6 / 85.0 / 92.5 / 95.5 / 96.2 | ✔ | — | ✔ all match |
+
+### Wu 2611.18026
+| Item | S3 | Codex | I1 |
+|---|---|---|---|
+| Rule source | not stated; manually annotated labels ✔ | from brief, low confidence | ✔ No user/household wording anywhere; examples are general hazards |
+| Representation | raw text, BGE-M3, no fields ✔ | — | ✔ |
+| Unit of selection | scene-level (Q_t), not per object or action ✔ | "check" | ✔ Additionally, the Inspector judges the whole plan |
+| "Unseen" | unseen scenes and task instructions; C2 may overlap C1 ✔ | — | ✔ |
+| Ablation | "No ablation without the Constraint Space, no raw-text comparison" ✔ | — | ✔. Only Table I (vs semantic top-n) and qualitative Fig. 2. §IV-C/§V admit the components are not isolated |
+| Partial execution | (not stated) | — | **None**: only PASS plans run; otherwise `call_human_help()` |
+| Robot platform | not given ✔ | — | ✔ |
+
+### RoboGuard
+| Item | S3 | I1 |
+|---|---|---|
+| Rule origin | Designer ✔ | ✔. The text says both "system designer" and "user-defined"; operationally designer |
+| Per-entity LTL | ✔ (App. D-A) | ✔ Listing 5 |
+| Perception | SPINE, GroundingDINO, GroundGrid ✔ | ✔ (App. C-B) |
+| Numbers (92.3→2.3, 100→0, 4.3→12.8, 100% safe) | ✔ | ✔ |
+| "mostly navigation/inspect" | understated | **Only** navigation, inspect, answer, clarify: no manipulation primitive at all (Listing 3) |
+| "D partial (maximal plan retention)" | overstated | Retention is a design claim (Alg. 1 / Thm III.2), **not measured** |
+| Missed by S3 | — | **App. D-B rule-set ablation**: designer swaps rule sets per deployment. This is the closest thing to "swap rules" in my set, but environment and tasks change with the rules |
+| Venue | "RA-L 2026 per preprint label" | ✔ The PDF header reads "IEEE RA-L preprint version. Accepted February 2026"; the IEEE Xplore entry was not checked |
+
+---
+
+## 4. Forward-citation check (2024–2026): resident-taught prohibitions/obligations added to tidying, or rule swap on the same scene
+
+**Tan 2019 (OpenAlex, 18 citing works).** Robot-relevant 2024–26 citers:
+- ActOwL / "Toward ownership understanding of objects…" (2026)
+- "Whose Is This?: Context-Aware Object Ownership Inference with Uncertainty-Guided Questioning" (2026)
+- EgoAsk (2026; teaching personalised object knowledge through smart glasses)
+- "Who Owns That? Evaluating Ownership Intuitions in LLMs" (2026)
+- Oldenburg & Tan (2024, multi-agent rule induction)
+
+Per their titles and abstracts, all of these concern ownership **inference** or teaching. **None adds resident-taught prohibitions or obligations to a tidying task, and none swaps rules on the same scene.** [要旨のみ]
+
+**TidyBot (OpenAlex, 489 citing works screened by keyword).** The closest 2024–26 works, all [要旨のみ] unless noted:
+- **APOLLO** (Collin & Ayub, RO-MAN 2026, arXiv 2606.17309; body partly read): personalised rearrangement with an explicit **abstention** outcome ("when objects should not be placed at all"). APOR has 10 organisational profiles × 3 users and measures abstention separately (pa_abs). Preferences are **inferred from demonstrations** per user-environment pair. The data are synthetic and LLM-generated, with no robot. Abstention means "irrelevant to the user's organisation", **not a taught prohibition**. This is relevant to D's "measure leave-alone separately", but it is not resident-taught and is not a same-scene swap.
+- **LIBERO-PeRM** (arXiv 2610.22372): separates task completion from preference satisfaction, uses paired demonstrations with and without preferences, and tests conflicts. The preferences are motion, skill, and profile choices in simulation, not prohibitions over objects.
+- **CarryOn** (2026): persistent user and scene preferences plus a contact-hazard shield (violation rate 52.6% → 6.1%). The safety side is generic hazard, not resident rules.
+- **Coloring Between the Lines** (2025): personalisation inside the null space of safety CSP constraints; learns parameterised constraints online (feeding domain).
+- **APRICOT** (2024): preference learning plus geometric feasibility for fridge arrangement.
+- **In-situ Value-aligned HRI with Physical Constraints / ICLHF** (2025): preferences from instructions and feedback, balanced against physical constraints, on a household benchmark.
+- **Multi-User Personalisation (MUP-QBAF)** (2025): positive and negative preferences of two users resolved by argumentation, in a frailty-assessment case study.
+- **COMMET** (2025): human-induced conflicts, with user preferences summarised by GPT-4o.
+- **AlignBot**, **PAHF** (2026), **MEMENTO** (2025), and **Inferring the Unspoken / PBP** (2026): preference memory and retrieval for later instructions. These bear on claim B (retrieval of stored user knowledge for a new instruction), but they concern preferences, not deontic rules.
+
+**Outside the citation chains (web search):** **FLEX** (Lee, Dennler, Sucholutsky, Bobu; CoRL 2026, arXiv 2610.28893) [要旨のみ + MIT News]. A one-sentence prohibition such as "Don't spill on the laptop" is generalised by an LLM to a category (all electronics, fragile, flammable) and used as trajectory-avoidance features. This is the closest **2026** precedent for claim A with **resident-stated prohibitions generalised to untaught objects through an attribute** (fragile). It concerns trajectories rather than which objects to tidy, and per the news it applies within the same scene. The news story says simulation only, while arXiv mentions a real-world study (未確認). Reuse for a later independent request is 未確認. **Recommend that S2/S3 or the final round read the FLEX body.**
+
+**Result:** no 2024–26 work was found that (a) has a resident teach prohibitions or obligations and then applies them to a later broad tidying request per object, or (b) swaps household rules on the same scene and instruction while scoring both forbidden-object avoidance and permitted-object completion. Coverage limits: Semantic Scholar was rate-limited; TidyBot citers were screened by keyword in the abstract (or title where no abstract exists); Google Scholar "cited by" was not directly accessible.
+
+---
+
+## 5. Implications for claims A–D (from the cross-read only)
+
+- **A — 既出.** Tan S1 and S3 (instances via ownership), TidyBot (unseen real objects via CLIP categories, including the Attribute sorting criterion), RoboGuard (per-entity grounding from perception), and FLEX 2026 (stated prohibition → attribute category, abstract-level). What remains for CoGround is narrower: a resident-stated **prohibition or obligation** applied to unseen instances in **object manipulation** through a **perceived physical attribute**, with an explicit undetermined/hold state. Every paper here either forces a decision (TidyBot CLIP, Tan threshold) or works at scene level (Wu).
+- **B — 既出 at scene level and in qualitative single-object form.** Tan S2 (stored norm → a later different-user command → refusal), Wu (stored rule library → later (task, image), scene-level, quantitative), and RoboGuard (fixed rules → independent prompts, per entity, navigation only). CoGround's per-object × per-candidate-action applicability under a broad request is **not** shown by Wu (scene-level) or Tan (single object). This is a 差分候補 with a small margin.
+- **C — method 既出; effect 証拠不足.** Structured rules exist in Tan (Horn clauses) and RoboGuard (per-entity LTL). The nearest effect evidence is RoboGuard's CoT ablation (12.8% vs 4.3%) and TidyBot's summarisation vs examples-only (91.2% vs 78.5%). Neither is a deontic-decomposition ablation on held-out combinations. Wu runs no such ablation.
+- **D — 差分候補 (evaluation design).** Nothing verified holds the scene and instruction fixed while swapping household rules and scoring both outcomes. Near-misses:
+  - Tan S1 (partial completion while avoiding owned objects, one household)
+  - Tan S2 (same command, different ownership fact, one object)
+  - RoboGuard App. D-B (rule-set swap, but with different environments and tasks, ASR only)
+  - TidyBot (different object sets per scenario)
+  - APOLLO (abstention measured per profile, inferred and synthetic)
+
+---
+
+## 6. Still unverified
+
+- Tan: video content (Google Photos link not playable here); the language-understanding method; the object-sensing method on Baxter; the exact initial ownership state in S1 (secondary source only).
+- TidyBot: whether any benchmark scenarios reuse identical object lists under different preferences (I did not inspect the dataset files; the paper reports no such pairing).
+- Wu: actual rule texts and their authorship (absent from v2 and there is no appendix); the v1 content was not compared.
+- RoboGuard: the RA-L publication record on IEEE Xplore.
+- FLEX: body not read (abstract + news only; the news and arXiv disagree on whether there is a real-world study).
+- Citing works in §4 other than APOLLO: abstract level only.
+
+===== FILE: search/I2_crossread_codex_verify.md =====
+# I2: Cross-read, Codex-recall verification, and concept-expansion check (Integrator-2)
+
+Date of all searches and reads: 2026-11-19. Spec: ../../HouseRule_Research.md. Brief: ../00_brief.md.
+Inputs cross-read: S1_hri_norms.md, S2_perception_household.md, S3_symbolic_planning.md, ../codex/C1_recall.md (recall only, unverified).
+
+Verification legend: **[V-full]** = full text downloaded (arXiv/author/proceedings PDF → pdftotext) and the cited passages read; **[V-part]** = relevant sections of the full text read; **[V-meta]** = bibliographic record and abstract only (Crossref / OpenAlex / arXiv API / PMLR / NeurIPS / W3C page); **未確認** = not confirmed in the original.
+
+---
+
+## 1. Search log
+
+| # | Date | Database / tool | Query / action | Result and decision |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | arXiv PDF | 2610.24603 (RuleGraph), full text | Kept. §3.1–3.2, §4.1, Table 1, §4.6 Table 4 and §5 read. This answers the brief's questions on world-state source and rule origin (§2 row R1–R3) |
+| 2 | 2026-11-19 | arXiv PDF | 2503.18666 (AgentSpec), full text | Kept. §1, §3.2, Table 2, §5.2 Table 4 / Fig. 7, §5.3 Table 6 read. Searched for an ablation against raw-text rules: **none exists** (no baseline other than "without AgentSpec") |
+| 3 | 2026-11-19 | WebSearch ×2, arXiv API title search, OpenAlex | "Vision-Language Guided Safe Dynamic Manipulation via Object-Centric Transformers", "Saxena Kroemer Bajcsy … VLTSafe" | **No arXiv ID or venue found.** Only the author-hosted PDF exists, whose filename is "…arxiv_v1". A predecessor workshop-style PDF by the same authors, "Safe Manipulation via Task-Relevant Reach-Avoid RL", was also found. Both downloaded and read |
+| 4 | 2026-11-19 | arXiv PDF + abs page | 2505.11108 (PARSEC) | Kept. The arXiv comment reads "Accepted at IEEE ROMAN 2025". §IV dataset, §VI and Table II read |
+| 5 | 2026-11-19 | arXiv PDF; WebSearch; OpenAlex | 2311.10678 (DROC) + venue | Kept. OpenAlex lists ICRA 2024, DOI 10.1109/ICRA57147.2024.10610455; the arXiv comment gives no venue. §III and Tables I–II read |
+| 6 | 2026-11-19 | arXiv PDF + abs | 2306.08651 (Kwon et al.) | Kept. The arXiv comment reads "IEEE International Conference on Robotics and Automation 2024" |
+| 7 | 2026-11-19 | arXiv API + PDF | 2604.05427 (SafeGate) | **Exists as described.** Obi et al., April 2026. §IV Stage 3 gate (R1–R3), Table II and §VII read |
+| 8 | 2026-11-19 | arXiv PDF + abs | 2611.23074 (VFM) | **Exists as described.** Pitis, Alamdari, Tang, Klassen, McIlraith, "Runtime Verification of Multiple Natural Language Criteria for Agent Governance", arXiv 17 Nov 2026, comment "Accepted at NeurIPS 2026". §3 label-set paragraph, App. A.1 and Table 7 read |
+| 9 | 2026-11-19 | arXiv PDF 2210.03094; PMLR v202 listing | VIMA visual-constraint tasks and splits | Verified (see §3 table) |
+| 10 | 2026-11-19 | Crossref API | Meneguzzi & Luck; Crawford & Ostrom; Barth et al.; Gerevini et al.; López y López et al. | All found; details in §3 |
+| 11 | 2026-11-19 | IFAAMAS proceedings PDF | Meneguzzi & Luck AAMAS 2009 full text | Read §1–2 (norm(Activation, Expiration, Norm), plan suppression) |
+| 12 | 2026-11-19 | Dagstuhl DROPS PDF (DagSemProc.07122.4) | López y López, Luck, d'Inverno, version of the CMOT framework | Norm components verified in this version. The journal text itself is 未確認 |
+| 13 | 2026-11-19 | W3C TR page | ODRL Information Model 2.2 | Rule class, Permission/Prohibition/Duty, constraint, conflict property and remedy verified |
+| 14 | 2026-11-19 | Author PDF (adambarth.com) | Barth et al. 2006 | Abstract and intro read |
+| 15 | 2026-11-19 | Soar/Rosie PDF; OpenAlex | Mohan & Laird AAAI 2014 | Abstract and Evaluation section read |
+| 16 | 2026-11-19 | NeurIPS proceedings page + PDF | Jain et al. NeurIPS 2013; Nye et al. NeurIPS 2020 | Jain full text read in part (§3 features, §5.2). Nye is metadata only |
+| 17 | 2026-11-19 | WebSearch | Gerevini et al. 2009 PDDL3 abstract | Abstract-level confirmation via IPC-5 pages and institutional records |
+| 18 | 2026-11-19 | arXiv API | Collective Constitutional AI 2406.07814 | journal_ref "Proceedings of the 2024 ACM FAccT, 1395–1417", abstract read |
+| 19 | 2026-11-19 | arXiv API / PMLR v164, v229 | CLIPort, VoxPoser, NS-CL (Codex leads not covered by searchers) | Metadata verified |
+| 20 | 2026-11-19 | WebSearch (JP) | 家庭ロボット 規範 教示 物体操作 ルール | No direct hit. Results were LfO common-sense formulation (arXiv 2304.09966), KAKEN object-information teaching, and WISS 2010 cloth folding. All excluded: no stored rules governing later requests |
+| 21 | 2026-11-19 | WebSearch (JP) | 生活支援ロボット ルール 片付け ユーザ 好み 言語指示 LLM | Only TidyBot, Kachaka-LLM press items and Hasegawa et al. RSJ 2023 (LLM + spatial concepts) were found. Excluded: no deontic house rules |
+| 22 | 2026-11-19 | WebSearch extended (JP, J-STAGE) | ロボット 家庭 ルール 禁止 言語 教示 大規模言語モデル 片付け 物体 | JSAI SIG-SWO 2024 (LLM home task planning from object states and relations), JSAI2024 3T5-OS-6b-04 (multimodal retrieval for object manipulation), JRSJ 43(7) (multi-robot knowledge integration) and RSJ2024 OS. None stores resident-taught prohibitions/permissions. Title level only, excluded |
+| 23 | 2026-11-19 | WebSearch (JP) | ロボット 家庭ごとのルール 住人 教示 禁止 許可 例外 言語 制約 片付け 論文 | JRSJ 30(5) 2012 risk-explanation dialogue, NLP2020 A2-1 position paper on language teaching, ROBOMECH 2022 ontology + dialogue. No direct competitor; title/snippet only |
+
+Saturation: after #20–#23 (JP) and the cross-reads, no new paper changed any A–D verdict relative to S1–S3.
+
+---
+
+## 2. Verified comparison rows (originals re-read)
+
+| Paper (URL) | Condition/demo | Evidence location | Rule origin | Rule representation | Novelty unit | Perception input | Instruction matching | Decision & evidence | Match with A–D | Differences vs CoGround |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **R1** RuleGraph: Taheri, Taban, Wang, Li, "Refuse the Harm, Complete the Task via Graph-of-Rules Planning for LLM-Enabled Robots", arXiv 2610.24603v1 (17 Oct 2026) https://arxiv.org/abs/2610.24603 **[V-full]** | Compound benchmark: 97 long-horizon mixed-intent instructions | §3.1–3.2, §4.1, Table 1, Fig. 1–2 | **Designer: "a fixed set of general safety principles P"** (§3.1). A Rule Generator LLM grounds P into world-specific rules R_w = G_r(P, w, A) **before seeing the instruction** (§3.2). **Not user-taught** | Short NL conditionals ("never touch a person while holding a knife": hazardous condition → prohibited action), parameterized per object family (knife_X). No explicit deontic type field; all rules are prohibitions | New instructions over a fixed set of scenes. Generalization over rules or households is not tested | **Symbolic world state w given as JSON** (robot, regions, objects, object_region_relation; Fig. 2). Compound comes from the 3D Scene Graph dataset (Stanford) "extended with synthetic hazard objects" (§4.1). **Not live perception.** Plans are "simulated and checked" (§3.3); no robot execution is reported | Rule **selection per instruction** S(x̂, w, R_w), then filtering so that no legitimate sub-task becomes impossible. Selection per parameterized instance is possible. The instruction is split into chunks, each labelled LEGITIMATE/ILLEGITIMATE | **Partial execution: refuse illegitimate chunks, complete legitimate ones.** TSR counts success only if all legitimate sub-tasks are complete and no illegitimate part remains. RuleGraph ASR 0% / TSR 84.54% vs RoboGuard 9.28/16.49, SafePlan 5.15/21.65, single-plan judge 14.43/19.59 (Table 1). GPT-4o, temp 0. Controlled quantitative | **D (execution side and joint metric): strong.** B: medium (rules exist before the instruction) | Rules come from harmfulness (commonsense) and are re-derived per world, not stored resident rules. Splitting is per **instruction chunk**, not per object in a broad "tidy" request. There is no rule-set swap on the same scene and instruction. No unknown-attribute handling: the state is complete JSON |
+| R2 RuleGraph (same) | RoboGuard benchmark (n=70 pure attacks) + 40 purely safe instructions | §4.1–4.2, Table 1; Table 3 (Gemini) | Same | Same | — | Semantic graph "built using the same semantic-mapping pipeline deployed on RoboGuard's Clearpath Jackal" (§4.1). This is a precomputed perceived map, not live perception during the test | Pure attacks must be refused fully | ASR 0% / TSR 98.57%. No false refusals on 40 safe instructions | Refusal side of B/D | Same as R1 |
+| R3 RuleGraph (same) | Ablation: full graph vs single node holding all rules | §4.6, Table 4 | Same | **Per-rule verification loops merged k-way vs one loop for all rules** | — | — | — | ASR 0 → 1.03%, TSR 84.54 → 74.23% (−10.3 pt) | **C-effect (adjacent):** structuring verification *per rule* helps. This is not target/condition/deontic field decomposition | The ablation removes per-rule separation, not rule decomposition, so it does not test claim C directly. CoGround can cite it as related evidence only |
+| **R4** AgentSpec: Wang, Poskitt, Sun, "AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents", ICSE '26 (Rio de Janeiro, 12–18 Apr 2026, per paper header), arXiv 2503.18666 https://arxiv.org/abs/2503.18666 **[V-full]** | Embodied agent on SafeAgentBench, manually written rules | §3.1–3.2, Table 1–2, §5.2 Table 4, Fig. 7 | Designer (authors). §1: "rules can be manually defined or automatically generated for user review and approval" | **DSL rule = trigger (event/action, e.g., pour, pick) + check (Boolean predicates, e.g., `is_fragile_object`, `!is_into_wettable_object`) + enforce (stop / user_inspection / llm_self_examine / invoke_action)** (§3.2, Table 2). The decomposition is done by a human, or by an LLM in RQ2 | Task-independent; the rules are reused across tasks | Predicates are hand-coded Python. `is_into_wettable_object` "maintains a list of allowed wettable objects" (§5.2). Unknown attributes are not discussed. Whether simulator GT is used is 未確認 | **Per-action applicability at runtime for any task**: the trigger fires on the action, the check runs on the target object | Unsafe-task execution rate drops to 0% in all 10 hazard categories. Safe-task success falls from 58.62 to 54.26% (Table 4). **`stop` terminates the whole trajectory** (τ[:−1] → a_f, §3.2), so there is no partial completion | **C-method: strong precedent** (target-action trigger / condition / enforcement split with attribute predicates). B: strong (persistent per-action rules) | **No ablation against raw-text rules.** The only comparison is with vs without AgentSpec. No obligation/permission/exception types. A violation stops the whole task instead of deferring one object |
+| R5 AgentSpec (same) | LLM-generated rules (OpenAI o1) from 10 manually summarized guidelines + 3 example rules | §5.3, Table 6 | Designer guidelines → LLM | Same DSL | Unseen risky scenarios (test split) | Same | Same | Enforced 95.56% of risky cases ("precision") with recall 70.96%. Failure modes: a missed lighted-candle check, a kettle filled with wine, and an over-broad "ban all pouring" | **C (NL → decomposed rule compilation by LLM) and A-like** | The guideline author is a designer, not a resident. This is still the closest precedent for `norms.compile` |
+| **R6** VLTSafe: Saxena, Kroemer, Bajcsy, "Vision-Language Guided Safe Dynamic Manipulation via Object-Centric Transformers" (CMU), author-hosted PDF https://saumyasaxena.github.io/assets/papers/safety_manipulation_2025_arxiv_v1.pdf **[V-full]**. **arXiv ID and venue: not found (未確認)** | Sim (pull box from stack). Test on novel constraint compositions: train on 6 objects (FixedConst / RandomConst), test on 6/8/10 objects in RandomConst | §3.2, §4.1, §4.4, Fig. 4 | **VLM commonsense** chooses constraints from a designer-defined menu. Without a VLM, specifications "would need to be manually specified by an expert designer" (§3.2) | Per object: constraint type ∈ {no-contact, soft-contact, any-contact, do-not-move-over}, posed as multiple-choice VQA, then mapped back to geometric g(·) | **Novel constraint compositions** = new assignments of constraint types to object tokens. Only the 8- and 10-object scenes are new for the RandomConst policy (§4.4) | GPT-4o on the RGB image + task text. GT state in sim | Constraints are chosen once at t = 0 for a single task. No stored rules | Safe success 79.5% (FixedConst), 78.5% (RandomConst) at the training setting. The FixedConst policy drops 12.5% when tested on RandomConst. The gap between training regimes "quickly diminishes" with clutter (Fig. 4) | **C-like at the control level:** generalization over object × constraint-type combinations is shown for the *policy*, not for rule-applicability judgement | No resident rules, no persistence, no independent request, no partial execution. The "composition" axis is in low-level control, not deontic applicability |
+| R7 VLTSafe (same) | Hardware: Franka + Azure Kinect, 8 objects, zero-shot sim-to-real | §5, Fig. 5, App. 8.4 (not read) | VLM | Same | More clutter | **Keypoints are manually annotated at the start of each trajectory**, then tracked with TapNet (§5) | Single task | VLM labels soft objects <any contact> and mugs/electronics <no contact>. Qualitative rollout | A-like (commonsense attribute → per-object constraint) | Perception is partly manual. Commonsense only |
+| **R8** PARSEC / ContextSortLM: Ramachandruni & Chernova, "Personalized Robotic Object Rearrangement from Scene Context", IEEE RO-MAN 2025 (arXiv comment), arXiv 2505.11108 **[V-full]** | KnownEnv / NovelEnvCategory: 72 users, 15 environment instances, 6 arrangements per user **within the same environment instance**; folds hold out one of five users per environment category | §IV (dataset), §VI, Table II, Fig. 3 | Inferred from the same user's other arrangements (crowdsourced, Prolific) | LLM → preference representation → code-completion "pick-place". No deontic types | New users in a seen environment; new environment categories | **GT text labels** of object categories, surfaces as type + 2D position | No independent request; the task is placement only | Placement Accuracy: ContextSortLM 0.59, APRICOT-NI 0.53, TidyBot-Random 0.44 (Table II), plus 108 online raters | **Closest to the "same scene, different household" axis of D**, but only for placement preferences | No prohibition, no forbidden-object metric, no partial completion, no robot. Whether the object sets are identical across users is 未確認: workers "only arrange the objects they considered relevant" (§IV) |
+| **R9** DROC: Zha, Cui, Lin, Kwon, Gonzalez Arenas, Zeng, Xia, Sadigh, arXiv 2311.10678; **ICRA 2024 per OpenAlex/IEEE DOI 10.1109/ICRA57147.2024.10610455** (the arXiv comment gives no venue) **[V-full]** | Plan-level: training-task corrections → knowledge base → test task (e.g., Put scissors in drawer → Clean the table) | §III (problem formulation, knowledge extractor), Table I, Table II | Resident explicit corrections (the authors act as users) | LLM-distilled NL knowledge sentences in three classes: **task constraints** ("the scissors cannot be put in a full drawer"), **robot constraints** ("can only grasp one thing at a time"), **user preferences** ("the user prefers milk to coke"). No deontic decomposition | New task, objects of the same class | **Object states are text maintained by the LLM** (initial "N/A", updated after each execution). The authors note open-source VLMs were too sensitive for scene description (§III). Masks are labelled with CLIP for skill grounding | **Knowledge retrieved by task semantics + visual similarity for a later, different request** | Corrections at test time: preferences 0.5 vs 1, feasibility 0.67 vs 1.33, scene information 0.5 vs 1.5 (Ours vs Ours−R, Table II). Small n | B: strong (reuse of taught knowledge in a later request). A: yes | **Prohibitions stored? Only feasibility-type negatives** ("cannot be put in a full drawer"). No normative prohibition, no permission/exception, no refusal or deferral |
+| **R10** Kwon, Hu, Myers, Karamcheti, Dragan, Sadigh, "Toward Grounded Commonsense Reasoning", ICRA 2024, arXiv 2306.08651 **[V-part]** | MessySurfaces: 70 real surfaces, 308 objects, 5 actions per object including "leave as is"; real robot on 2 surfaces | §III, §IV, Fig. 1 | **Commonsense** (LLM). Ground truth from a consensus of 5 annotators | Raw LLM reasoning | Novel real objects and states | Images + LLM follow-up questions + active close-up perception + VLM answers | Single "tidy" request; per-object action choice | +12.9% (benchmark) and +15% (robot) vs no active perception | Per-object applicability from perceived state; **ask/re-perceive when information is missing** | No resident rules and no storage. The "missing info → gather more" step is perception, not a hold verdict |
+| **R11** SafeGate: Obi, Venkatesh, et al., "Pre-Execution Safety Gate & Task Safety Contracts for LLM-Controlled Robot Systems", arXiv 2604.05427 (Apr 2026) **[V-part]** | 230-task benchmark, 30 AI2-THOR scenarios, real robot | §IV Stage 1–3 (gate rules R1–R3), Stage 4 contracts, Table II (confusion matrix), §VII | Hazard Template Library seeded by the authors from ISO 13482/12100. **Users can add templates** when a hazard is unmapped (DEFER2) | Command → structured hazards → **Task Safety Contracts: invariants / guards / abort conditions** with bound variables, checked by Z3 | — | Symbolic scene context; **explicit unknowns set X**. The LLM must "flag unknown properties of the user rather than assume safe" | Per command | **Authorize / Defer / Reject.** R3: a critical unknown triggers DEFER1 with a targeted clarification question. F1 97.1% vs SELP 79.6% (Table II). Repair of defective commands is left to future work (§VII) | **Undetermined-with-missing-facts → hold/ask: strong precedent** (command level) | The gate works on the **whole command** and has no per-object partial execution. Rules come from standards, not households. (S3 cited "Table I" for the F1 figures; they are in Table II.) |
+| **R12** VFM: Pitis, Alamdari, Tang, Klassen, McIlraith, arXiv 2611.23074, NeurIPS 2026 (arXiv comment) **[V-part]** | CriteriaBank (394K tuples), governance benchmark, DynaBench | Abstract, §3 (label set), App. A.1, Table 7 | Criteria corpus (text) | Atomic NL criteria; context concepts as preconditions vs property concepts | — | Text traces | Hundreds of criteria scored in parallel against one trace | Per-criterion **ternary verdict YES / NO / N/A**. N/A **merges "precondition not met" (inapplicable) and "applicable but unanswerable from the trace" (undeterminable)**. The authors note that "an undeterminable one may warrant escalation" and that explicit preconditions could separate the two (§3, App. A.1, Table 7) | **Directly relevant to CoGround's 4-valued verdict.** VFM names the not_applicable vs undetermined distinction but deliberately collapses it | Not a robot. No missing-fact list. This supports CoGround's `undetermined` + `missing` as a *small* difference, not a new concept |
+
+---
+
+## 3. Verification of Codex-recalled leads not covered by searchers
+
+| Lead (as recalled by Codex) | Exists? | Bibliographic details correct? | Attributed claim correct? | Relevance to A/B/C/D |
+|---|---|---|---|---|
+| VIMA, Jiang et al., ICML 2023: "visual-constraint tasks and novel-combination splits" | Yes. arXiv 2210.03094, comment "ICML 2023 Camera-ready" | Mostly. Authors correct. **The PMLR v202 title is "VIMA: Robot Manipulation with Multimodal Prompts"**; Codex used the arXiv title "VIMA: *General* Robot Manipulation…" | **Partly.** The visual-constraint tasks exist: Task 12 "sweep … without exceeding {constraint}" and Task 13 "… without touching {constraint}" (App. B.5). The L2 "combinatorial generalization" split exists, but it combines **textures × objects**, not constraint × object (§3 eval protocol). 4 of 17 tasks are held out for L4. The constraint is a red line given in the current prompt; it is not a stored norm and not an object-attribute rule | A: weak. C: weak (combinatorial split over visual attributes only). B/D: none |
+| Meneguzzi & Luck, "Norm-Based Behaviour Modification in BDI Agents", AAMAS 2009 | Yes | Yes: AAMAS 2009 (Budapest), pp. 177–184, DOI 10.1145/1558013.1558037 | **Yes.** norm(Activation, Expiration, Norm) over obligations and prohibitions on states or actions. New plans are created for obligations and plans violating prohibitions are suppressed at runtime. Permissions are treated as "overriders of obligations". Viability shown in AgentSpeak(L). No quantitative evaluation | **C-method (activation condition + deontic + action)** and exceptions-as-overriders. B in concept: standing norms modify behaviour for separately given goals. Not a robot |
+| López y López, Luck, d'Inverno, "A normative framework for agent-based systems", CMOT 2006 | Yes | Yes: Computational & Mathematical Organization Theory 12(2–3):227–250, Oct 2006, DOI 10.1007/s10588-006-9545-7 | **Yes** (verified in the Dagstuhl 2007 version of the same framework): normative goals, addressees, beneficiaries, context, **exception states** ("immunity states"), rewards and punishments | C-method: decomposition and exceptions (cf. `exception_of`). Concept/formal only |
+| Crawford & Ostrom, "A Grammar of Institutions", APSR 1995 (ADICO) | Yes | Yes: American Political Science Review 89(3):582–600, Sept 1995, DOI 10.2307/2082975 | Yes. ADICO (Attributes, Deontic, aIm, Conditions, Or else) is the canonical content of this paper; the body was not re-read here | C-method: conceptual precedent for the target/condition/deontic split. No robotics and no evaluation |
+| ODRL Information Model 2.2, W3C Recommendation | Yes | Yes: W3C Recommendation 15 Feb 2018, editors Renato Iannella and Serena Villata | **Yes.** "The Rule class is the parent of the Permission, Prohibition, and Duty classes". A Rule has one action, an optional target asset relation, party functions and constraints. Policies have a **conflict property** (conflict-strategy preference), and a Prohibition may carry a **remedy** Duty | **C-method: very close structural precedent** for (N, T, S/φ). The conflict strategy is analogous to exception precedence. A specification, not an experiment |
+| Barth, Datta, Mitchell, Nissenbaum, "Privacy and Contextual Integrity: Framework and Applications", IEEE S&P 2006 | Yes | Yes: IEEE S&P 2006, DOI 10.1109/SP.2006.32 | Yes, with nuance. Norms of transmission of personal information over roles, contexts and attributes. Norms are positive (allowed) or negative (disallowed), expressed in temporal logic, and compliance reduces to temporal-logic decision procedures | C-method: alternative name ("contextual integrity") for context-conditioned positive/negative norms. No robotics |
+| Mohan & Laird, "Learning Goal-Oriented Hierarchical Tasks from Situated Interactive Instruction", AAAI 2014 | Yes | Yes: AAAI-14, DOI 10.1609/aaai.v28i1.8756 | **Yes.** Interactive EBL. Learned task knowledge is variablized over objects and relations, generalizes "to the complete space of task variation" and transfers to structurally similar tasks. Results are from a simulator, and a representative sample was run on the real arm | A/B for **procedural** knowledge only (later invocation of a taught task). No deontic rules ("instructable agent" lineage) |
+| Jain, Wojcik, Joachims, Saxena, "Learning Trajectory Preferences for Manipulators via Iterative Improvement", NeurIPS 2013 | Yes | Yes (NeurIPS proceedings page: authors and title match) | **Correct but understated.** Preferences are context-dependent and **attribute-conditioned**: objects carry binary labels {heavy, fragile, sharp, hot, liquid, electronic}. Example: heavy items should not pass over fragile items. Generalization is tested to new object, new environment and both (§5.2, nDCG@3). Attributes are assumed given ("can be extracted using an object attribute labeling algorithm"). 16 grocery-checkout tasks plus a Baxter user study. An identical-scene comparison across different users is not reported | **A (attribute-based preference transfers to new objects): relevant.** C (attribute × interaction features). Trajectory shaping, not prohibition or partial execution |
+| Gerevini, Haslum, Long, Saetti, Dimopoulos, "Deterministic planning in IPC-5: PDDL3 …", AIJ 2009 | Yes | Yes: Artificial Intelligence 173(5–6):619–668, 2009, DOI 10.1016/j.artint.2008.10.012 | Yes (abstract level). PDDL3 has strong and soft state-trajectory constraints and goals; preferences enter a plan metric with violation penalties | D-mechanism: hard constraint on forbidden interactions + soft goals for permitted completion is standard planning. No household rule-swap benchmark |
+| Huang et al., "Collective Constitutional AI: Aligning a Language Model with Public Input", FAccT 2024 | Yes | Yes: Proc. 2024 ACM FAccT, pp. 1395–1417, DOI 10.1145/3630106.3658979; 7 authors as recalled | Yes. A model trained on a publicly sourced constitution is compared with a baseline-constitution model on common evaluations (lower bias on 9 dimensions, equal capability). Qualitative differences follow from the constitutions | D-design analogy only (same evaluation, different normative policy). Policy enters through training. LLM only, no robot |
+| (extra) CLIPort, Shridhar, Manuelli, Fox | Yes | CoRL 2021 (arXiv comment; PMLR v164 listing) | Not re-read | A (visual grounding to new instances). Not normative |
+| (extra) VoxPoser, Huang, Wang, Zhang, Li, Wu, Fei-Fei | Yes | CoRL 2023 (PMLR v229 listing) | Not re-read | A (perceptual grounding of language constraints for the current task). Not stored rules |
+| (extra) Nye et al., "Learning Compositional Rules via Neural Program Synthesis" | Yes | NeurIPS 2020 (arXiv comment, NeurIPS page) | Not re-read (metadata) | C-effect only indirectly (non-robot compositional generalization) |
+| (extra) Mao et al., Neuro-Symbolic Concept Learner | Yes | ICLR 2019 Oral (arXiv comment) | Not re-read | C-effect only indirectly |
+
+Codex accuracy summary: 10/10 of the main leads exist and their bibliographic details are correct, with one exception: VIMA's proceedings title differs from the arXiv title. Two attributed claims need correction. VIMA's "novel-combination split" combines textures and objects, not constraints and objects. Jain et al. is stronger for A/C than Codex said, because its preferences are explicitly attribute-conditioned and generalize to new objects. Codex's verdict table (A 既出, B 既出, C representation 既出 / effect 証拠不足, D 差分候補) is consistent with the verified evidence.
+
+---
+
+## 4. Concept-expansion check: would a simple combination reproduce CoGround?
+
+Hypothetical composite **X** = TidyBot-style LLM summarization of resident input into general rules + AgentSpec/RoboGuard-style per-action/per-entity constraint checking on attribute predicates + RuleGraph-style chunk-level "refuse the harmful part, complete the rest" + SafeGate-style DEFER on critical unknowns. Every component below is verified in the original.
+
+| CoGround behaviour | Would X reproduce it? | Concrete reasoning | What would still differ |
+|---|---|---|---|
+| **A.** Apply a taught rule to new instances | **Yes.** | TidyBot summaries are applied to 70 unseen real objects (85.0%). RoboGuard grounds lifted rules into per-entity LTL over perceived maps. AgentSpec predicates (`is_fragile_object`) fire for any object. Jain et al. transfer attribute-conditioned preferences to new objects | Only the rule *content* differs: resident-chosen, non-commonsense prohibitions (spec §5-1 star/circle marks). No component was tested on rules that commonsense cannot guess. TidyBot's commonsense-only baseline at 45.6% shows personal rules ≠ commonsense, but only for placement |
+| **B.** Stored rules × later independent request, per-object behaviour change | **Yes, mechanically.** | AgentSpec rules persist across tasks and trigger per action on the target object. AgentSpec RQ2 compiles NL guidelines into DSL rules by LLM (95.56% / 70.96%). Swapping "designer guidelines" for "resident utterances" is an input change, not a method change. DROC shows reuse of taught knowledge on a different later request | Rule *origin* (resident speech) and the *pending* step (rules not used until scope is confirmed). AgentSpec already says rules can be "automatically generated for user review and approval" (§1), and Safety Chip uses expert verification. CoGround's residual is that a resident, not an expert, confirms only the unresolved scope. That is an HRI/UX difference, not an algorithmic one |
+| **C.** Decomposition (target / condition / directive) helps on untaught combinations | **Method: yes. Effect: unknown for everyone.** | AgentSpec trigger/check/enforce ≈ (φ-action, T∧S, N). ODRL Rule = action + target + constraint + Permission/Prohibition/Duty. Meneguzzi uses activation/expiration/deontic. No paper ablates decomposed vs raw-text rules on held-out object × rule combinations: AgentSpec has no such baseline; RuleGraph's ablation is per-rule vs single-node; Safety Chip's comparison is LTL vs NL; VLTSafe's composition result is at the control level | The *effect* claim is open but also unproven for CoGround. X is the natural strong baseline: if X's AgentSpec-style rules match CoGround on spec §5-3, C collapses to "same as AgentSpec". CoGround must therefore include a raw-text arm and a retrieved-raw-text arm (spec §5-3) **and** an AgentSpec-like decomposed arm without deontic types/exceptions, to show which part helps |
+| **D (execution).** Complete the feasible part of a broad request | **Largely yes.** | RuleGraph completes legitimate chunks and refuses illegitimate ones, with TSR as a joint metric (84.54% / 0% ASR). AgentSpec `stop` would *not* do this, because it terminates the whole trajectory, and Safety Chip aborts on contradiction (S3). So the partial-completion part of X comes from RuleGraph | RuleGraph splits by **instruction chunk** (sub-tasks named in the instruction). CoGround splits a single broad request ("片づけて") by **object**, with each object judged against house rules. Adapting RuleGraph to "one chunk per object" is straightforward, so this is an engineering difference, not a conceptual one |
+| **D (evaluation).** Same scene and instruction, swap household rules, score forbidden avoidance and permitted completion | **Not done by any component** | PARSEC has same environment instance + different users, but placement only. RuleGraph's TSR is joint but uses one fixed principle set. NormAct varies cue level, not rule content | **Remaining difference candidate: an evaluation-protocol contribution**, not a mechanism. X could be run on this protocol as a baseline, and should be |
+| **Undetermined verdict with missing facts** (attr:fragile unknown → hold that object, execute the rest) | **Partly.** | SafeGate R3: a critical unknown causes DEFER1 with a targeted question, but for the whole command. VFM gives per-criterion YES/NO/N/A and explicitly names the inapplicable vs undeterminable distinction, but collapses it. Kwon et al. ask follow-up questions and re-perceive when information is missing. RoboGuard/AgentSpec predicates are Boolean | **Per object × per rule** undetermined (with a `missing` list) *combined with* execution of the rest has no verified precedent. Since SafeGate + RuleGraph-per-object nearly gives it, it is a small, defensible design difference that needs its own measurement, e.g. false-hold vs false-act rates under attribute noise |
+| **Exceptions and scope corrections with diff** ("only when I ask"; correcting zone/attribute) | **Concept: yes. Interactive editing: no.** | Meneguzzi: permissions override obligations. López y López: exception states. ODRL: conflict strategy, remedy. SLEEC: unless-defeaters (S3, abstract). Tan et al. learn object-specific permissions from corrections (S1) | No verified robot system lets a resident edit an LLM-compiled rule's scope or exception and shows the diff. This is a usability/HRI contribution and should be argued with a user study, not as method novelty |
+
+**Conclusion of the concept-expansion check.**
+- Under different names (deontic norms, runtime enforcement rules, safety contracts, ODRL policies, constitutions), a combination of verified existing methods reproduces CoGround's *mechanisms* for A and B and the *representation* in C. RuleGraph adapted per object reproduces most of D's execution side.
+- What does not follow from the combination:
+  1. Per-object undetermined/hold with a missing-fact list while completing the rest (small difference).
+  2. The paired household-swap evaluation with non-commonsense, resident-arbitrary rules (evaluation contribution).
+  3. Measured evidence that the decomposition helps on untaught combinations. This is open for everyone, so it remains a *claim to test*, with X (AgentSpec-like) as the mandatory baseline.
+
+---
+
+## 5. Per-claim verdicts (integrator view after cross-read)
+
+- **A → 既出.** Deciding papers: Tan et al. 2019 (S1), TidyBot (S2), RoboGuard (S3), and Jain et al. 2013 (attribute-conditioned transfer, verified here). The residual is narrow: rules that commonsense cannot predict, applied through perceived attributes, with a hold on unknowns.
+- **B → 既出 (mechanism).** Deciding papers: AgentSpec (persistent per-action rules + LLM compilation, R4–R5), DROC (taught knowledge retrieved for a different later request, R9, ICRA 2024), Wu et al. 2611.18026 (S3), Tan et al. (S1). The residual is resident origin + pending confirmation, which is an HRI difference only.
+- **C → method 既出 / effect 証拠不足 (差分候補 only if CoGround runs spec §5-3).** Deciding papers: AgentSpec (closest decomposition, no raw-text ablation), ODRL 2.2, Meneguzzi & Luck 2009, López y López et al. 2006. VLTSafe's composition generalization (R6) is at the policy level and does not settle C. RuleGraph Table 4 shows per-rule structuring helps (−10.3 pt TSR without it), which is related but not field decomposition.
+- **D → mechanism largely 既出 (RuleGraph). Paired household-swap evaluation remains 差分候補.** Deciding papers: RuleGraph (joint TSR/ASR, chunk-level partial completion, R1) and PARSEC (same environment, different users, placement only, R8). Neither swaps resident rule sets on the same scene and instruction with forbidden-avoid + permitted-complete scoring.
+
+## 6. Top-3 strongest counterexamples (integrator)
+
+1. **AgentSpec (ICSE 2026).** It is the clearest precedent for compiling NL guidelines with an LLM into decomposed per-action rules (trigger / attribute-predicate check / enforcement) that persist across independent tasks. It mentions user review/approval of generated rules. It undermines C-method and B. Missing: deontic types/exceptions, perception, partial completion (`stop` ends the task), and any raw-text ablation.
+2. **RuleGraph (arXiv 2610.24603).** It takes away D's "complete the feasible part while refusing the forbidden part" as a mechanism and as a joint metric (TSR requires all legitimate parts done and no illegitimate part). Missing: resident rules (fixed general principles), live perception (symbolic JSON world from 3D Scene Graph + synthetic hazards), per-object granularity, and rule-set swap.
+3. **SafeGate + VFM (arXiv 2604.05427; NeurIPS 2026 arXiv 2611.23074).** Together they cover CoGround's verdict design. SafeGate defers with a targeted question on critical unknowns. VFM gives per-rule YES/NO/N/A and explicitly discusses separating inapplicable from undeterminable. Missing: per-object hold combined with partial execution in a robot.
+
+Runner-up: Jain et al. NeurIPS 2013 (attribute-conditioned preferences such as fragile/sharp/electronic, transferred to new objects and environments, Baxter user study). This older A/C precedent was missed by all three searchers.
+
+## 7. Papers others should re-read / open items
+
+- VLTSafe: arXiv ID and venue not found. Cite as "author preprint, 2025" unless the authors' page is updated. App. 8.4 (more hardware runs) not read.
+- PARSEC: whether the object sets are identical across the five users of one environment instance (needed if CoGround cites it as the closest "same scene, different household" design).
+- RuleGraph Appendix (Algorithm 1, prompts, the list of general principles P) not read. Whether P could be replaced by resident rules without retraining is plausible (everything is prompting), but untested.
+- AgentSpec: whether embodied predicates read simulator ground truth (S3 open item) is still 未確認. The text says only that `is_into_wettable_object` maintains a list.
+- DROC: whether any stored knowledge is a normative prohibition. In the text read, negatives are feasibility constraints only; the full prompt set on the project website is not read.
+- Jain et al.: §5.3 user-study details (number of users, whether users differ on the same task) not read.
+
+## 8. What remains unverified
+
+- Crawford & Ostrom (ADICO), Gerevini et al. (PDDL3): claims checked at abstract or standard-knowledge level only. Bibliographic details are verified via Crossref.
+- López y López et al.: components verified in the Dagstuhl 2007 version, not in the CMOT 2006 journal text.
+- Nye et al., NS-CL, CLIPort, VoxPoser: metadata only.
+- Japanese literature: four web searches, title/snippet level only. No J-STAGE full text read; CiNii was not queried directly. No direct competitor was found, which is an absence of evidence, not proof.
+- Semantic Scholar/OpenAlex forward citations of RuleGraph and AgentSpec were not chased: OpenAlex rate-limited, and RuleGraph is about one month old.

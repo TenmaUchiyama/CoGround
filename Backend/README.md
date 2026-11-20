@@ -134,6 +134,58 @@ Unity で RViz と同じように操作する（目標をドラッグ → Plan �
 
 計画・実行中に来た目標は `rejected: busy` で捨てる。計画は 1 回実行すると破棄される。
 
+### スキル（`/coground/skill/*`、グラウンディングサーバーの Executor 用）
+
+`pick_place_server.py` は、つかむ（pick）と置く（place）を別々に呼べる。`goal_id` で結果を見分け、途中で止められる。
+使うのはグラウンディングサーバー（`grounding_server/README.md` の「Plan を実行する」）で、ROS には rosbridge（:9090）でつなぐ。
+rosbridge は既定で起動する（切るときは `ROSBRIDGE=false make up`）。イメージに `ros-noetic-rosbridge-server` が要るので、初回は `make build`。
+
+| 向き | トピック | 型 | 内容 |
+|---|---|---|---|
+| → ROS | `/coground/skill/goal` | std_msgs/String (JSON) | `{"goal_id": "g1", "skill": "pick" / "place" / "pick_place" / "navigate", "object": "BoxA", "frame_id": "world", "place": {"position": [...], "orientation": [...]}, "pose": [x, y, yaw], "plan_ref": {"plan_id", "plan_version", "step_id"}}`。`pick` はつかんで持ち上げるまで。`place` は持っている物を置く（`place` を省くと、つかんだ元の場所へ戻す）。`navigate` は `pose` へ台車を動かす（move_base のあと、シミュレーションではぴったりの位置に直す）。`plan_ref` を付けると、動作計画の軌道を再生する（ずれていれば計画し直す。feedback の `mode` が `replay` / `replanned`） |
+| → ROS | `/coground/skill/cancel` | std_msgs/String (JSON) | `{"goal_id": "g1"}`。実行中の goal を止める（動いている途中でも） |
+| ROS → | `/coground/skill/feedback` | std_msgs/String (JSON) | `{"goal_id", "skill", "object", "state", "phase", "detail", "holding"}`。`state`: `accepted` / `running`（`phase` に `opening` など）/ `succeeded` / `failed` / `canceled` / `rejected` |
+| ROS → | `/coground/skill/state` | std_msgs/String (JSON, latch) | `{"busy", "goal_id", "holding", "hold"}`。変わったときと 1 秒ごと |
+| → ROS | `/coground/skill/hold` | std_msgs/String (JSON) | `{"hold": true, "reason"}` / `{"hold": false, "keepout_zones": [...] か null}`。hold の間は台車を動かさない（スキルは取り消さない。腕は止めない）。解くときに `keepout_zones` を渡すと、その範囲を避ける地図に替えてから再開する |
+
+`navigate` の goal と `plan_request` には `keepout_zones: [{"id": "zone_play", "polygon": [[x, y], ...]}]`（world。省略時はなし）を付けられる。
+
+### 家庭ルールの hold と進入禁止の範囲（グラウンディングサーバーの監視用）
+
+グラウンディングサーバーが家庭ルール（`grounding_server/README.md` の「台車の動きについてのルール（R2・R4）」）のために使う。
+
+- **hold**: `pick_place_server.py` の中のゲート。hold の間は、`move_base` への goal（送ってあれば取り消し、解けたら今の位置から送り直す）、
+  `slide_base`（障害物から離れるための置き直し）、着いたあとの置き直し（`snap_base`）の 3 つをすべて止める。
+  `cmd_vel` を 0 にするだけでは、位置を直接書く後ろの 2 つが止まらない。`base_command_server.py`（Unity からの手動の移動）も `/coground/base/hold` で止まる
+- **進入禁止の範囲**: global / local costmap に 2 つ目の `StaticLayer`（`keepout_layer`、`use_maximum: true`）を足してある。
+  `pick_place_server.py` が範囲（多角形）を `/coground/nav/keepout_zones` に出し、`base_command_server.py` が地図（`/coground/nav/keepout`）にする。
+  この地図は `/coground/nav/map` と**同じ大きさ・解像度・原点**で出す（違うと StaticLayer が costmap 全体の大きさを取り合う）。
+  `make_plan` も実行も同じ costmap を使うので、計画で見せた迂回と実行の迂回が一致する。範囲の中の点は止まる位置にも選ばれない
+
+| 向き | トピック | 内容（std_msgs/String の JSON） |
+|---|---|---|
+| → ROS | `/coground/nav/route_request` | `{route_id, goal: [x, y, yaw], keepout_zones: [...] か null}`。今の位置から goal までの経路だけを計画する（スキルの実行中・hold 中でも使える。台車は動かさない） |
+| ROS → | `/coground/nav/route_result` | `{route_id, ok, reason, base: [[t, x, y, yaw], ...]}`（t は今からの秒） |
+| ROS 内 | `/coground/nav/keepout_zones` → `/coground/nav/keepout`（OccupancyGrid、latch）、`/coground/nav/keepout_state` | 範囲 → 地図。`keepout_state` の `{seq, ids}` は、地図にし終えた合図 |
+
+グラウンディングサーバーは台車の位置を `/unity/base_pose`（geometry_msgs/PoseStamped、world）で読む。
+
+`/coground/pick_place/command`（Unity の `MoveItPickPlaceQueue`）はそのまま使える（中では `pick_place` のスキルとして動く）。
+
+### 動作計画（`/coground/task/*`、グラウンディングサーバーの `motion.plan` 用）
+
+ロボットを動かさずに、Plan の全 step の「移動 → つかむ → 移動 → 置く」を仮想のロボットで計画する。
+計画のあいだ `scene_sync.py` は止まり（`/coground/scene/freeze`）、Planning Scene は仮想の台車の位置から見た形に置き直される。終わると元に戻る。
+
+| 向き | トピック | 内容（std_msgs/String の JSON） |
+|---|---|---|
+| → ROS | `/coground/task/plan_request` | `{plan_id, plan_version, keepout_zones?, steps: [{step_id, object, place, rest, start, approach: {pick: [[x, y, yaw]], place: [...]}}]}`（`place` は離すときの姿勢、`rest` は落ちた後の姿勢、`approach` は家具に決めてある止まる位置。先に試し、だめなら自動で選ぶ） |
+| ROS → | `/coground/task/plan_feedback` | `{plan_id, plan_version, step_id, detail}`（途中経過） |
+| ROS → | `/coground/task/plan_result`（latch） | `{plan_id, plan_version, error, steps: [{step_id, status: ok / infeasible, reason, t0, t1, stops: {pick: [x, y, yaw], place}, stop_source: {pick: approach / auto / stay, place}}], timeline: {duration, base: [[t, x, y, yaw]], joint_names, joints: [[t, ...]], attached: [{object, t0, t1, link, pose}], phases: [{step_id, phase, t0, t1}], objects: [{object, start, rest}]}}` |
+
+Unity の `CoGroundTaskPlanPlayer`（fetch に自動で付く）が `plan_result` を受け取り、半透明のロボットと物体で通しで再生する（画面下のシーケンスバーで再生・一時停止・好きな時刻へ）。
+主なパラメータ（`~nav_linear_speed` 0.4 m/s、`~nav_angular_speed` 0.8 rad/s、`~replay_tolerance_joint` 0.02 rad、`~snap_max_distance` 0.25 m など）は `pick_place_server.py` の先頭を参照。
+
 ### 手先の通り道（`trajectory_path.py`、ROS 側だけで完結）
 
 `control.launch` で一緒に起動する。Unity 側の対応は不要。

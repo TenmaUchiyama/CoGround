@@ -12,6 +12,7 @@ class ErrorCode:
     DUPLICATE_ID = "duplicate_id"  # 同じ id の request が処理中
     CANCELLED = "cancelled"  # cancel で中断した
     LLM_FAILED = "llm_failed"  # LLM を呼べなかった / 決めた型の答えが返らなかった
+    INVALID_STATE = "invalid_state"  # いまの状態ではできない（実行中ではないのに pause など）
     INTERNAL = "internal_error"  # ハンドラ内の想定外の例外
 
 

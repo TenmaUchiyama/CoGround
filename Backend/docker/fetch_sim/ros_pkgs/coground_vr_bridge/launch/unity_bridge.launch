@@ -9,10 +9,17 @@
   <arg name="tcp_port" default="10000"/>
   <!-- Quest へ送るレート (Hz)。無線で 100Hz 以上は重い -->
   <arg name="unity_rate" default="30"/>
+  <!-- rosbridge (WebSocket)。グラウンディングサーバー (ROS の外の Python) がトピックを読み書きするのに使う -->
+  <arg name="rosbridge" default="false"/>
+  <arg name="rosbridge_port" default="9090"/>
 
   <include file="$(find ros_tcp_endpoint)/launch/endpoint.launch">
     <arg name="tcp_ip" value="$(arg tcp_ip)"/>
     <arg name="tcp_port" value="$(arg tcp_port)"/>
+  </include>
+
+  <include if="$(arg rosbridge)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="port" value="$(arg rosbridge_port)"/>
   </include>
 
   <group ns="unity">

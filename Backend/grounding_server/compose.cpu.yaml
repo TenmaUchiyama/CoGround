@@ -1,0 +1,7 @@
+# GPU を使わずに detector を動かす（make up-cpu / make detect-test）。
+# NVIDIA Container Toolkit が無いマシン用。GPU の割り当てを外し、CPU で推論する（遅い）
+services:
+  detector:
+    deploy: !reset {}
+    environment:
+      - COGROUND_DETECT_DEVICE=cpu

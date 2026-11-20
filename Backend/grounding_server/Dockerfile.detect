@@ -1,0 +1,56 @@
+# 検出サーバー（compose.yaml の detector）: YOLO-World（/detect）と YOLOE-seg（/segment）。grounding_server とは別のイメージ。
+#
+# BASE: GPU ドライバに合う CUDA の PyTorch イメージを選ぶ（nvidia-smi の "CUDA Version" 以下）。
+#   usa-lab: ドライバ 470（CUDA 11.4）→ cuda11.8 版（11.x はマイナーバージョン互換で動く）
+#   ドライバ 525 以上のマシンなら cuda12.4 版でもよい
+ARG BASE=pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
+FROM ${BASE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
+    YOLO_CONFIG_DIR=/models/config
+WORKDIR /app
+
+# OpenCV（ultralytics が使う）の共有ライブラリと、CLIP を入れるための git
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 git \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+COPY coground_server ./coground_server
+# torch / torchvision はベースイメージのものを使う（pyproject の下限を満たす）
+RUN pip install -e ".[detect,dev]" \
+ && pip install "git+https://github.com/ultralytics/CLIP.git"
+
+# 重み（YOLO-World と CLIP のテキストエンコーダ）をイメージに入れておく。起動時にネットワークが要らなくなる
+ARG MODEL=yolov8s-worldv2.pt
+# weights_dir は既定だと作業ディレクトリからの相対パスなので、絶対パスに固定する（CLIP の置き場所）
+RUN mkdir -p /models && cd /models \
+ && yolo settings weights_dir=/models/weights \
+ && python -c "from ultralytics import YOLOWorld; YOLOWorld('${MODEL}').set_classes(['cup'])" \
+ && ls -lR /models
+ENV COGROUND_DETECT_MODEL=/models/${MODEL}
+
+# YOLOE-seg（POST /segment）の重みと、そのテキストエンコーダ（MobileCLIP、約 570 MB）。
+# テキストエンコーダは weights_dir（/models/weights）に置くと、起動時にそこから読まれる
+ARG SEG_MODEL=yoloe-11s-seg.pt
+RUN cd /models/weights \
+ && python -c "from ultralytics import YOLOE; m = YOLOE('/models/${SEG_MODEL}'); m.set_classes(['cup'], m.get_text_pe(['cup']))" \
+ && ls -l /models /models/weights
+ENV COGROUND_SEGMENT_MODEL=/models/${SEG_MODEL}
+
+# /detect の open モード（prompt-free。探す物の名前を渡さなくてよい）の重み
+ARG OPEN_MODEL=yoloe-11s-seg-pf.pt
+RUN cd /models && python -c "from ultralytics import YOLOE; print(len(YOLOE('/models/${OPEN_MODEL}').names))"
+ENV COGROUND_DETECT_OPEN_MODEL=/models/${OPEN_MODEL}
+
+# 見た目の特徴量（POST /segment?embed=1）: DINOv2 ViT-S/14（約 85 MB）。torch.hub のコードと重みを /models/torch に入れる
+ENV TORCH_HOME=/models/torch
+RUN python -c "import torch; torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', trust_repo=True)" \
+ && ls /models/torch/hub /models/torch/hub/checkpoints
+ENV COGROUND_EMBED_MODEL=/models/torch/hub/facebookresearch_dinov2_main
+
+COPY tests ./tests
+COPY scripts ./scripts
+
+EXPOSE 8001
+CMD ["uvicorn", "coground_server.detect_app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

@@ -37,6 +37,7 @@ class Session:
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._send_lock = asyncio.Lock()
         self._closed = False
+        self.actor = "user"  # だれの操作か（user / llm / script）。session.identify で名乗る。記録（eventlog）に残る
 
     @property
     def client(self) -> str:
@@ -83,7 +84,7 @@ class Session:
                     "methods": sorted(self.router.methods),
                 },
             )
-            await self.send_event("state.updated", self.services.state.snapshot())
+            await self.send_event("state.updated", self.services.snapshot())
 
             while True:
                 raw = await self.ws.receive()
@@ -95,7 +96,7 @@ class Session:
                     try:
                         text = data.decode("utf-8")
                     except UnicodeDecodeError:
-                        await self._session_error(ErrorCode.BAD_MESSAGE, "UTF-8 として読めない")
+                        await self._session_error(ErrorCode.BAD_MESSAGE, "Not readable as UTF-8")
                         continue
                 await self._handle_text(text)
         except WebSocketDisconnect:
@@ -113,7 +114,7 @@ class Session:
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
-            await self._session_error(ErrorCode.BAD_MESSAGE, f"JSON として読めない: {e}")
+            await self._session_error(ErrorCode.BAD_MESSAGE, f"Not readable as JSON: {e}")
             return
 
         try:
@@ -129,11 +130,11 @@ class Session:
                 log.warning("session %s: request [%s] rejected: bad_message", self.id, request_id)
                 await self.send(
                     protocol.response_error(
-                        request_id, ErrorCode.BAD_MESSAGE, "メッセージの形式が違う", details
+                        request_id, ErrorCode.BAD_MESSAGE, "Wrong message format", details
                     )
                 )
             else:
-                await self._session_error(ErrorCode.BAD_MESSAGE, "メッセージの形式が違う", details)
+                await self._session_error(ErrorCode.BAD_MESSAGE, "Wrong message format", details)
             return
 
         if isinstance(msg, protocol.RequestMessage):
@@ -153,7 +154,7 @@ class Session:
             reject(ErrorCode.DUPLICATE_ID)
             await self.send(
                 protocol.response_error(
-                    msg.id, ErrorCode.DUPLICATE_ID, f"id {msg.id!r} の request はまだ処理中"
+                    msg.id, ErrorCode.DUPLICATE_ID, f"Request with id {msg.id!r} is still in progress"
                 )
             )
             return
@@ -165,7 +166,7 @@ class Session:
                 protocol.response_error(
                     msg.id,
                     ErrorCode.UNKNOWN_METHOD,
-                    f"method {msg.method!r} は無い",
+                    f"No method {msg.method!r}",
                     {"available": sorted(self.router.methods)},
                 )
             )
@@ -177,7 +178,7 @@ class Session:
             reject(ErrorCode.INVALID_PARAMS)
             await self.send(
                 protocol.response_error(
-                    msg.id, ErrorCode.INVALID_PARAMS, "params が正しくない", _validation_details(e)
+                    msg.id, ErrorCode.INVALID_PARAMS, "Invalid params", _validation_details(e)
                 )
             )
             return
@@ -197,25 +198,37 @@ class Session:
         ctx = RequestContext(session=self, request_id=request_id, services=self.services)
         started = time.perf_counter()
         tag = f"session {self.id}: {spec.name} [{request_id}]"
-        log.info("%s <- request", tag)
+        quiet = spec.name in _QUIET  # 1 秒に何度も届く method は、成功のログを出さない
+        if not quiet:
+            log.info("%s <- request", tag)
 
         def elapsed() -> str:
             return f"{(time.perf_counter() - started) * 1000:.0f}ms"
 
+        def record(outcome: str) -> None:
+            if spec.name in _NOT_LOGGED:
+                return
+            # シーンは大きく、何度も届くので、中身は記録しない
+            logged = None if spec.name == "scene.update" else params.model_dump(mode="json", by_alias=True)
+            self.services.events.add("rpc", self.actor, session=self.id, method=spec.name, params=logged, outcome=outcome)
+
         try:
             result = await spec.handler(ctx, params)
             await self.send(protocol.response_ok(request_id, to_jsonable(result)))
-            log.info("%s -> ok (%s)", tag, elapsed())
+            if not quiet:
+                log.info("%s -> ok (%s)", tag, elapsed())
+                record("ok")
         except asyncio.CancelledError:
             if self._closed:
                 raise
             await self.send(
-                protocol.response_error(request_id, ErrorCode.CANCELLED, "キャンセルされた")
+                protocol.response_error(request_id, ErrorCode.CANCELLED, "Cancelled")
             )
             log.info("%s -> cancelled (%s)", tag, elapsed())
         except RpcError as e:
             await self.send(protocol.response_error(request_id, e.code, e.message, e.details))
             log.warning("%s -> error %s: %s (%s)", tag, e.code, e.message, elapsed())
+            record(f"error: {e.code}: {e.message}")
         except Exception as e:
             log.exception("%s -> internal error (%s)", tag, elapsed())
             await self.send(
@@ -243,6 +256,11 @@ class Session:
             await handler(self, msg.data or {})
         except Exception:
             log.exception("session %s: event handler %r failed", self.id, msg.event)
+
+
+# 記録（eventlog）に残さない method（読むだけのもの）
+_NOT_LOGGED = {"system.ping", "system.describe", "state.get", "log.tail", "llm.ping"}
+_QUIET = frozenset({"people.update"})
 
 
 def _validation_details(e: ValidationError) -> Any:

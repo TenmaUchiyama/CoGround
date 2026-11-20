@@ -15,6 +15,8 @@ MoveIt (ROS1) は物体を planning frame (base_link) 基準で持つので、wo
 Unity から stale_timeout 秒届かなくなった物体は消す (Unity の Play を止めたときなど)。
 pick_place_server が扱っている物体 (/coground/pick_place/held) は、その間 Unity の値で上書きしない
 (Planning Scene から外したり手にくっつけたりしているため)。扱い終わったら Unity の最新の位置で置き直す。
+/coground/scene/freeze (std_msgs/Bool) が true の間は Planning Scene を触らない
+(pick_place_server が「仮に動いた台車」から見た位置に物体を置き直して計画している間)。false に戻ったら全部置き直す。
 """
 import math
 
@@ -25,7 +27,7 @@ import tf2_ros
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.msg import CollisionObject
 from shape_msgs.msg import SolidPrimitive
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
 
 PREFIX = "unity/"
@@ -38,6 +40,7 @@ class SceneSync:
         self.objects = {}  # id -> {"pose": PoseStamped(world), "size": (x, y, z), "seen": float}
         self.sent = {}     # id -> (base_link での位置・向き, size) 最後に送った値
         self.held = None   # pick_place_server が扱っている物体の id
+        self.frozen = False
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -52,6 +55,7 @@ class SceneSync:
 
         rospy.Subscriber("/coground/scene/objects", MarkerArray, self.on_objects, queue_size=10)
         rospy.Subscriber("/coground/pick_place/held", String, self.on_held, queue_size=1)
+        rospy.Subscriber("/coground/scene/freeze", Bool, self.on_freeze, queue_size=1)
         rospy.Timer(rospy.Duration(1.0 / float(rospy.get_param("~rate", 5.0))), self.update)
         rospy.loginfo("scene_sync: /coground/scene/objects -> Planning Scene (%s 基準)", self.planning_frame)
 
@@ -61,7 +65,7 @@ class SceneSync:
             oid = PREFIX + (m.text or f"{m.ns}_{m.id}")
             if m.action == Marker.DELETE:
                 self.objects.pop(oid, None)
-                if oid != self.held:
+                if oid != self.held and not self.frozen:
                     self.remove(oid)
                 continue
             if m.type != Marker.CUBE:
@@ -83,7 +87,17 @@ class SceneSync:
             self.sent.pop(oid, None)  # 扱い終わった物体は次の update で必ず置き直す
         self.held = held
 
+    def on_freeze(self, msg):
+        if self.frozen and not msg.data:
+            self.sent.clear()  # 計画のあいだに置き換えられたので、全部置き直す
+            rospy.loginfo("scene_sync: 再開")
+        elif msg.data and not self.frozen:
+            rospy.loginfo("scene_sync: 計画のあいだ止める")
+        self.frozen = msg.data
+
     def update(self, _event):
+        if self.frozen:
+            return
         now = rospy.get_time()
         for oid in [k for k, o in self.objects.items()
                     if now - o["seen"] > self.stale_timeout and k != self.held]:

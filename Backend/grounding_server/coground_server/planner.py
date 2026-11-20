@@ -1,17 +1,23 @@
 """ルールとシーンから Plan の step を作る（M0）。LLM は使わない。
 
 やること:
-  1. ルール照合   運ぶ物（role = item）ごとに、条件が合うルールを探す
+  1. ルール照合   運ぶ物（role = item）ごとに、条件が合うルールを探す。
+                  どれにも合わなければ「それ以外」のルール（condition = null）を使う
   2. 目標         合ったルールの target_region を行き先にする。すでにそこにあれば何もしない
   3. 置き位置     行き先の領域の中で、ほかの物と重ならない場所を選ぶ（中央に近い順）
   4. 順序         シーンの物体の並び順のまま
 
 まだやらないこと: 動作計画（MoveIt に聞いて infeasible を付ける）、順序の工夫、修正（locked）の引き継ぎ。
 
-step になるのは「ルールに合い、行き先がいまの場所と違う物」だけ。ルールに合わない物は step にしない。
+step になるのは「ルールに合い、行き先がいまの場所と違う物」だけ。ルールに合わない物は step にしない
+（「それ以外」のルールがあれば、すべての item がどれかのルールに合う）。
   ok         行き先が 1 つに決まった
   ambiguous  合うルールが複数あり、行き先が違う（to は null、候補は candidate_rule_ids）
   unmatched  合ったルールの行き先の領域がシーンに無い（to は null、message に理由）
+
+手で指定した行き先（placements: 物体 ID -> 領域 ID。plan.place で入れる）は、ルールより先に使う。
+その物体にはルールを照合しない（ルールに合っているかも確かめない。置いてよいかを判断するのはここではない）。
+role も見ない。step は rule_id = null、locked = true になる。
 """
 
 from __future__ import annotations
@@ -25,24 +31,32 @@ GRID = 0.05  # 置き位置の候補の間隔 [m]
 Disc = tuple[float, float, float]  # 床面（XZ）での中心 x, z と半径
 
 
-def plan_steps(scene: SceneSnapshot, rules: list[Rule]) -> list[Step]:
+def plan_steps(scene: SceneSnapshot, rules: list[Rule], placements: dict[str, str] | None = None) -> list[Step]:
     regions = {r.id: r for r in scene.regions}
+    placements = placements or {}
 
-    # 1・2. 物体ごとに、合うルールと行き先を決める
-    decided: list[tuple[SceneObject, list[Rule]]] = []
+    # 1・2. 物体ごとに、行き先を決める。手で指定した物（manual）はルールを見ない
+    decided: list[tuple[SceneObject, list[Rule], str | None]] = []  # 物体、合ったルール、手で指定した行き先
     for obj in scene.objects:
+        manual = placements.get(obj.id)
+        if manual is not None:
+            if manual != obj.region_id:  # もう行き先にあれば何もしない
+                decided.append((obj, [], manual))
+            continue
         if obj.role != "item":
             continue
-        matched = [r for r in rules if r.condition.matches(obj)]
+        matched = [r for r in rules if r.condition is not None and r.condition.matches(obj)]
+        if not matched:  # 条件のあるルールに合わなければ「それ以外」のルール
+            matched = [r for r in rules if r.is_fallback]
         if not matched:
             continue
         targets = {r.target_region for r in matched}
         if len(targets) == 1 and matched[0].target_region == obj.region_id:
             continue  # もう行き先にある
-        decided.append((obj, matched))
+        decided.append((obj, matched, None))
 
     # 行き先が決まって動かす物は、いまの場所からいなくなるので障害物に数えない
-    moving = {obj.id for obj, matched in decided if _single_target(matched) in regions}
+    moving = {obj.id for obj, matched, manual in decided if (manual or _single_target(matched)) in regions}
     occupied: dict[str, list[Disc]] = {}
     for o in scene.objects:
         if o.region_id is not None and o.id not in moving:
@@ -50,24 +64,25 @@ def plan_steps(scene: SceneSnapshot, rules: list[Rule]) -> list[Step]:
 
     # 3・4. 置き位置を決めて step にする
     steps: list[Step] = []
-    for obj, matched in decided:
+    for obj, matched, manual in decided:
         index = len(steps)
         common = {
             "id": f"s{index + 1}",
             "index": index,
             "object_id": obj.id,
             "from": Placement(region_id=obj.region_id, pose=obj.pose),
+            "locked": manual is not None,
         }
-        target = _single_target(matched)
+        target = manual or _single_target(matched)
         if target is None:
             steps.append(Step(**common, status="ambiguous", candidate_rule_ids=[r.id for r in matched],
-                              message="合うルールが複数あり、行き先が違う"))
+                              message="Multiple rules match with different destinations"))
             continue
-        rule = matched[0]
+        rule_id = None if manual else matched[0].id
         region = regions.get(target)
         if region is None:
-            steps.append(Step(**common, status="unmatched", rule_id=rule.id,
-                              message=f"行き先の領域 {target!r} がシーンに無い"))
+            steps.append(Step(**common, status="unmatched", rule_id=rule_id,
+                              message=f"Destination zone {target!r} is not in the scene"))
             continue
 
         taken = occupied.setdefault(target, [])
@@ -77,10 +92,10 @@ def plan_steps(scene: SceneSnapshot, rules: list[Rule]) -> list[Step]:
         steps.append(Step(
             **common,
             to=Placement(region_id=target, pose=Pose(position=position, rotation=obj.rotation)),
-            rule_id=rule.id,
+            rule_id=rule_id,
             status="ok",
             # シンクやごみ箱は重なってもよいので、何も言わない
-            message=None if free or owner_is_receptacle else "空いている場所が無いので、中央に重ねて置く",
+            message=None if free or owner_is_receptacle else "No free space, so it's stacked at the center",
         ))
     return steps
 

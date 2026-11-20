@@ -1,0 +1,79 @@
+{
+  "created_at": "2026-11-17T15:23:11+0000",
+  "mode": "sim",
+  "master_uri": "http://localhost:11311",
+  "results": [
+    {
+      "id": "sys.planners",
+      "title": "MoveIt / Navigation が起動しているか",
+      "level": 0,
+      "status": "warn",
+      "summary": "起動していない: amcl (自己位置推定), /map (地図)",
+      "details": {
+        "items": {
+          "move_group (MoveIt)": true,
+          "move_base (Navigation)": true,
+          "amcl (自己位置推定)": false,
+          "/map (地図)": false
+        }
+      },
+      "hint": "",
+      "started_at": 1794928989.4845731,
+      "duration_s": 0.0034596920013427734
+    },
+    {
+      "id": "sense.tf",
+      "title": "TF (座標のつながり)",
+      "level": 0,
+      "status": "warn",
+      "summary": "必須はつながった。無いもの: map->odom (地図・amcl が未起動)",
+      "details": {
+        "pairs": {
+          "odom->base_link": {
+            "ok": true,
+            "xyz": [
+              0.559,
+              -1.722,
+              0.0
+            ],
+            "age_s": 0.0212
+          },
+          "base_link->torso_lift_link": {
+            "ok": true,
+            "xyz": [
+              -0.0869,
+              0.0,
+              0.3774
+            ],
+            "age_s": 0.0112
+          },
+          "base_link->gripper_link": {
+            "ok": true,
+            "xyz": [
+              1.1281,
+              0.0,
+              0.786
+            ],
+            "age_s": 0.0113
+          },
+          "base_link->head_camera_rgb_optical_frame": {
+            "ok": true,
+            "xyz": [
+              0.1638,
+              0.02,
+              1.0609
+            ],
+            "age_s": 0.0113
+          },
+          "map->odom": {
+            "ok": false,
+            "error": "\"map\" passed to lookupTransform argument target_frame does not exist. "
+          }
+        }
+      },
+      "hint": "",
+      "started_at": 1794928989.4880984,
+      "duration_s": 2.5105881690979004
+    }
+  ]
+}

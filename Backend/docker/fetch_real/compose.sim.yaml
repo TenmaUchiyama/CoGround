@@ -1,0 +1,9 @@
+# シムで試すための上書き: fetch_sim コンテナのネットワークに相乗りして、その roscore (localhost:11311) につなぐ。
+#   docker compose -f compose.yaml -f compose.sim.yaml up -d   (make real-sim)
+services:
+  fetch_real:
+    container_name: fetch_real_sim
+    network_mode: "container:fetch_sim"
+    restart: "no"
+    environment:
+      FETCH_CHECK_MODE: sim

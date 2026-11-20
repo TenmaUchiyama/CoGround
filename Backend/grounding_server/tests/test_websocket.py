@@ -38,7 +38,7 @@ def recv_until(ws, pred: Callable[[dict[str, Any]], bool], limit: int = 50) -> l
         got.append(msg)
         if pred(msg):
             return got
-    raise AssertionError(f"条件に合うメッセージが来ない: {got}")
+    raise AssertionError(f"No matching message arrived: {got}")
 
 
 def is_response(rid: str):
@@ -213,7 +213,9 @@ def test_rest_endpoints(client):
 
 def test_ui_and_fixtures(client):
     page = client.get("/ui")
-    assert page.status_code == 200 and "CoGround テスト画面" in page.text
+    assert page.status_code == 200 and "CoGround Test Page" in page.text
     assert client.get("/", follow_redirects=False).headers["location"] == "/ui"
+    bank = client.get("/rules")
+    assert bank.status_code == 200 and "Rule Bank" in bank.text and 'href="/rules"' in page.text
     fixtures = client.get("/api/fixtures").json()
     assert len(fixtures["tabletop_scene"]["objects"]) == 11 and fixtures["shelf_scenario"]["rules"]

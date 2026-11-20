@@ -45,7 +45,7 @@ STEP_INFEASIBLE = "infeasible"
 STEP_STATUSES = (STEP_OK, STEP_INFEASIBLE)
 
 # 軌道の区切り。pick_place_server の status と同じ名前・同じ順番
-PHASES = ("opening", "approaching", "descending", "grasping", "lifting",
+PHASES = ("navigating", "opening", "approaching", "descending", "grasping", "lifting",
           "moving", "lowering", "releasing", "retreating")
 
 EXEC_STATES = ("accepted", "rejected", "executing", "succeeded", "failed", "stopped")
@@ -62,13 +62,13 @@ class _Json:
     def from_json(cls, text: str):
         data = json.loads(text)
         if not isinstance(data, dict):
-            raise ValueError(f"{cls.__name__}: JSON オブジェクトではない")
+            raise ValueError(f"{cls.__name__}: not a JSON object")
         return cls.from_dict(data)
 
 
 def _need(d: Dict[str, Any], key: str, what: str) -> Any:
     if not isinstance(d, dict) or key not in d or d[key] is None:
-        raise ValueError(f"{what}: {key} が無い")
+        raise ValueError(f"{what}: missing {key}")
     return d[key]
 
 
@@ -76,15 +76,15 @@ def _floats(value: Any, n: int, what: str) -> List[float]:
     try:
         out = [float(v) for v in value]
     except (TypeError, ValueError):
-        raise ValueError(f"{what}: 数値 {n} 個の配列ではない")
+        raise ValueError(f"{what}: not an array of {n} numbers")
     if len(out) != n:
-        raise ValueError(f"{what}: 数値 {n} 個の配列ではない")
+        raise ValueError(f"{what}: not an array of {n} numbers")
     return out
 
 
 def _one_of(value: Any, allowed, what: str) -> str:
     if value not in allowed:
-        raise ValueError(f"{what}: {value!r} は {list(allowed)} のどれでもない")
+        raise ValueError(f"{what}: {value!r} is none of {list(allowed)}")
     return value
 
 
@@ -136,7 +136,7 @@ class PlanRequest(_Json):
         steps = [StepRequest.from_dict(s) for s in _need(d, "steps", "request")]
         ids = [s.step_id for s in steps]
         if len(set(ids)) != len(ids):
-            raise ValueError(f"request: step_id が重複している: {ids}")
+            raise ValueError(f"request: duplicate step_id: {ids}")
         return cls(
             plan_id=str(_need(d, "plan_id", "request")),
             plan_version=int(_need(d, "plan_version", "request")),
@@ -215,7 +215,7 @@ class TrajectorySegment(_Json):
         points = [TrajectoryPoint.from_dict(p) for p in d.get("points") or []]
         for p in points:
             if len(p.positions) != len(names):
-                raise ValueError("segment: positions の数が joint_names と合わない")
+                raise ValueError("segment: number of positions doesn't match joint_names")
         return cls(
             phase=_one_of(_need(d, "phase", "segment"), PHASES, "segment.phase"),
             joint_names=names,

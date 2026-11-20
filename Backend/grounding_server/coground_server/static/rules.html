@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoGround Rule Bank</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #fff; --line: #d9dce3; --text: #1d2330; --muted: #6b7384;
+    --accent: #2563eb; --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --code: #f1f3f7; --sel: #e8efff;
+    --obl: #2563eb; --pro: #dc2626; --per: #16a34a; --leg: #64748b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171d; --panel: #1d2129; --line: #323845; --text: #e6e9ef; --muted: #98a1b3;
+            --accent: #6ea0ff; --code: #262b36; --sel: #243049; --obl: #5b8def; --pro: #ef5b5b; --per: #3fbf6c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Yu Gothic UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 16px; margin: 0; }
+  a { color: var(--accent); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); margin-right: 6px; }
+  .dot.on { background: var(--ok); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; padding: 12px 16px; align-items: start; }
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .sticky { position: sticky; top: 56px; }
+  @media (max-width: 1000px) { .sticky { position: static; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; }
+  h2 { font-size: 14px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  h2 small { font-weight: normal; color: var(--muted); }
+  h3 { font-size: 13px; margin: 14px 0 4px; padding-top: 10px; border-top: 1px solid var(--line); }
+  button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+           color: var(--text); cursor: pointer; white-space: nowrap; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--bad); }
+  button.danger:hover { border-color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+                            border-radius: 6px; padding: 4px 6px; min-width: 0; }
+  textarea { width: 100%; resize: vertical; }
+  textarea.code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+  .grow { flex: 1 1 120px; }
+  .form { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 10px; align-items: center; }
+  .form > label { color: var(--muted); font-size: 13px; }
+  .form .row { margin: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; white-space: nowrap; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover td { background: var(--code); }
+  tbody tr.sel td { background: var(--sel); }
+  tr.child td:first-child { padding-left: 22px; }
+  tr.child td:first-child::before { content: "└ "; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  .badge { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: 12px; color: #fff; background: var(--leg); white-space: nowrap; }
+  .badge.obligation { background: var(--obl); } .badge.prohibition { background: var(--pro); }
+  .badge.permission { background: var(--per); } .badge.legacy { background: var(--leg); }
+  .pill { display: inline-block; padding: 0 6px; border-radius: 10px; font-size: 12px; border: 1px solid var(--line); white-space: nowrap; }
+  .pill.on { border-color: var(--ok); color: var(--ok); } .pill.off { color: var(--muted); } .pill.maybe { border-color: var(--warn); color: var(--warn); }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  pre { background: var(--code); padding: 8px; border-radius: 6px; margin: 4px 0 0; overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-all; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex-wrap: wrap; }
+  .seg button { border: none; border-radius: 0; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .card { border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 6px; padding: 8px 10px; margin: 6px 0; }
+  .quote { font-size: 15px; margin: 4px 0 8px; }
+  dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
+  dt { color: var(--muted); font-size: 13px; }
+  dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .msg { font-size: 13px; margin-top: 4px; }
+  .msg.err { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .empty { color: var(--muted); padding: 16px 4px; text-align: center; }
+  .linkish { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  [hidden] { display: none !important; }
+  ul { margin: 4px 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rule Bank</h1>
+  <span><span id="dot" class="dot"></span><span id="conn">Disconnected</span></span>
+  <span class="muted" id="clock" title="The house clock used to evaluate rule times (after 6 pm, etc.)"></span>
+  <span class="muted" id="counts"></span>
+  <span style="flex:1"></span>
+  <button id="btnExport" title="Save the current rules (household rules and tidy rules) as JSON">Export</button>
+  <button id="btnImport" title="Load exported JSON and replace the current rules">Import</button>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <a href="/ui">To test page</a>
+</header>
+
+<main>
+  <div class="col">
+    <section id="pendingSection" hidden>
+      <h2>Pending <small id="pendingInfo">Not used for verdicts until the area and expiry time are decided</small></h2>
+      <div id="pendingList"></div>
+    </section>
+
+    <section>
+      <h2>Rules <small id="listInfo"></small></h2>
+      <div class="row">
+        <input id="search" class="grow" type="search" placeholder="Search (ID, original text, target, zone)">
+        <div class="seg" id="typeFilter">
+          <button data-type="" class="on">All</button>
+          <button data-type="obligation">Obligation</button>
+          <button data-type="prohibition">Prohibition</button>
+          <button data-type="permission">Permission</button>
+          <button data-type="legacy">Tidy</button>
+        </div>
+        <label class="small"><input type="checkbox" id="activeOnly"> Active now only</label>
+      </div>
+      <div class="scroll"><table id="ruleTable"></table></div>
+      <p class="muted small">Rules live only in the server's memory (they're lost when the server restarts). To keep them, save them as JSON with "Export".</p>
+    </section>
+  </div>
+
+  <div class="col sticky">
+    <section>
+      <div class="row" style="margin-top:0">
+        <div class="seg" id="tabs">
+          <button data-tab="detail">Details</button>
+          <button data-tab="nl">Register in words</button>
+          <button data-tab="form">Build with form</button>
+        </div>
+      </div>
+
+      <!-- 詳細 -->
+      <div id="tab-detail">
+        <div id="detail"><div class="empty">Choose a rule from the list on the left</div></div>
+      </div>
+
+      <!-- 言葉で登録 -->
+      <div id="tab-nl" hidden>
+        <p class="muted small" style="margin-top:0">Turn the resident's words into rules with the LLM (takes a few seconds). Rules whose area can't be determined from words alone, or whose expiry time isn't stated, go into "Pending".</p>
+        <div class="form">
+          <label for="nlKind">Kind</label>
+          <select id="nlKind">
+            <option value="norms">Household rules (obligation / prohibition / permission) — norms.compile</option>
+            <option value="rules">Tidy rules (where to put things) — rules.compile</option>
+          </select>
+          <label for="nlAuthor" class="norms-only">Registrant</label>
+          <input id="nlAuthor" class="norms-only" placeholder="Person ID (the &quot;I&quot; in &quot;only when I ask&quot;; optional)">
+          <label for="nlMode" class="rules-only" hidden>How to apply</label>
+          <select id="nlMode" class="rules-only" hidden><option value="append">Add to current rules</option><option value="replace">Replace rules</option></select>
+        </div>
+        <textarea id="nlText" rows="3" style="margin-top:8px" placeholder="e.g. After 6 pm the kids play around here, so don't go into this area of the living room"></textarea>
+        <div class="row">
+          <label class="small"><input type="checkbox" id="nlApply" checked> Apply directly</label>
+          <span style="flex:1"></span>
+          <button id="btnNlCancel" disabled>Abort</button>
+          <button id="btnNl" class="primary">Make rules</button>
+        </div>
+        <div id="nlStatus" class="msg muted"></div>
+        <div id="nlResult"></div>
+      </div>
+
+      <!-- フォームで作る -->
+      <div id="tab-form" hidden>
+        <div class="row" style="margin-top:0">
+          <label class="muted small" for="fTemplate">Template</label>
+          <select id="fTemplate" class="grow">
+            <option value="">— choose to fill in below —</option>
+            <option value="keep_out">Don't enter a zone (prohibition, base)</option>
+            <option value="no_touch">Don't touch an object (prohibition)</option>
+            <option value="place_in">Put objects in a zone (obligation)</option>
+            <option value="stop_near_child">Stop when a child is nearby (obligation, robot)</option>
+            <option value="exception">Exception to a prohibition (permission)</option>
+            <option value="legacy">Tidy rule (old format: attribute = value → destination)</option>
+          </select>
+        </div>
+
+        <div id="normForm" class="form">
+          <label for="fId">ID</label><input id="fId" placeholder="If omitted, N1, N2, ...">
+          <label for="fNorm">Kind</label>
+          <select id="fNorm"><option value="obligation">Obligation (do ...)</option><option value="prohibition">Prohibition (don't ...)</option><option value="permission">Permission (exception)</option></select>
+          <label for="fText">Original text</label><input id="fText" placeholder="The resident's words, e.g. Don't enter the living room play area after 6 pm">
+          <label for="fException" class="perm-only">Exception of</label>
+          <select id="fException" class="perm-only"></select>
+
+          <label>Active time</label>
+          <div class="row"><input id="fFrom" type="time" title="from"><span>–</span><input id="fUntil" type="time" title="until"><span class="muted small">Always if empty</span></div>
+          <label for="fRequester">Requester</label><input id="fRequester" placeholder="Only when this person asks (optional)">
+          <label for="fWhen">State condition</label>
+          <div class="row"><select id="fWhen"><option value="">None</option><option value="near_child">While a child is nearby</option></select>
+            <span id="fWhenArgs" hidden><input id="fWhenDist" type="number" step="0.5" min="0" value="5" style="width:70px"> m or less</span></div>
+
+          <label for="fTargetKind">Target</label>
+          <select id="fTargetKind"><option value="object">Object</option><option value="zone">Zone</option><option value="robot">Robot</option></select>
+          <label for="fTargetId" class="tgt-id">Target ID</label>
+          <select id="fTargetId" class="tgt-id"></select>
+          <label class="tgt-obj">Select by attribute</label>
+          <div class="row tgt-obj"><input id="fWhereAttr" class="grow" list="attrList" placeholder="Attribute (group, fragile, etc.)"><span>=</span><input id="fWhereVal" class="grow" placeholder="Value"></div>
+          <label class="tgt-obj">Objects without the value</label>
+          <div class="row tgt-obj"><select id="fUnknownAs"><option value="unknown">Treat as unknown</option><option value="false">Treat as not matching</option></select>
+            <label class="small"><input type="checkbox" id="fFallback"> "Otherwise"</label></div>
+
+          <label for="fWindow">Window</label>
+          <select id="fWindow"><option value="whole">Whole</option><option value="at_contact">When touching the object</option><option value="during_base_motion">While the base moves</option><option value="at_place_complete">When placement completes</option></select>
+          <label for="fPredicate">Predicate</label>
+          <select id="fPredicate"></select>
+          <label for="fRegion" class="arg-region">Destination zone</label>
+          <select id="fRegion" class="arg-region"></select>
+          <label for="fTransition">Change</label>
+          <select id="fTransition"><option value="">Look at the state</option><option value="enter">On entering (false → true)</option><option value="leave">On leaving (true → false)</option></select>
+          <label for="fReason">Reason</label><input id="fReason" placeholder="For explanations (not used for verdicts; optional)">
+          <label for="fAuthor">Registrant</label><input id="fAuthor" placeholder="Person ID (optional)">
+        </div>
+
+        <div id="legacyForm" class="form" hidden>
+          <label for="lId">ID</label><input id="lId" placeholder="If omitted, rule_1, rule_2, ...">
+          <label>Condition</label>
+          <div class="row"><input id="lAttr" class="grow" list="attrList" placeholder="Attribute"><span>=</span><input id="lVal" class="grow" placeholder="Value"></div>
+          <label for="lTarget">Destination</label><select id="lTarget"></select>
+          <label for="lText">Display text</label><input id="lText" placeholder="Generated automatically if omitted">
+          <span></span><span class="muted small">Leaving both attribute and value empty makes an "otherwise" rule</span>
+        </div>
+
+        <datalist id="attrList">
+          <option value="group"><option value="category"><option value="role"><option value="fragile"><option value="material">
+          <option value="dirty"><option value="contents"><option value="waste_type">
+        </datalist>
+
+        <details style="margin-top:10px"><summary class="muted small">JSON to send</summary><pre id="fPreview"></pre></details>
+        <div class="row">
+          <span style="flex:1"></span>
+          <button id="btnFormReset">Clear</button>
+          <button id="btnFormAdd" class="primary">Register</button>
+        </div>
+        <div id="fMsg" class="msg"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+const NORM_LABEL = { obligation: "Obligation", prohibition: "Prohibition", permission: "Permission", legacy: "Tidy" };
+const WINDOW_LABEL = { whole: "whole", at_contact: "when touching", during_base_motion: "while the base moves", at_place_complete: "when placement completes" };
+const PRED_LABEL = {
+  contact: "touching", placed_in: "in zone", footprint_overlaps: "base overlaps zone",
+  near_child: "child nearby", base_stopped: "base stopped",
+};
+
+let ws = null, nextId = 0, state = null, stateAt = 0;
+let selected = null;          // { kind: "norm" | "legacy", id }
+let typeFilter = "", nlReqId = null;
+const pending = new Map();
+
+// ---------------------------------------------------------------- 通信（テスト画面と同じ /ws）
+
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => setConn(true);
+  ws.onclose = () => {
+    setConn(false);
+    for (const p of pending.values()) p.reject({ code: "disconnected", message: "Connection lost" });
+    pending.clear();
+    setTimeout(connect, 1500);
+  };
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === "event") {
+      if (msg.event === "state.updated") { state = msg.data; stateAt = Date.now(); render(); }
+      return;
+    }
+    const p = pending.get(msg.id);
+    if (!p) return;
+    if (msg.type === "stream") { if (p.onStream) p.onStream(msg.data); return; }
+    pending.delete(msg.id);
+    if (msg.ok) p.resolve(msg.result); else p.reject(msg.error);
+  };
+}
+
+function setConn(on) {
+  $("dot").classList.toggle("on", on);
+  $("conn").textContent = on ? "Connected" : "Disconnected (reconnecting)";
+}
+
+function request(method, params, onStream) {
+  const id = "bank-" + (++nextId);
+  const promise = new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return reject({ code: "not_connected", message: "Not connected to the server" });
+    pending.set(id, { resolve, reject, onStream });
+    ws.send(JSON.stringify({ type: "request", id, method, params: params ?? {} }));
+  });
+  return { id, promise };
+}
+const call = (method, params) => request(method, params).promise;
+
+const errText = e => {
+  if (!e || !e.code) return String(e);
+  let s = `${e.code}: ${e.message}`;
+  if (e.details && Object.keys(e.details).length) s += "\n" + JSON.stringify(e.details);
+  return s;
+};
+
+function showMsg(target, text, kind) {
+  target.textContent = text;
+  target.className = "msg " + (kind || "");
+}
+
+// ---------------------------------------------------------------- 小さな部品
+
+function h(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const k in attrs || {}) {
+    const v = attrs[k];
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k in e && typeof v !== "string") e[k] = v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : String(c));
+  return e;
+}
+
+function parseValue(s) {
+  s = s.trim();
+  if (s === "true") return true;
+  if (s === "false") return false;
+  if (s !== "" && !isNaN(Number(s))) return Number(s);
+  return s;
+}
+
+const fmtValue = v => typeof v === "string" ? v : JSON.stringify(v);
+
+function fillSelect(sel, options, keep = true) {
+  const old = sel.value;
+  sel.replaceChildren(...options.map(([v, label]) => h("option", { value: v }, label)));
+  if (keep && options.some(([v]) => v === old)) sel.value = old;
+}
+
+// ---------------------------------------------------------------- 状態から読むもの
+
+// サーバーではルールは 1 つの並び（state.norms）。片付けルール（origin = tidy）は片付けの形（state.rules）で出し、編集も rules.set で行う
+const norms = () => state ? state.norms.filter(n => n.origin !== "tidy") : [];
+const legacyRules = () => state ? state.rules : [];
+
+function areas() {
+  // 行き先・対象に使える領域: 住人が決めた領域（zones）と、シーンの領域（regions）
+  if (!state) return [];
+  const out = new Map();
+  for (const z of state.zones || []) out.set(z.id, { id: z.id, label: z.label || z.id, kind: "Resident-defined zone" });
+  for (const r of state.scene.regions || []) if (!out.has(r.id)) out.set(r.id, { id: r.id, label: r.label || r.id, kind: "Scene zone" });
+  return [...out.values()];
+}
+const areaLabel = id => { const a = areas().find(x => x.id === id); return a && a.label !== id ? `${a.label} (${id})` : id; };
+
+function objectValue(obj, key) {
+  if (["category", "group", "role"].includes(key)) return obj[key];
+  const a = (obj.attributes || {})[key];
+  if (a === undefined || a === null) return undefined;
+  return typeof a === "object" && "value" in a ? a.value : a;
+}
+
+/** このルールの対象になる、いまのシーンの物体（3 値: yes / unknown）。 */
+function matchingObjects(target) {
+  if (!state || target.kind !== "object") return null;
+  const yes = [], unknown = [];
+  for (const o of state.scene.objects) {
+    if (o.role && o.role !== "item") continue;
+    if (target.id && o.id !== target.id) continue;
+    if (!target.where) { yes.push(o.id); continue; }
+    const v = objectValue(o, target.where.attribute);
+    if (v === undefined || v === null) { if (target.unknown_as !== "false") unknown.push(o.id); }
+    else if (v === target.where.equals) yes.push(o.id);
+  }
+  return { yes, unknown };
+}
+
+// ---------------------------------------------------------------- 家の時計と「いま効くか」
+
+function clockNow() {
+  if (!state || !state.clock) return null;
+  const c = state.clock;
+  const m = /T(\d{2}):(\d{2})/.exec(c.now);
+  if (!m) return null;
+  let minutes = Number(m[1]) * 60 + Number(m[2]);
+  if (!c.frozen) minutes += Math.floor((Date.now() - stateAt) / 60000);  // 届いてからの経過分を足す
+  return ((minutes % 1440) + 1440) % 1440;
+}
+const toMin = s => { const [a, b] = s.split(":").map(Number); return a * 60 + b; };
+const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** "on" | "off" | "maybe"（依頼者や状態による） */
+function activeNow(rule) {
+  const s = rule.scope || {};
+  const now = clockNow();
+  let time = "on";
+  if (s.from || s.until) {
+    if (now === null) time = "maybe";
+    else {
+      const a = s.from ? toMin(s.from) : null, b = s.until ? toMin(s.until) : null;
+      let on;
+      if (a !== null && b !== null) on = a <= b ? (a <= now && now < b) : (now >= a || now < b);
+      else if (a !== null) on = now >= a;
+      else on = now < b;
+      time = on ? "on" : "off";
+    }
+  }
+  if (time === "off") return "off";
+  if (s.requester || s.when) return "maybe";
+  return time;
+}
+const ACTIVE_LABEL = { on: "active", off: "inactive", maybe: "conditional" };
+
+// ---------------------------------------------------------------- 文にする
+
+function scopeText(s) {
+  s = s || {};
+  const parts = [];
+  if (s.from && s.until) parts.push(`${s.from}–${s.until}`);
+  else if (s.from) parts.push(`from ${s.from} (for the rest of the day)`);
+  else if (s.until) parts.push(`until ${s.until}`);
+  if (s.requester) parts.push(`when ${s.requester} asks`);
+  if (s.when) parts.push(whenText(s.when));
+  return parts.length ? parts.join(", ") : "always";
+}
+function whenText(w) {
+  if (w.predicate === "near_child") return `while a child is within ${w.args?.distance ?? 5} m`;
+  return `while ${PRED_LABEL[w.predicate] || w.predicate}${Object.keys(w.args || {}).length ? " " + JSON.stringify(w.args) : ""}`;
+}
+function targetText(t) {
+  t = t || {};
+  if (t.kind === "zone") return `zone ${t.id ? areaLabel(t.id) : "(unspecified)"}`;
+  if (t.kind === "robot") return "robot";
+  let s = t.id ? `object ${t.id}` : t.where ? `objects with ${t.where.attribute} = ${fmtValue(t.where.equals)}` : t.fallback ? "" : "all objects";
+  if (t.id && t.where) s += ` (${t.where.attribute} = ${fmtValue(t.where.equals)})`;
+  if (t.fallback) s = (s ? s + ", " : "") + "other objects";
+  return s;
+}
+function reqText(r) {
+  r = r || {};
+  const args = { ...(r.args || {}) };
+  let s = PRED_LABEL[r.predicate] || r.predicate;
+  if (args.region) { s = `${r.predicate === "placed_in" ? "in " : ""}${areaLabel(args.region)}`; delete args.region; }
+  if (Object.keys(args).length) s += " " + JSON.stringify(args);
+  if (r.transition) s += r.transition.from === false && r.transition.to === true ? " (entering)" : r.transition.from === true && r.transition.to === false ? " (leaving)" : ` (${JSON.stringify(r.transition)})`;
+  return `${WINDOW_LABEL[r.window] || r.window}: ${s}`;
+}
+function legacyText(r) {
+  return `${r.condition ? `${r.condition.attribute} = ${fmtValue(r.condition.equals)}` : "otherwise"} → ${areaLabel(r.target_region)}`;
+}
+
+// ---------------------------------------------------------------- 描画
+
+function render() {
+  if (!state) return;
+  const c = state.clock;
+  const now = clockNow();
+  $("clock").textContent = c ? `House clock ${now === null ? "?" : hhmm(now)}${c.frozen ? " (frozen)" : c.overridden ? " (offset)" : ""}` : "";
+  $("counts").textContent = `Household rules ${norms().length} · Tidy ${legacyRules().length} · Pending ${(state.pending_rules || []).length}`;
+  if (selected && !findSelected()) selected = null;
+  renderPending();
+  renderList();
+  renderDetail();
+  renderFormOptions();
+}
+
+function findSelected() {
+  if (!selected) return null;
+  return selected.kind === "norm" ? norms().find(n => n.id === selected.id) : legacyRules().find(r => r.id === selected.id);
+}
+
+function renderList() {
+  const q = $("search").value.trim().toLowerCase();
+  const activeOnly = $("activeOnly").checked;
+  const items = [];
+  for (const n of norms()) items.push({ kind: "norm", id: n.id, type: n.norm, rule: n });
+  for (const r of legacyRules()) items.push({ kind: "legacy", id: r.id, type: "legacy", rule: r });
+
+  const text = it => it.kind === "norm"
+    ? [it.id, it.rule.original_text, it.rule.reason, scopeText(it.rule.scope), targetText(it.rule.target), reqText(it.rule.requirement), it.rule.target?.id, it.rule.requirement?.args?.region].join(" ")
+    : [it.id, it.rule.text, legacyText(it.rule), it.rule.target_region].join(" ");
+  const visible = it => (!typeFilter || it.type === typeFilter)
+    && (!q || text(it).toLowerCase().includes(q))
+    && (!activeOnly || it.kind === "legacy" || activeNow(it.rule) !== "off");
+
+  // 許可（例外）は元の禁止のすぐ下に並べる
+  const byBase = new Map();
+  for (const it of items) if (it.kind === "norm" && it.rule.exception_of) {
+    if (!byBase.has(it.rule.exception_of)) byBase.set(it.rule.exception_of, []);
+    byBase.get(it.rule.exception_of).push(it);
+  }
+  const ids = new Set(norms().map(n => n.id));
+  const ordered = [];
+  for (const it of items) {
+    if (it.kind === "norm" && it.rule.exception_of && ids.has(it.rule.exception_of)) continue;
+    ordered.push(it);
+    for (const child of byBase.get(it.id) || []) ordered.push({ ...child, child: true });
+  }
+  const shown = ordered.filter(visible);
+  $("listInfo").textContent = shown.length === items.length ? `${items.length}` : `${shown.length} / ${items.length}`;
+
+  const table = $("ruleTable");
+  if (!items.length) { table.replaceChildren(h("tbody", {}, h("tr", {}, h("td", { class: "empty" }, "No rules yet. Add some from \"Register in words\" or \"Build with form\" on the right")))); return; }
+  if (!shown.length) { table.replaceChildren(h("tbody", {}, h("tr", {}, h("td", { class: "empty" }, "No rules match the filter")))); return; }
+
+  table.replaceChildren(
+    h("thead", {}, h("tr", {}, h("th", {}, "ID"), h("th", {}, "Kind"), h("th", {}, "Rule"), h("th", {}, "When"), h("th", {}, "Now"))),
+    h("tbody", {}, shown.map(it => {
+      const isSel = selected && selected.kind === it.kind && selected.id === it.id;
+      const a = it.kind === "norm" ? activeNow(it.rule) : null;
+      return h("tr", { class: [isSel ? "sel" : "", it.child ? "child" : ""].join(" "), onclick: () => select(it.kind, it.id) },
+        h("td", {}, h("code", {}, it.id)),
+        h("td", {}, h("span", { class: "badge " + it.type }, NORM_LABEL[it.type])),
+        h("td", {},
+          h("div", {}, it.kind === "norm" ? (it.rule.original_text || "(no original text)") : it.rule.text),
+          h("div", { class: "muted small" }, it.kind === "norm" ? `${targetText(it.rule.target)} / ${reqText(it.rule.requirement)}` : legacyText(it.rule))),
+        h("td", { class: "small" }, it.kind === "norm" ? scopeText(it.rule.scope) : "always"),
+        h("td", {}, a ? h("span", { class: "pill " + a }, ACTIVE_LABEL[a]) : h("span", { class: "pill on" }, ACTIVE_LABEL.on)));
+    })));
+}
+
+function select(kind, id) {
+  selected = { kind, id };
+  setTab("detail");
+  renderList();
+  renderDetail();
+}
+
+// ---------------------------------------------------------------- 登録の途中
+
+function renderPending() {
+  const list = state.pending_rules || [];
+  $("pendingSection").hidden = !list.length;
+  $("pendingInfo").textContent = `${list.length} · Not used for verdicts until the area and expiry time are decided`;
+  const zoneOptions = [["", "— choose a zone —"], ...areas().map(a => [a.id, `${a.label} (${a.id})`])];
+  $("pendingList").replaceChildren(...list.map(p => {
+    const r = p.rule;
+    const refSelects = {};
+    const msg = h("div", { class: "msg" });
+    const needUntil = (p.unresolved || []).includes("scope.until");
+    const untilInput = h("input", { type: "time" });
+    const keepOpen = h("input", { type: "checkbox" });
+    const card = h("div", { class: "card" },
+      h("div", { class: "row", style: "margin:0" },
+        h("span", { class: "badge " + r.norm }, NORM_LABEL[r.norm]), h("code", {}, r.id),
+        h("span", { class: "muted small" }, `${scopeText(r.scope)} / ${targetText(r.target)}`)),
+      h("div", { class: "quote" }, `"${r.original_text}"`),
+      (p.notes || []).length ? h("ul", { class: "small" }, p.notes.map(n => h("li", {}, n))) : null,
+      (p.pending_refs || []).map(ref => {
+        const sel = h("select", {});
+        fillSelect(sel, zoneOptions, false);
+        refSelects[ref.ref] = sel;
+        return h("div", { class: "row" }, h("span", { class: "small" }, `Area of "${ref.phrase || ref.ref}" (${ref.ref})`), sel);
+      }),
+      (p.pending_refs || []).length && !areas().length
+        ? h("div", { class: "muted small" }, "No zones yet. Enclose the floor with Quest to register one (zones.define)")
+        : null,
+      needUntil ? h("div", { class: "row" }, h("span", { class: "small" }, "Expiry time"), untilInput,
+        h("label", { class: "small" }, keepOpen, " Leave open (stays in effect for the rest of the day)")) : null,
+      h("div", { class: "row" },
+        h("span", { style: "flex:1" }),
+        h("button", { class: "danger", onclick: async () => {
+          if (!confirm(`Discard pending rule ${r.id}?`)) return;
+          try { await call("rules.discard_pending", { rule_id: r.id }); } catch (e) { showMsg(msg, errText(e), "err"); }
+        } }, "Discard"),
+        h("button", { class: "primary", onclick: async () => {
+          const refs = {};
+          for (const [k, sel] of Object.entries(refSelects)) if (sel.value) refs[k] = sel.value;
+          const params = { rule_id: r.id, refs };
+          if (needUntil) { if (untilInput.value) params.until = untilInput.value; params.keep_open = keepOpen.checked; }
+          try { const res = await call("rules.confirm", params); select("norm", res.rule.id); } catch (e) { showMsg(msg, errText(e), "err"); }
+        } }, "Confirm")),
+      msg);
+    return card;
+  }));
+}
+
+// ---------------------------------------------------------------- 詳細
+
+function renderDetail() {
+  const box = $("detail");
+  const rule = findSelected();
+  if (!rule) { box.replaceChildren(h("div", { class: "empty" }, "Choose a rule from the list on the left")); return; }
+  // 編集中の入力を消さないよう、同じルールで入力にフォーカスがあるときは作り直さない
+  if (box.dataset.key === `${selected.kind}:${selected.id}` && box.contains(document.activeElement) && document.activeElement.matches("input, textarea, select")) return;
+  box.dataset.key = `${selected.kind}:${selected.id}`;
+  box.replaceChildren(...(selected.kind === "norm" ? normDetail(rule) : legacyDetail(rule)));
+}
+
+function normDetail(n) {
+  const children = norms().filter(x => x.exception_of === n.id);
+  const base = n.exception_of ? norms().find(x => x.id === n.exception_of) : null;
+  const a = activeNow(n);
+  const matched = matchingObjects(n.target || {});
+
+  const out = [
+    h("div", { class: "row", style: "margin-top:0" },
+      h("span", { class: "badge " + n.norm }, NORM_LABEL[n.norm]), h("code", {}, n.id),
+      h("span", { class: "pill " + a }, ACTIVE_LABEL[a])),
+    h("div", { class: "quote" }, n.original_text ? `"${n.original_text}"` : h("span", { class: "muted" }, "(no original text)")),
+    h("dl", {},
+      h("dt", {}, "When"), h("dd", {}, scopeText(n.scope)),
+      h("dt", {}, "Target"), h("dd", {}, targetText(n.target)),
+      matched ? [h("dt", {}, "Current objects"), h("dd", {},
+        matched.yes.length || matched.unknown.length
+          ? [matched.yes.join(", "), matched.unknown.length ? h("span", { class: "muted" }, `${matched.yes.length ? " / " : ""}unknown: ${matched.unknown.join(", ")}`) : null]
+          : h("span", { class: "muted" }, "No matching objects in the scene"))] : null,
+      h("dt", {}, "Requirement"), h("dd", {}, reqText(n.requirement)),
+      n.reason ? [h("dt", {}, "Reason"), h("dd", {}, n.reason)] : null,
+      n.author ? [h("dt", {}, "Registrant"), h("dd", {}, n.author)] : null,
+      n.exception_of ? [h("dt", {}, "Exception of"), h("dd", {}, base
+        ? h("span", { class: "linkish", onclick: () => select("norm", base.id) }, `${base.id}: ${base.original_text}`)
+        : `${n.exception_of} (not found)`)] : null,
+      children.length ? [h("dt", {}, "Exceptions"), h("dd", {}, children.map(c =>
+        h("div", {}, h("span", { class: "linkish", onclick: () => select("norm", c.id) }, c.id), `: ${c.original_text || ""} (${scopeText(c.scope)})`)))] : null),
+  ];
+
+  // --- いつ効くかを訂正する（rules.update）
+  const s = n.scope || {};
+  const fFrom = h("input", { type: "time", value: s.from || "" });
+  const fUntil = h("input", { type: "time", value: s.until || "" });
+  const fReq = h("input", { class: "grow", value: s.requester || "", placeholder: "Requester (anyone if empty)" });
+  const scopeMsg = h("div", { class: "msg" });
+  out.push(h("h3", {}, "Correct when it applies"),
+    h("div", { class: "row" }, fFrom, h("span", {}, "–"), fUntil, fReq),
+    h("div", { class: "row" }, h("span", { class: "muted small grow" }, "Re-evaluates and returns the rows changed by the correction (rules.update)"),
+      h("button", { class: "primary", onclick: async () => {
+        const params = { rule_id: n.id };
+        const pick = (v, old) => (v || null) !== (old || null);
+        if (pick(fFrom.value, s.from)) params.from = fFrom.value || null;
+        if (pick(fUntil.value, s.until)) params.until = fUntil.value || null;
+        if (pick(fReq.value.trim(), s.requester)) params.requester = fReq.value.trim() || null;
+        if (Object.keys(params).length === 1) return showMsg(scopeMsg, "Nothing changed", "");
+        try {
+          const res = await call("rules.update", params);
+          showMsg(scopeMsg, `Corrected (rows changed: ${res.correction?.changes?.length ?? 0})`, "ok");
+        } catch (e) { showMsg(scopeMsg, errText(e), "err"); }
+      } }, "Correct")),
+    scopeMsg);
+
+  // --- 例外を足す（禁止だけ。rules.add_exception）
+  if (n.norm === "prohibition") {
+    const eText = h("input", { class: "grow", placeholder: "The resident's words, e.g. You may touch it when I ask" });
+    const eReq = h("input", { class: "grow", placeholder: "Requester (anyone if omitted)" });
+    const eFrom = h("input", { type: "time" }), eUntil = h("input", { type: "time" });
+    const eObj = h("select", {});
+    if (n.target?.kind === "object") fillSelect(eObj, [["", "All target objects"], ...state.scene.objects.filter(o => !o.role || o.role === "item").map(o => [o.id, `${o.id} (${o.category})`])], false);
+    const eMsg = h("div", { class: "msg" });
+    out.push(h("h3", {}, "Add an exception (permission)"),
+      h("div", { class: "row" }, eText),
+      h("div", { class: "row" }, eReq, n.target?.kind === "object" ? eObj : null),
+      h("div", { class: "row" }, h("span", { class: "small muted" }, "Valid period"), eFrom, h("span", {}, "–"), eUntil,
+        h("span", { style: "flex:1" }),
+        h("button", { class: "primary", onclick: async () => {
+          const params = { exception_of: n.id, original_text: eText.value.trim() };
+          if (eReq.value.trim()) params.requester = eReq.value.trim();
+          if (eObj.value) params.object_id = eObj.value;
+          if (eFrom.value) params.from = eFrom.value;
+          if (eUntil.value) params.until = eUntil.value;
+          try { const res = await call("rules.add_exception", params); select("norm", res.rule.id); }
+          catch (e) { showMsg(eMsg, errText(e), "err"); }
+        } }, "Add exception")),
+      eMsg);
+  }
+
+  // --- JSON で直す・複製・消す（norms.set）
+  out.push(...jsonEditor(n, "norm"));
+  return out;
+}
+
+function legacyDetail(r) {
+  return [
+    h("div", { class: "row", style: "margin-top:0" }, h("span", { class: "badge legacy" }, NORM_LABEL.legacy), h("code", {}, r.id),
+      h("span", { class: "muted small" }, `source: ${r.source}`)),
+    h("div", { class: "quote" }, r.text),
+    h("dl", {},
+      h("dt", {}, "Condition"), h("dd", {}, r.condition ? `${r.condition.attribute} = ${fmtValue(r.condition.equals)}` : "Otherwise (objects that matched no other rule)"),
+      h("dt", {}, "Destination"), h("dd", {}, areaLabel(r.target_region),
+        areas().some(a => a.id === r.target_region) ? null : h("span", { class: "muted" }, " (not in the scene)")),
+      h("dt", {}, "Current objects"), h("dd", {}, (() => {
+        const m = matchingObjects({ kind: "object", where: r.condition, unknown_as: "false" });
+        return r.condition ? (m.yes.join(", ") || h("span", { class: "muted" }, "No matching objects in the scene")) : h("span", { class: "muted" }, "Objects that matched no other rule");
+      })())),
+    h("p", { class: "muted small" }, "For verdicts, tidy rules are treated as an obligation to \"be at the destination when placement completes\"."),
+    ...jsonEditor(r, "legacy"),
+  ];
+}
+
+/** JSON を直接直す欄と、複製・消すボタン。 */
+function jsonEditor(rule, kind) {
+  const area = h("textarea", { class: "code", rows: 12, spellcheck: false });
+  area.value = JSON.stringify(rule, null, 2);
+  const msg = h("div", { class: "msg" });
+  const list = () => kind === "norm" ? norms() : legacyRules();
+
+  const save = async newList => {
+    try {
+      if (kind === "norm") await call("norms.set", { norms: newList });
+      else await call("rules.set", { rules: newList });
+      return true;
+    } catch (e) { showMsg(msg, errText(e), "err"); return false; }
+  };
+
+  return [
+    h("h3", {}, "Edit as JSON"),
+    area,
+    h("div", { class: "row" },
+      h("button", { class: "danger", onclick: async () => {
+        const children = kind === "norm" ? norms().filter(x => x.exception_of === rule.id) : [];
+        const note = children.length ? `\nThis prohibition's exceptions ${children.map(c => c.id).join(", ")} will be deleted too.` : "";
+        if (!confirm(`Delete ${rule.id}?${note}`)) return;
+        const drop = new Set([rule.id, ...children.map(c => c.id)]);
+        if (await save(list().filter(x => !drop.has(x.id)))) selected = null;
+      } }, "Delete"),
+      h("button", { onclick: async () => {
+        const copy = structuredClone(rule);
+        copy.id = kind === "norm" ? newNormId(rule.norm === "permission" ? "P" : "N") : newLegacyId();
+        if (await save([...list(), copy])) select(kind, copy.id);
+      } }, "Duplicate"),
+      h("span", { style: "flex:1" }),
+      h("button", { onclick: () => { area.value = JSON.stringify(rule, null, 2); showMsg(msg, ""); } }, "Revert"),
+      h("button", { class: "primary", onclick: async () => {
+        let edited;
+        try { edited = JSON.parse(area.value); } catch (e) { return showMsg(msg, "Not readable as JSON: " + e.message, "err"); }
+        if (!edited || typeof edited !== "object" || !edited.id) return showMsg(msg, "id is required", "err");
+        let newList = list().map(x => x.id === rule.id ? edited : x);
+        if (kind === "norm" && edited.id !== rule.id)  // ID を変えたら、例外の参照も付け替える
+          newList = newList.map(x => x.exception_of === rule.id ? { ...x, exception_of: edited.id } : x);
+        if (await save(newList)) { select(kind, edited.id); }
+      } }, "Save")),
+    msg,
+  ];
+}
+
+function newNormId(prefix = "N") {
+  const used = new Set([...norms().map(n => n.id), ...legacyRules().map(r => r.id), ...(state?.pending_rules || []).map(p => p.rule.id)]);
+  let i = 1; while (used.has(prefix + i)) i++;
+  return prefix + i;
+}
+function newLegacyId() {
+  const used = new Set([...legacyRules().map(r => r.id), ...norms().map(n => n.id)]);
+  let i = 1; while (used.has("rule_" + i)) i++;
+  return "rule_" + i;
+}
+
+// ---------------------------------------------------------------- タブ
+
+function setTab(name) {
+  for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.tab === name);
+  for (const t of ["detail", "nl", "form"]) $("tab-" + t).hidden = t !== name;
+  try { localStorage.setItem("ruleBankTab", name); } catch {}
+}
+$("tabs").onclick = e => { const t = e.target.closest("button")?.dataset.tab; if (t) setTab(t); };
+
+// ---------------------------------------------------------------- 一覧の絞り込み
+
+$("typeFilter").onclick = e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  typeFilter = b.dataset.type;
+  for (const x of $("typeFilter").children) x.classList.toggle("on", x === b);
+  renderList();
+};
+$("search").oninput = renderList;
+$("activeOnly").onchange = renderList;
+
+// ---------------------------------------------------------------- 言葉で登録
+
+function syncNlKind() {
+  const norm = $("nlKind").value === "norms";
+  document.querySelectorAll("#tab-nl .norms-only").forEach(e => e.hidden = !norm);
+  document.querySelectorAll("#tab-nl .rules-only").forEach(e => e.hidden = norm);
+  $("nlText").placeholder = norm ? "e.g. After 6 pm the kids play around here, so don't go into this area of the living room" : "e.g. Put dishes in the sink, and sort trash into the bins";
+}
+$("nlKind").onchange = syncNlKind;
+
+$("btnNl").onclick = async () => {
+  const text = $("nlText").value.trim();
+  if (!text) return showMsg($("nlStatus"), "Enter some words", "err");
+  const norm = $("nlKind").value === "norms";
+  const params = { text, apply: $("nlApply").checked };
+  if (norm && $("nlAuthor").value.trim()) params.author = $("nlAuthor").value.trim();
+  if (!norm) params.mode = $("nlMode").value;
+  const started = Date.now();
+  const timer = setInterval(() => showMsg($("nlStatus"), `Asking the LLM… ${((Date.now() - started) / 1000).toFixed(0)} s`, ""), 500);
+  $("btnNl").disabled = true; $("btnNlCancel").disabled = false; $("nlResult").replaceChildren();
+  const req = request(norm ? "norms.compile" : "rules.compile", params);
+  nlReqId = req.id;
+  try {
+    const res = await req.promise;
+    const sec = ((Date.now() - started) / 1000).toFixed(1);
+    const out = [];
+    if (norm) {
+      showMsg($("nlStatus"), `${sec} s · rules ${res.norms.length} · pending ${res.pending.length}` + (res.applied ? " (applied)" : " (not applied)"), "ok");
+      if (res.norms.length) out.push(h("h3", {}, "Resulting rules"), h("ul", {}, res.norms.map(n => h("li", {},
+        h("span", { class: "badge " + n.norm }, NORM_LABEL[n.norm]), " ",
+        res.applied ? h("span", { class: "linkish", onclick: () => select("norm", n.id) }, n.id) : h("code", {}, n.id),
+        ` ${n.original_text} — ${scopeText(n.scope)} / ${targetText(n.target)} / ${reqText(n.requirement)}`))));
+      if (res.pending.length) out.push(h("h3", {}, "Pending (decide the area / expiry time at top left and confirm)"), h("ul", {}, res.pending.map(p => h("li", {},
+        h("code", {}, p.rule.id), ` ${p.rule.original_text}`, (p.notes || []).length ? h("div", { class: "muted small" }, p.notes.join(" / ")) : null))));
+      if (!res.applied && res.norms.length) out.push(h("div", { class: "row" }, h("span", { style: "flex:1" }),
+        h("button", { class: "primary", onclick: async () => {
+          try { await call("norms.set", { norms: [...norms(), ...res.norms] }); showMsg($("nlStatus"), "Applied", "ok"); }
+          catch (e) { showMsg($("nlStatus"), errText(e), "err"); }
+        } }, "Apply these rules")));
+    } else {
+      showMsg($("nlStatus"), `${sec} s · rules ${res.rules.length}` + (res.applied ? " (applied)" : " (not applied)"), "ok");
+      if (res.rules.length) out.push(h("h3", {}, "Resulting rules"), h("ul", {}, res.rules.map(r => h("li", {},
+        h("span", { class: "badge legacy" }, NORM_LABEL.legacy), " ", h("code", {}, r.id), ` ${r.text} (${legacyText(r)})`))));
+      if (!res.applied && res.rules.length) out.push(h("div", { class: "row" }, h("span", { style: "flex:1" }),
+        h("button", { class: "primary", onclick: async () => {
+          const base = params.mode === "replace" ? [] : legacyRules();
+          try { await call("rules.set", { rules: [...base, ...res.rules] }); showMsg($("nlStatus"), "Applied", "ok"); }
+          catch (e) { showMsg($("nlStatus"), errText(e), "err"); }
+        } }, "Apply these rules")));
+    }
+    if ((res.unresolved || []).length) out.push(h("h3", {}, "Parts that couldn't become rules"),
+      h("ul", {}, res.unresolved.map(u => h("li", {}, typeof u === "string" ? u : JSON.stringify(u)))));
+    $("nlResult").replaceChildren(...out);
+  } catch (e) {
+    showMsg($("nlStatus"), errText(e), "err");
+  } finally {
+    clearInterval(timer);
+    nlReqId = null;
+    $("btnNl").disabled = false; $("btnNlCancel").disabled = true;
+  }
+};
+$("btnNlCancel").onclick = () => {
+  if (nlReqId && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cancel", id: nlReqId }));
+};
+
+// ---------------------------------------------------------------- フォームで作る
+
+const PRED_FOR = {
+  obligation: ["placed_in", "base_stopped", "contact", "footprint_overlaps"],
+  prohibition: ["contact", "footprint_overlaps", "placed_in", "base_stopped"],
+  permission: ["contact", "footprint_overlaps", "placed_in", "base_stopped"],
+};
+
+function renderFormOptions() {
+  if (!state) return;
+  const objs = state.scene.objects;
+  const kind = $("fTargetKind").value;
+  if (kind === "zone") fillSelect($("fTargetId"), [["", "— choose a zone —"], ...areas().map(a => [a.id, `${a.label} (${a.id})`])]);
+  else fillSelect($("fTargetId"), [["", "Unspecified (select by attribute / all)"], ...objs.filter(o => !o.role || o.role === "item").map(o => [o.id, `${o.id} (${o.category})`])]);
+  const areaOpts = [["", "— choose a zone —"], ...areas().map(a => [a.id, `${a.label} (${a.id})`])];
+  fillSelect($("fRegion"), areaOpts);
+  fillSelect($("lTarget"), areaOpts);
+  fillSelect($("fException"), [["", "— choose the original prohibition —"], ...norms().filter(n => n.norm === "prohibition").map(n => [n.id, `${n.id}: ${n.original_text}`])]);
+  updateForm();
+}
+
+function updateForm() {
+  const legacy = $("fTemplate").value === "legacy";
+  $("normForm").hidden = legacy;
+  $("legacyForm").hidden = !legacy;
+  const norm = $("fNorm").value, kind = $("fTargetKind").value;
+  document.querySelectorAll("#normForm .perm-only").forEach(e => e.hidden = norm !== "permission");
+  document.querySelectorAll("#normForm .tgt-id").forEach(e => e.hidden = kind === "robot");
+  document.querySelectorAll("#normForm .tgt-obj").forEach(e => e.hidden = kind !== "object");
+  $("fWhenArgs").hidden = $("fWhen").value !== "near_child";
+  const preds = PRED_FOR[norm];
+  const old = $("fPredicate").value;
+  fillSelect($("fPredicate"), preds.map(p => [p, `${PRED_LABEL[p]} (${p})`]), false);
+  $("fPredicate").value = preds.includes(old) ? old : preds[0];
+  document.querySelectorAll("#normForm .arg-region").forEach(e => e.hidden = $("fPredicate").value !== "placed_in");
+  $("fPreview").textContent = JSON.stringify(legacy ? buildLegacy() : buildNorm(), null, 2);
+}
+
+function buildNorm() {
+  const norm = $("fNorm").value, kind = $("fTargetKind").value;
+  const scope = {};
+  if ($("fFrom").value) scope.from = $("fFrom").value;
+  if ($("fUntil").value) scope.until = $("fUntil").value;
+  if ($("fRequester").value.trim()) scope.requester = $("fRequester").value.trim();
+  if ($("fWhen").value === "near_child") scope.when = { predicate: "near_child", args: { distance: Number($("fWhenDist").value) || 5 } };
+  const target = { kind };
+  if (kind !== "robot" && $("fTargetId").value) target.id = $("fTargetId").value;
+  if (kind === "object") {
+    const attr = $("fWhereAttr").value.trim(), val = $("fWhereVal").value.trim();
+    if (attr && val !== "") target.where = { attribute: attr, equals: parseValue(val) };
+    if ($("fUnknownAs").value === "false") target.unknown_as = "false";
+    if ($("fFallback").checked) target.fallback = true;
+  }
+  const predicate = $("fPredicate").value;
+  const requirement = { window: $("fWindow").value, predicate, args: {} };
+  if (predicate === "placed_in" && $("fRegion").value) requirement.args.region = $("fRegion").value;
+  const tr = $("fTransition").value;
+  if (tr === "enter") requirement.transition = { from: false, to: true };
+  if (tr === "leave") requirement.transition = { from: true, to: false };
+  const rule = {
+    id: $("fId").value.trim() || newNormId(norm === "permission" ? "P" : "N"),
+    original_text: $("fText").value.trim(), norm, scope, target, requirement,
+  };
+  if ($("fReason").value.trim()) rule.reason = $("fReason").value.trim();
+  if ($("fAuthor").value.trim()) rule.author = $("fAuthor").value.trim();
+  if (norm === "permission" && $("fException").value) rule.exception_of = $("fException").value;
+  return rule;
+}
+
+function buildLegacy() {
+  const attr = $("lAttr").value.trim(), val = $("lVal").value.trim();
+  const condition = attr && val !== "" ? { attribute: attr, equals: parseValue(val) } : null;
+  const target = $("lTarget").value;
+  return {
+    id: $("lId").value.trim() || newLegacyId(),
+    text: $("lText").value.trim() || `${condition ? `${condition.attribute} = ${fmtValue(condition.equals)}` : "otherwise"} → ${target || "?"}`,
+    condition, target_region: target, source: "script",
+  };
+}
+
+const TEMPLATES = {
+  keep_out: { fNorm: "prohibition", fTargetKind: "zone", fWindow: "during_base_motion", fPredicate: "footprint_overlaps", fTransition: "enter",
+              fText: "Don't enter this zone after 6 pm", fFrom: "18:00" },
+  no_touch: { fNorm: "prohibition", fTargetKind: "object", fWindow: "at_contact", fPredicate: "contact", fTransition: "", fText: "Don't touch this object" },
+  place_in: { fNorm: "obligation", fTargetKind: "object", fWindow: "at_place_complete", fPredicate: "placed_in", fTransition: "",
+              fText: "Put dishes in the sink", fWhereAttr: "group", fWhereVal: "dish" },
+  stop_near_child: { fNorm: "obligation", fTargetKind: "robot", fWindow: "whole", fPredicate: "base_stopped", fTransition: "",
+                     fWhen: "near_child", fText: "Stop the base when a child is within 5 m" },
+  exception: { fNorm: "permission", fTargetKind: "object", fWindow: "at_contact", fPredicate: "contact", fTransition: "",
+               fText: "You may touch it when I ask" },
+};
+
+function resetForm() {
+  for (const id of ["fId", "fText", "fFrom", "fUntil", "fRequester", "fWhereAttr", "fWhereVal", "fReason", "fAuthor", "lId", "lAttr", "lVal", "lText"]) $(id).value = "";
+  $("fWhen").value = ""; $("fUnknownAs").value = "unknown"; $("fFallback").checked = false; $("fTransition").value = "";
+  showMsg($("fMsg"), "");
+}
+
+$("fTemplate").onchange = () => {
+  const t = TEMPLATES[$("fTemplate").value];
+  if (t) {
+    resetForm();
+    $("fNorm").value = t.fNorm; $("fTargetKind").value = t.fTargetKind;
+    renderFormOptions();  // 対象の種類で、ID の選択肢が変わる
+    for (const [k, v] of Object.entries(t)) $(k).value = v;
+  }
+  updateForm();
+};
+$("normForm").addEventListener("input", updateForm);
+$("normForm").addEventListener("change", e => { if (e.target.id === "fTargetKind") renderFormOptions(); else updateForm(); });
+$("legacyForm").addEventListener("input", updateForm);
+$("legacyForm").addEventListener("change", updateForm);
+$("btnFormReset").onclick = () => { resetForm(); updateForm(); };
+
+$("btnFormAdd").onclick = async () => {
+  const legacy = $("fTemplate").value === "legacy";
+  try {
+    if (legacy) {
+      const r = buildLegacy();
+      if (!r.target_region) return showMsg($("fMsg"), "Choose a destination", "err");
+      await call("rules.set", { rules: [...legacyRules(), r] });
+      select("legacy", r.id);
+    } else {
+      const n = buildNorm();
+      if (!n.original_text) return showMsg($("fMsg"), "Enter the original text (shown to the resident in explanations)", "err");
+      if (n.target.kind === "zone" && !n.target.id) return showMsg($("fMsg"), "Choose the target zone", "err");
+      if (n.norm === "permission" && !n.exception_of) return showMsg($("fMsg"), "Choose the prohibition this is an exception to", "err");
+      if (n.requirement.predicate === "placed_in" && !n.requirement.args.region) return showMsg($("fMsg"), "Choose the destination zone", "err");
+      await call("norms.set", { norms: [...norms(), n] });
+      select("norm", n.id);
+    }
+    resetForm();
+    updateForm();
+  } catch (e) { showMsg($("fMsg"), errText(e), "err"); }
+};
+
+// ---------------------------------------------------------------- 書き出し・読み込み
+
+$("btnExport").onclick = () => {
+  if (!state) return;
+  const data = { kind: "coground.rule_bank", exported_at: new Date().toISOString(), rules: legacyRules(), norms: norms() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  const a = h("a", { href: URL.createObjectURL(blob), download: `coground-rules-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("btnImport").onclick = () => $("importFile").click();
+$("importFile").onchange = async () => {
+  const file = $("importFile").files[0];
+  $("importFile").value = "";
+  if (!file) return;
+  let data;
+  try { data = JSON.parse(await file.text()); } catch (e) { return alert("Not readable as JSON: " + e.message); }
+  const rules = Array.isArray(data.rules) ? data.rules : null, ns = Array.isArray(data.norms) ? data.norms : null;
+  if (!rules && !ns) return alert("No rules or norms array");
+  const what = [rules ? `${rules.length} tidy rules` : null, ns ? `${ns.length} household rules` : null].filter(Boolean).join(", ");
+  if (!confirm(`Replace the current rules with the loaded ${what}?`)) return;
+  try {
+    // 片付けルールと家庭ルールは ID が重なってはいけないので、先に家庭ルールを空にしてから入れる
+    if (ns) await call("norms.set", { norms: [] });
+    if (rules) await call("rules.set", { rules });
+    if (ns) await call("norms.set", { norms: ns });
+    selected = null;
+  } catch (e) { alert("Import failed: " + errText(e)); }
+};
+
+// ---------------------------------------------------------------- 始める
+
+connect();  // 先につなぐ（下の描画で何か失敗しても、接続は止まらない）
+let initialTab = "nl";
+try { initialTab = localStorage.getItem("ruleBankTab") || "nl"; } catch {}
+setTab(initialTab === "detail" ? "nl" : initialTab);
+syncNlKind();
+updateForm();
+setInterval(() => { if (state && !state.clock?.frozen) { render(); } }, 30000);  // 家の時計が進むので「いま」を描き直す
+</script>
+</body>
+</html>

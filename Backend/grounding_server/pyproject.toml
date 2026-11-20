@@ -8,11 +8,30 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "pydantic>=2.11",
     "claude-agent-sdk>=0.2.182",
+    "anthropic>=2.10",
+    "websockets>=12",
+    "tzdata",
+    # perception: Set-of-Mark 画像を描く（Pillow）、detector の /segment を呼ぶ（httpx）
+    "Pillow>=10.1",
+    "httpx>=0.27",
+    # perception/association.py: 3D の箱の計算（numpy）と、1 対 1 の照合（scipy）
+    "numpy>=1.26",
+    "scipy>=1.11",
+    # POST /perception/frame（multipart）
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
+detect = [
+    "torch>=2.5",
+    "torchvision>=0.20",
+    "ultralytics>=8.3,<9",
+    "Pillow>=10",
+]
+
 dev = [
     "pytest>=8",
+    "Pillow>=10",
     "httpx>=0.27",
     "websockets>=12",
 ]
@@ -24,8 +43,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["coground_server*"]
 
-[tool.setuptools.package-data]
-coground_server = ["static/*"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+coground_server = ["detection_vocab.json", "vlm_mock_attributes.json", "static/*.html", "static/*.css", "static/*.js", "static/*.ico"]

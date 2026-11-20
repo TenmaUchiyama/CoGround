@@ -1,0 +1,30 @@
+<!--
+  台車のナビゲーション: move_base + 指令ノード (/coground/base/*)。
+  台車の位置 (TF world -> base_link と /odom) は別に出しておくこと:
+    Gazebo なし: fake_base_driver.py (kinematic_robot.launch が nav:=true で起動する)
+  地図は base_command_server が /coground/nav/map に出す (起動直後は空の地図、Unity の NavMapPublisher が送ると替わる)。
+  トピック一覧は Backend/README.md の「台車のナビゲーション」を参照。
+-->
+<launch>
+  <arg name="global_frame" default="world"/>
+  <!-- move_base が出す速度指令の行き先 (Gazebo なし: fake_base_driver が受ける) -->
+  <arg name="cmd_vel_topic" default="/coground/base/cmd_vel"/>
+
+  <node name="move_base" pkg="move_base" type="move_base" output="screen" respawn="true" respawn_delay="5">
+    <rosparam file="$(find coground_control)/config/nav/costmap_common.yaml" command="load" ns="global_costmap"/>
+    <rosparam file="$(find coground_control)/config/nav/costmap_common.yaml" command="load" ns="local_costmap"/>
+    <rosparam file="$(find coground_control)/config/nav/global_costmap.yaml" command="load"/>
+    <rosparam file="$(find coground_control)/config/nav/local_costmap.yaml" command="load"/>
+    <rosparam file="$(find coground_control)/config/nav/move_base.yaml" command="load"/>
+    <param name="global_costmap/global_frame" value="$(arg global_frame)"/>
+    <param name="local_costmap/global_frame" value="$(arg global_frame)"/>
+    <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
+    <remap from="odom" to="/odom"/>
+  </node>
+
+  <node name="coground_base_command_server" pkg="coground_control" type="base_command_server.py" output="screen"
+        respawn="true" respawn_delay="5">
+    <param name="global_frame" value="$(arg global_frame)"/>
+    <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)"/>
+  </node>
+</launch>

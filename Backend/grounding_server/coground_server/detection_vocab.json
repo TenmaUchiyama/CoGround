@@ -1,0 +1,9 @@
+[
+  {"prompt": "plastic bottle", "label": "plastic_bottle"},
+  {"prompt": "cup", "label": "cup"},
+  {"prompt": "mug", "label": "mug"},
+  {"prompt": "plate", "label": "plate"},
+  {"prompt": "paper cup", "label": "paper_cup"},
+  {"prompt": "crumpled tissue", "label": "tissue"},
+  {"prompt": "snack wrapper", "label": "wrapper"}
+]

@@ -1,0 +1,7 @@
+You are Agent X (Critical Reviewer), cross-review phase. Read ../00_brief.md, then the Claude agents' reports in ../agents/*.md.
+Rule: important papers must be independently confirmed by a second agent. For each paper below, open its original page/PDF via web search and independently re-score the 7 similarity axes and classification. Report disagreements with Claude's scores per axis, with evidence (quote/section). Also check for factual errors (venue, year, authors, N, results) and for claims marked verified:false that you can now verify or refute.
+
+Papers: X-OOHRI (HRI 2026); PerceptTwin (ICRA 2026); MRPilot (arXiv 2026); SHRIMP (UIST 2026); Polaris (Porfirio et al. HRI 2024); ImageInThat (HRI 2025); CE-MRS (Schneider et al. RA-L 2024); VeriPlan (CHI 2025); MARCER (HRI 2025); RoboCritics (HRI 2026); Diehl et al. RO-MAN 2020; Rosen et al. IJRR 2019; Sukkerd et al. RO-MAN 2020; Das et al. HRI 2021; Sibirtseva et al. HRI 2018; Wang et al. CHI EA 2023 (holographic twin approval); Previewed Reality IROS 2017.
+Also critically assess the agents' shared conclusion: "no verified work shows a robot-predicted whole-scene After state in situ for goal-satisfaction judgment, combined with cause explanation and local repair, evaluated on speed/accuracy". Search hard for counterexamples, especially 2024–2026.
+
+Write output to X2_cross_review.md in the current directory: per-paper table (paper | facts verified? | Claude scores | your scores | disagreement axes | evidence), list of factual errors found, counterexamples found, and an overall verdict.

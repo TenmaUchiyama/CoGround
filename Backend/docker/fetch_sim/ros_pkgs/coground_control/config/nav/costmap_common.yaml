@@ -1,0 +1,24 @@
+# global / local の costmap で共通の設定 (Gazebo なしのシミュレーション用: センサーなし、地図だけ)
+# 台車は Fetch の丸い台車 (半径 約 0.28 m)
+robot_radius: 0.30
+transform_tolerance: 0.5
+
+static_layer:
+  map_topic: /coground/nav/map   # base_command_server が出す (Unity の地図 or 起動直後の空の地図)
+  subscribe_to_updates: false
+  track_unknown_space: false
+  first_map_only: false          # Unity が地図を送り直したら読み直す
+
+inflation_layer:
+  inflation_radius: 0.6
+  cost_scaling_factor: 5.0
+
+# 進入禁止ゾーン (家庭ルール R2 の迂回)。base_command_server が /coground/nav/keepout_zones (JSON の多角形) を
+# 地図と同じ大きさ・解像度の OccupancyGrid にして出す (ゾーンが無いときは全部 0)。
+# use_maximum: 下の層 (static_layer) を上書きせず、大きい方を取る。これが無いと机などの障害物が消える
+keepout_layer:
+  map_topic: /coground/nav/keepout
+  subscribe_to_updates: false
+  track_unknown_space: false
+  first_map_only: false
+  use_maximum: true

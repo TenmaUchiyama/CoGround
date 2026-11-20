@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from ..rpc import Router
-from . import debug, llm, rules, scene, system
+from . import debug, execution, home, llm, plan, robot_test, rules, scene, sequence, system, task
 
 
 def build_router() -> Router:
     router = Router()
-    for module in (system, scene, rules, llm, debug):
+    for module in (system, scene, rules, task, sequence, home, plan, execution, robot_test, llm, debug):
         router.include(module.router)
     return router

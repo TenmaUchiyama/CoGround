@@ -138,9 +138,9 @@ def test_attribute_shorthand_and_observation():
 
 def test_rule_matches_group_and_attributes():
     objs = objects_by_id(SceneSnapshot.model_validate(TABLETOP))
-    dishes = Rule(id="r1", text="食器はシンクへ", condition={"attribute": "group", "equals": "dish"},
+    dishes = Rule(id="r1", text="Dishes go to the sink", condition={"attribute": "group", "equals": "dish"},
                   target_region="sink_1")
-    plastic = Rule(id="r2", text="プラごみはプラのごみ箱へ",
+    plastic = Rule(id="r2", text="Plastic trash goes to the plastics bin",
                    condition={"attribute": "waste_type", "equals": "plastic"}, target_region="trash_bin_plastic")
     assert dishes.condition.matches(objs["plate_1"]) and not dishes.condition.matches(objs["tissue_1"])
     assert plastic.condition.matches(objs["plastic_bottle_1"]) and not plastic.condition.matches(objs["fork_1"])
@@ -170,7 +170,7 @@ def test_unknown_category_is_item_other():
 
 
 def test_region_id_collision_with_object_is_rejected():
-    with pytest.raises(ValidationError, match="重複"):
+    with pytest.raises(ValidationError, match="Duplicate"):
         SceneSnapshot.model_validate({
             "objects": [{"id": "shelf_1", "category": "shelf", "position": [0, 0, 0]}],
             "regions": [{"id": "shelf_1", "label": "shelf", "box": {"center": [0, 0, 0], "size": [1, 1, 1]}}]})

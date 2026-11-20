@@ -1,4 +1,5 @@
-# Linux remote host: headless ROS / MoveIt / Unity endpoint
+# Linux remote host: ROS / MoveIt / Unity endpoint
+# RViz / Gazebo の画面はホストのデスクトップ (DISPLAY=:0) に出す。事前に xhost +local:docker が必要 (make の GUI 系ターゲットは自動で実行する)
 services:
   fetch_sim:
     build: .
@@ -6,11 +7,22 @@ services:
     container_name: fetch_sim
     # 既定は Gazebo なし (MoveIt + Unity 通信)。GAZEBO=true で Gazebo あり、GAZEBO_GUI=false で Gazebo の画面なし、MOVEIT=false で MoveIt なし、RVIZ=true で RViz (RVIZ_FRAME=odom で odom 基準。既定は world)
     # AUTO_EXECUTE=true で /coground/arm/goal_* を受けたら計画 + 即実行
-    command: ["roslaunch", "coground_vr_bridge", "vr_sim.launch", "gazebo:=${GAZEBO:-false}", "gui:=${GAZEBO_GUI:-false}", "moveit:=${MOVEIT:-true}", "rviz:=${RVIZ:-false}", "rviz_frame:=${RVIZ_FRAME:-world}", "auto_execute:=${AUTO_EXECUTE:-false}"]
+    # 台車は既定で ROS 側で動かす (fake_base_driver + move_base。動作計画で台車を動かすのに要る)。NAV=false で無効。Gazebo ありのときは使わない
+    # rosbridge (:9090) も既定で起動する (ROSBRIDGE=false で無効)。グラウンディングサーバーの Executor がここから /coground/skill/* を使う
+    # (イメージに ros-noetic-rosbridge-server が要る。入っていなければ make build)
+    command: ["roslaunch", "coground_vr_bridge", "vr_sim.launch", "gazebo:=${GAZEBO:-false}", "gui:=${GAZEBO_GUI:-false}", "moveit:=${MOVEIT:-true}", "rviz:=${RVIZ:-false}", "rviz_frame:=${RVIZ_FRAME:-world}", "auto_execute:=${AUTO_EXECUTE:-false}", "nav:=${NAV:-true}", "rosbridge:=${ROSBRIDGE:-true}"]
     ports:
       # Unity (Quest / Editor) -> ROS-TCP-Endpoint
       - "10000:10000"
+      # グラウンディングサーバー -> rosbridge (ROSBRIDGE=false のときは使わない)
+      - "9090:9090"
+    environment:
+      # SSH 越しに make しても、横のモニタ (ログイン中のデスクトップ) に出す
+      DISPLAY: ${DISPLAY_OVERRIDE:-:0}
+      QT_X11_NO_MITSHM: "1"
     volumes:
+      # ホストの X サーバー
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
       # 自前パッケージをコンテナに直接見せる (launch / Python の変更は再起動だけで反映)。
       # パッケージやノードを「追加」したとき、CMakeLists.txt を変えたときは docker compose build が必要
       - ./ros_pkgs/coground_vr_bridge:/opt/fetch_ws/src/coground_vr_bridge

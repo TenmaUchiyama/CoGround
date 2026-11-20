@@ -1,0 +1,294 @@
+{
+  "created_at": "2026-11-17T15:23:08+0000",
+  "mode": "sim",
+  "master_uri": "http://localhost:11311",
+  "results": [
+    {
+      "id": "sys.master",
+      "title": "ROS マスターに接続",
+      "level": 0,
+      "status": "pass",
+      "summary": "http://localhost:11311 / ノード 20 / トピック 120",
+      "details": {
+        "master_uri": "http://localhost:11311",
+        "ROS_HOSTNAME": null,
+        "ROS_IP": null,
+        "advertised_host": "70102945c792",
+        "nodes": 20,
+        "topics": 120,
+        "use_sim_time": false,
+        "advertised_ip": "172.18.0.2"
+      },
+      "hint": "",
+      "started_at": 1794928980.062766,
+      "duration_s": 0.009547710418701172
+    },
+    {
+      "id": "sys.nodes",
+      "title": "全ノードに届くか",
+      "level": 0,
+      "status": "pass",
+      "summary": "19 ノードすべてに届いた",
+      "details": {
+        "nodes": [
+          "/coground_arm_command_server",
+          "/coground_base_command_server",
+          "/coground_fake_base_driver",
+          "/coground_pick_place_server",
+          "/coground_scene_sync",
+          "/coground_trajectory_path",
+          "/joint_state_publisher",
+          "/move_base",
+          "/move_group",
+          "/move_group_commander_wrappers_1794928190721060104",
+          "/move_group_commander_wrappers_1794928190744661762",
+          "/moveit_python_wrappers_1794928190898859066",
+          "/robot_state_publisher",
+          "/rosapi",
+          "/rosbridge_websocket",
+          "/rosout",
+          "/unity/joint_states_throttle",
+          "/unity/odom_throttle",
+          "/unity_endpoint"
+        ]
+      },
+      "hint": "",
+      "started_at": 1794928980.0723462,
+      "duration_s": 0.025274991989135742
+    },
+    {
+      "id": "sys.runstop",
+      "title": "ランストップ (非常停止) の状態",
+      "level": 0,
+      "status": "skip",
+      "summary": "RobotState のトピックが無い (fetch_driver が動いていない?) (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928980.0976446,
+      "duration_s": 0.0027213096618652344
+    },
+    {
+      "id": "sys.battery",
+      "title": "バッテリー残量",
+      "level": 0,
+      "status": "skip",
+      "summary": "BatteryState のトピックが無い (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928980.1003878,
+      "duration_s": 0.0025055408477783203
+    },
+    {
+      "id": "sys.controllers",
+      "title": "コントローラ (腕・胴・首・グリッパー・台車)",
+      "level": 0,
+      "status": "skip",
+      "summary": "コントローラが 1 つも見つからない (シムには無い)",
+      "details": {
+        "actions": {
+          "/arm_controller/follow_joint_trajectory": false,
+          "/arm_with_torso_controller/follow_joint_trajectory": false,
+          "/torso_controller/follow_joint_trajectory": false,
+          "/head_controller/follow_joint_trajectory": false,
+          "/head_controller/point_head": false,
+          "/gripper_controller/gripper_action": false
+        },
+        "base_cmd_subscribed": []
+      },
+      "hint": "",
+      "started_at": 1794928980.1029117,
+      "duration_s": 1.5200550556182861
+    },
+    {
+      "id": "sys.diagnostics",
+      "title": "診断 (/diagnostics)",
+      "level": 0,
+      "status": "skip",
+      "summary": "/diagnostics が無い (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928981.6230004,
+      "duration_s": 0.0035047531127929688
+    },
+    {
+      "id": "sys.planners",
+      "title": "MoveIt / Navigation が起動しているか",
+      "level": 0,
+      "status": "warn",
+      "summary": "起動していない: amcl (自己位置推定), /map (地図)",
+      "details": {
+        "items": {
+          "move_group (MoveIt)": true,
+          "move_base (Navigation)": true,
+          "amcl (自己位置推定)": false,
+          "/map (地図)": false
+        }
+      },
+      "hint": "",
+      "started_at": 1794928981.626535,
+      "duration_s": 0.0034995079040527344
+    },
+    {
+      "id": "sense.joint_states",
+      "title": "関節角 (/joint_states)",
+      "level": 0,
+      "status": "pass",
+      "summary": "60.0 Hz",
+      "details": {
+        "topic": "/joint_states",
+        "type": "sensor_msgs/JointState",
+        "count": 120,
+        "rate_hz": 59.9972,
+        "stamp_age_s": 0.0004,
+        "joints_seen": [
+          "bellows_joint",
+          "elbow_flex_joint",
+          "forearm_roll_joint",
+          "head_pan_joint",
+          "head_tilt_joint",
+          "l_gripper_finger_joint",
+          "l_wheel_joint",
+          "r_gripper_finger_joint",
+          "r_wheel_joint",
+          "shoulder_lift_joint",
+          "shoulder_pan_joint",
+          "torso_lift_joint",
+          "upperarm_roll_joint",
+          "wrist_flex_joint",
+          "wrist_roll_joint"
+        ]
+      },
+      "hint": "",
+      "started_at": 1794928981.6300602,
+      "duration_s": 2.015061140060425
+    },
+    {
+      "id": "sense.base_scan",
+      "title": "レーザー (/base_scan)",
+      "level": 0,
+      "status": "skip",
+      "summary": "/base_scan が出ていない (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928983.6451888,
+      "duration_s": 0.0036325454711914062
+    },
+    {
+      "id": "sense.odom",
+      "title": "オドメトリ (/odom)",
+      "level": 0,
+      "status": "pass",
+      "summary": "50.0 Hz",
+      "details": {
+        "topic": "/odom",
+        "type": "nav_msgs/Odometry",
+        "count": 100,
+        "rate_hz": 49.9963,
+        "stamp_age_s": 0.0008,
+        "linear_x": 0.0,
+        "angular_z": 0.0
+      },
+      "hint": "",
+      "started_at": 1794928983.6488526,
+      "duration_s": 2.0157907009124756
+    },
+    {
+      "id": "sense.imu",
+      "title": "IMU (/imu)",
+      "level": 0,
+      "status": "skip",
+      "summary": "/imu が出ていない (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928985.6646726,
+      "duration_s": 0.003576517105102539
+    },
+    {
+      "id": "sense.head_rgb",
+      "title": "頭のカメラ RGB",
+      "level": 0,
+      "status": "skip",
+      "summary": "/head_camera/rgb/image_raw が出ていない (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928985.668281,
+      "duration_s": 0.0035283565521240234
+    },
+    {
+      "id": "sense.head_depth",
+      "title": "頭のカメラ Depth",
+      "level": 0,
+      "status": "skip",
+      "summary": "/head_camera/depth_registered/image_raw が出ていない (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928985.6718364,
+      "duration_s": 0.003289461135864258
+    },
+    {
+      "id": "sense.head_points",
+      "title": "頭のカメラ 点群",
+      "level": 0,
+      "status": "skip",
+      "summary": "/head_camera/depth_registered/points が出ていない (シムには無い)",
+      "details": {},
+      "hint": "",
+      "started_at": 1794928985.6751504,
+      "duration_s": 0.0029146671295166016
+    },
+    {
+      "id": "sense.tf",
+      "title": "TF (座標のつながり)",
+      "level": 0,
+      "status": "warn",
+      "summary": "必須はつながった。無いもの: map->odom (地図・amcl が未起動)",
+      "details": {
+        "pairs": {
+          "odom->base_link": {
+            "ok": true,
+            "xyz": [
+              0.559,
+              -1.722,
+              0.0
+            ],
+            "age_s": 0.0097
+          },
+          "base_link->torso_lift_link": {
+            "ok": true,
+            "xyz": [
+              -0.0869,
+              0.0,
+              0.3774
+            ],
+            "age_s": 0.033
+          },
+          "base_link->gripper_link": {
+            "ok": true,
+            "xyz": [
+              1.1281,
+              0.0,
+              0.786
+            ],
+            "age_s": 0.033
+          },
+          "base_link->head_camera_rgb_optical_frame": {
+            "ok": true,
+            "xyz": [
+              0.1638,
+              0.02,
+              1.0609
+            ],
+            "age_s": 0.0331
+          },
+          "map->odom": {
+            "ok": false,
+            "error": "\"map\" passed to lookupTransform argument target_frame does not exist. "
+          }
+        }
+      },
+      "hint": "",
+      "started_at": 1794928985.6780858,
+      "duration_s": 2.512989044189453
+    }
+  ]
+}
