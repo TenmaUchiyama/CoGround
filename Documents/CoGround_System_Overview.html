@@ -1,0 +1,540 @@
+<title>CoGround System Overview</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column with a sticky section index; each section = short prose + one diagram + a compact table. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6577;
+  --line: #d9dee7;
+  --accent: #1f6f8b;        /* teal-blue: grounding / maps */
+  --accent-soft: #e3f0f4;
+  --ok: #2e7d4f;   --ok-soft: #e4f3ea;
+  --warn: #9a6a00; --warn-soft: #fbf1d9;
+  --plan: #7a4fb0; --plan-soft: #efe8f8;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #181e27; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2b3442;
+    --accent: #6cc0dc; --accent-soft: #16303a;
+    --ok: #7fd3a0; --ok-soft: #173325; --warn: #e8c063; --warn-soft: #3a2f12; --plan: #c3a4ee; --plan-soft: #2c2240;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #181e27; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2b3442;
+  --accent: #6cc0dc; --accent-soft: #16303a;
+  --ok: #7fd3a0; --ok-soft: #173325; --warn: #e8c063; --warn-soft: #3a2f12; --plan: #c3a4ee; --plan-soft: #2c2240;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { display: grid; gap: 8px; margin-bottom: 20px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: 30px; line-height: 1.3; margin: 0; text-wrap: balance; }
+h2 { font-size: 22px; margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; margin: 0; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: .92em; }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  border-bottom: 1px solid var(--line); margin: 0 0 28px; padding-block: 10px; overflow-x: auto; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+nav.toc ol { list-style: none; display: flex; gap: 6px; margin: 0; padding: 0; white-space: nowrap; }
+nav.toc a { display: inline-block; padding: 4px 10px; border-radius: 999px; color: var(--fg); text-decoration: none; font-size: 13px; border: 1px solid var(--line); background: var(--surface); }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+section { display: grid; gap: 14px; padding-block: 28px; border-top: 1px solid var(--line); scroll-margin-top: 64px; }
+section:first-of-type { border-top: 0; }
+.sec-head { display: grid; gap: 6px; }
+.num { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: transparent; min-width: 640px; text-align: center; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.cols > * { min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+th { font-weight: 500; color: var(--muted); font-size: 12px; letter-spacing: .04em; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.b-ok { color: var(--ok); background: var(--ok-soft); }
+.b-warn { color: var(--warn); background: var(--warn-soft); }
+.b-plan { color: var(--plan); background: var(--plan-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; color: var(--muted); }
+.formula { font-family: var(--font-mono); font-size: 18px; color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; overflow-x: auto; }
+ul.tight { margin: 0; padding-left: 1.2em; display: grid; gap: 2px; }
+footer { color: var(--muted); font-size: 12.5px; padding-top: 24px; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+@media (max-width: 520px) { h1 { font-size: 24px; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">CoGround · Quest 3 × Grounding Server × Fetch</div>
+    <h1>CoGround システム全体図</h1>
+    <p class="lead">家庭ルールに従って机の上を片付けるシステムの、構成・ルールの設計・処理の流れ・データの流れ・型を 1 ページにまとめた図です。設計は <code>Documents/CoGround_Home_Rules.md</code>、実装は <code>Backend/grounding_server</code> と <code>UserApp/CoGround</code> にあります。</p>
+    <div class="legend" aria-label="凡例">
+      <span><span class="badge b-ok">実装済み</span> サーバーのテストで確認済み</span>
+      <span><span class="badge b-warn">未検証</span> コードはあるが Unity / 実機で動作未確認</span>
+      <span><span class="badge b-plan">予定</span> 設計にはあるが、まだコードが無い（図では破線）</span>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="目次">
+    <ol>
+      <li><a href="#overview">全体構成</a></li>
+      <li><a href="#rulebank">ルールバンク</a></li>
+      <li><a href="#rule">ルールの設計</a></li>
+      <li><a href="#perception">画像から場面へ</a></li>
+      <li><a href="#workflow">ワークフロー</a></li>
+      <li><a href="#runtime">実行と監視</a></li>
+      <li><a href="#types">型</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="overview">
+    <div class="sec-head">
+      <span class="num">1 / 7</span>
+      <h2>全体構成</h2>
+      <p>Quest（Unity）が場面と人の位置を送り、グラウンディングサーバーがルールの判定と計画を持ち、ROS 上の Fetch が動きます。サーバーとは WebSocket（<code>/ws</code>）の要求・応答と、全体状態の配信（<code>state.updated</code>）で話します。</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  subgraph Q["Quest 3 / Unity（UserApp/CoGround）"]
+    direction TB
+    CAM["パススルーカメラ ／ PassthroughCameraAccess"]
+    DET["DetectionPipeline ／ 2D 矩形 → 3D 箱・追跡"]
+    SCN["CoGroundSceneReporter ／ scene.update（0.5 s）"]
+    HOME["Home/* ／ 領域・人・依頼・訂正"]
+    VIEW["PlanView / HomeStatus ／ 計画・保留・停止の表示"]
+  end
+  subgraph S["グラウンディングサーバー（FastAPI :8000）"]
+    direction TB
+    RPC["WebSocket RPC /ws ／ request · response · stream · event"]
+    STORE[("StateStore ／ ルールバンク・場面・依頼の記録")]
+    NORMS["norms/ ／ 判定 evaluate・計画 plan_task"]
+    MOTION["MotionStore ／ 動作計画の要約"]
+    EXEC["Executor + Monitor ／ 実行・hold・再計画"]
+    LLM["LLM の口 ／ norms.compile / task 解釈"]
+  end
+  DETS["YOLO-World ／ detector コンテナ :8001"]
+  CLAUDE["Claude ／ Agent SDK か API キー"]
+  VLM["VLM 属性推定"]:::plan
+  subgraph R["ROS（fetch_sim / fetch_real）"]
+    PP["pick_place_server ／ skill/* · task/plan_*"]
+    MI["MoveIt + move_base"]
+    SS["scene_sync ／ Planning Scene"]
+  end
+  CAM --> DET
+  DET -- "POST /detect（JPEG）" --> DETS
+  DETS -- "矩形・ラベル" --> DET
+  DET -. "ICoGroundSceneSource" .-> SCN
+  SCN --> RPC
+  HOME --> RPC
+  RPC --> STORE
+  STORE --> NORMS
+  NORMS --> STORE
+  STORE --> EXEC
+  EXEC --> MOTION
+  LLM <--> CLAUDE
+  RPC --> LLM
+  VLM -.-> STORE
+  EXEC <-->|"rosbridge :9090 ／ std_msgs/String JSON"| PP
+  PP --> MI
+  SS --> MI
+  RPC -- "state.updated" --> VIEW
+  classDef plan stroke-dasharray: 5 4;
+</pre>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>部品</th><th>役割</th><th>主なファイル</th><th>状態</th></tr></thead>
+        <tbody>
+          <tr><td>Unity の場面送信</td><td>シミュレーションの物体を <code>scene.update</code> で送る</td><td><code>Scene/CoGroundSceneReporter.cs</code></td><td><span class="badge b-ok">実装済み</span></td></tr>
+          <tr><td>物体検出</td><td>カメラ画像を YOLO-World に送り、3D の箱にして追跡する</td><td><code>Detection/*.cs</code>, <code>detect_app.py</code></td><td><span class="badge b-ok">実装済み</span></td></tr>
+          <tr><td>検出 → 場面</td><td>追跡した箱を場面の物体として送る（<code>ICoGroundSceneSource</code>）</td><td>—</td><td><span class="badge b-plan">予定</span></td></tr>
+          <tr><td>VLM 属性推定</td><td>画像から「割れ物」などの属性を推定し、<code>source: "vlm"</code> で入れる</td><td>型だけ（<code>AttributeSource</code>）</td><td><span class="badge b-plan">予定</span></td></tr>
+          <tr><td>家庭ルール</td><td>登録・判定・計画・依頼の記録・訂正・説明</td><td><code>coground_server/norms/</code></td><td><span class="badge b-ok">実装済み</span></td></tr>
+          <tr><td>領域・人・操作（Unity）</td><td><code>zones.define</code>, <code>people.update</code>, 依頼・訂正の送信、停止の表示</td><td><code>Home/*.cs</code></td><td><span class="badge b-warn">未検証</span></td></tr>
+          <tr><td>ロボット</td><td>ROS の代わりに <code>FakeRobot</code> でも動く。本物は rosbridge 経由</td><td><code>robot.py</code>, <code>pick_place_server.py</code></td><td><span class="badge b-ok">実装済み</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="rulebank">
+    <div class="sec-head">
+      <span class="num">2 / 7</span>
+      <h2>ルールバンク（サーバーが持つもの）</h2>
+      <p>設計ガイド §3 の「保存単位」に当たるものは、いまはサーバーのメモリ（<code>StateStore</code>）にあり、変わるたびに全体状態として配信します。データベースへの保存はまだありません。届いた観測（場面）と住人の訂正は別々に持ち、判定のときに重ねます。</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  subgraph BANK["StateStore（state.updated の中身）"]
+    direction LR
+    subgraph RULES["ルール"]
+      direction TB
+      LEG["rules ／ 行き先ルール Rule（旧）"]
+      NR["norms ／ 家庭ルール NormRule ／ 禁止・義務・許可（例外）"]
+      PEND["pending_rules ／ 登録の途中（範囲・解除時刻が未定）"]
+    end
+    subgraph PLACES["場所"]
+      direction TB
+      REG["scene.regions ／ 棚・シンクなど（place_zone から）"]
+      ZN["zones ／ 住人が Quest で囲んだ床"]
+    end
+    subgraph WORLD["物体と人"]
+      direction TB
+      RAW["scene（届いた観測）"]
+      COR["corrections ／ 住人の訂正（上書き）"]
+      PPL["people ／ 人の位置（2 s で失効）"]
+    end
+    subgraph TASK["依頼と時刻"]
+      direction TB
+      TR["task ／ TaskRecord と行 TaskRow"]
+      RB["route_blocks ／ 経路で運べない物"]
+      CLK["clock ／ 家の時計（差し替え可）"]
+    end
+    REL["関係 on / owner"]:::plan
+  end
+  RAW --> MERGE(("重ねる"))
+  COR --> MERGE
+  MERGE --> EVAL["判定 evaluate"]
+  NR --> EVAL
+  ZN --> EVAL
+  PPL --> EVAL
+  CLK --> EVAL
+  EVAL --> TR
+  classDef plan stroke-dasharray: 5 4;
+</pre>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>保存単位（設計 §3）</th><th>いまの置き場所</th><th>入れる method</th></tr></thead>
+        <tbody>
+          <tr><td>ルール</td><td><code>norms</code>, <code>pending_rules</code>（旧 <code>rules</code> は <code>NormRule.from_legacy</code> で変換）</td><td><code>norms.set</code>, <code>norms.compile</code>, <code>rules.confirm</code>, <code>rules.update</code>, <code>rules.add_exception</code></td></tr>
+          <tr><td>場所</td><td><code>scene.regions</code>, <code>zones</code></td><td><code>scene.update</code>, <code>zones.define / update / remove</code></td></tr>
+          <tr><td>物体</td><td><code>scene.objects</code> ＋ <code>corrections</code></td><td><code>scene.update</code>, <code>objects.set_attribute</code></td></tr>
+          <tr><td>関係</td><td>—</td><td><span class="badge b-plan">予定</span>（いまは <code>region_id</code> だけ）</td></tr>
+          <tr><td>スキル</td><td>コードの表（<code>norms/depends.py</code> の <code>SKILL_CHANGES</code>）</td><td>—</td></tr>
+          <tr><td>タスク記録</td><td><code>task</code>（Plan とは別に持つ。行は依頼時に固定）</td><td><code>task.request</code>, <code>task.report</code>, <code>task.close</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="rule">
+    <div class="sec-head">
+      <span class="num">3 / 7</span>
+      <h2>ルールの設計</h2>
+      <p>1 つのルールを Institutional Grammar の形に分けて持ちます。計画（予測した状態列 τπ）と実行（観測した状態列 τobs）で、同じ関数 <code>evaluate()</code> を使って判定します。分からない事実は「不明」として扱い、勝手に補いません。</p>
+    </div>
+    <div class="formula">R = (N, S, T, W, φ)  →  Verdict ∈ {violated, compliant, not_applicable, undetermined}</div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  N["N 規範 norm ／ prohibition / obligation / permission"] --> E
+  S["S Scope ／ from・until（家の時計） ／ requester・when（状態の条件）"] --> E
+  T["T 対象 target ／ object / zone / robot ／ id か where 属性 = 値"] --> E
+  W["W 評価区間 window ／ at_contact / during_base_motion ／ at_place_complete / whole"] --> E
+  P["φ 述語 predicate ／ contact · placed_in ／ footprint_overlaps · near_child ／ base_stopped（＋transition）"] --> E
+  X["exception_of（許可） ／ 元の禁止の適用範囲を狭める"] --> E
+  TRACE["状態列 WorldSample[] ／ 予測 τπ か 観測 τobs"] --> E{{"evaluate()"}}
+  E --> V1["violated ／ 違反の証拠あり"]
+  E --> V2["undetermined ／ 足りない事実 missing を返す"]
+  E --> V3["compliant"]
+  E --> V4["not_applicable"]
+</pre>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>住人の言葉</th><th>N</th><th>T</th><th>W</th><th>φ</th><th>判定する場所</th></tr></thead>
+        <tbody>
+          <tr><td>R1</td><td>Fragile なものを触るな</td><td>禁止</td><td>物体 where fragile = true</td><td><code>at_contact</code></td><td><code>contact</code></td><td>計画（plan_task）</td></tr>
+          <tr><td>R2</td><td>夕方 6 時以降は、リビングのこのあたりには入るな</td><td>禁止</td><td>領域 zone_play</td><td><code>during_base_motion</code></td><td><code>footprint_overlaps</code> の false→true</td><td>経路の計画・実行中の監視</td></tr>
+          <tr><td>R3a/b</td><td>皿は食器棚の上段に、コップは下段に</td><td>義務</td><td>物体 category = plate / cup</td><td><code>at_place_complete</code></td><td><code>placed_in</code> region</td><td>計画（行き先）と置いたあとの観測</td></tr>
+          <tr><td>R4</td><td>子供の 5 m 以内にいるときは止まれ</td><td>義務</td><td>ロボット</td><td><code>during_base_motion</code></td><td><code>base_stopped</code>（when: <code>near_child</code>）</td><td>実行中の監視（hold）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cols">
+      <div class="card"><h3>三値の論理</h3><p>述語は True / False / 不明 を返し、<code>and3 / or3 / not3</code> で組み合わせます。子供かどうか分からない人が近くにいれば、R4 は「不明」になり、安全側で止めます。</p></div>
+      <div class="card"><h3>例外（許可）</h3><p>「私が頼んだときは触ってよい」は <code>permission</code> の <code>exception_of: R1</code> で登録します。依頼者が分からなければ例外の成立も不明になり、結論は未確定です。</p></div>
+      <div class="card"><h3>候補の絞り込み</h3><p>スキルが変える項目（<code>SKILL_CHANGES</code>）とルールが読む項目（<code>depends_on</code>）が重なるルールだけを評価し直します。訂正のときも同じ表で影響を受けるルールを探します。</p></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="perception">
+    <div class="sec-head">
+      <span class="num">4 / 7</span>
+      <h2>画像から場面へ（データの流れ）</h2>
+      <p>カメラ画像は Quest の上で JPEG にして検出コンテナへ送り、返ってきた矩形を Quest 側で 3D の箱にします。いまは検出結果を表示（デバッグの箱・DR マスク）に使っていて、場面としてサーバーへ送る部分と VLM による属性推定はまだありません。</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  IMG["カメラ画像 ／ Quest 3"] --> AG["ObjectDetectionAgent ／ JPEG・最大 640 px"]
+  AG -- "POST /detect" --> YW["YOLO-World ／ 語彙 prompt → label"]
+  YW -- "label · score · box" --> AG
+  AG --> LOC["DetectionLocator ／ レイキャストで 2D → 3D 箱"]
+  LOC --> TRK["DetectionTracker ／ 対応づけ・平滑化・固定"]
+  TRK --> TRACKS["Tracks ／ 安定した 3D 箱"]
+  TRACKS --> DBG["表示 ／ 3D 箱・DR マスク"]
+  TRACKS -.-> SRC["ICoGroundSceneSource ／ source = detection"]:::plan
+  CROP["物体の切り抜き画像"]:::plan
+  TRACKS -.-> CROP
+  CROP -.-> VLMX["VLM ／ fragile・material など"]:::plan
+  VLMX -.-> ATTR["attributes ／ source = vlm, confidence"]:::plan
+  SIM["シミュレーションの物体 ／ CoGroundSceneObject"] --> REP["CoGroundSceneReporter"]
+  SRC -.-> REP
+  ATTR -.-> REP
+  REP -- "scene.update" --> SV["StateStore.scene ／ taxonomy で role・group を補う"]
+  USER["住人の訂正 ／ objects.set_attribute"] --> COR["corrections"]
+  SV --> M(("判定に使う物体"))
+  COR --> M
+  classDef plan stroke-dasharray: 5 4;
+</pre>
+    </div>
+    <div class="cols">
+      <div class="card"><h3>属性の根拠</h3><p><code>Attribute.source</code> は <code>ground_truth</code> / <code>detector</code> / <code>vlm</code> / <code>user</code>。値が無ければ「不明」で、ルールの判定は <code>undetermined</code> と足りない事実（例: <code>plate_A の 属性 fragile</code>）を返します。</p></div>
+      <div class="card"><h3>訂正は上書きで持つ</h3><p>住人の訂正は届いた観測とは別に保存し、次の <code>scene.update</code> のあとも効きます。訂正すると関係するルールだけを評価し直し、変わった行を <code>correction.changes</code> で返します。</p></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="workflow">
+    <div class="sec-head">
+      <span class="num">5 / 7</span>
+      <h2>ワークフロー</h2>
+      <p>住人から見た流れは「ルールを登録する → 片付けを頼む → 結果を聞く・訂正する」の 3 つです。</p>
+    </div>
+    <h3>ルールの登録（言葉 → 構造化ルール）</h3>
+    <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 住人
+  participant Q as Quest（Unity）
+  participant S as サーバー
+  participant L as Claude
+  U->>Q: 「6 時以降、リビングのこのあたりには入るな」
+  Q->>S: norms.compile {text, author}
+  S->>L: 原文・場面の領域・既存ルール
+  L-->>S: NormRule（範囲は zone_ref_1、解除時刻なし）
+  S-->>Q: pending（pending_refs, unresolved: scope.until）
+  Note over S: 勝手に補わず、登録の途中として持つ
+  U->>Q: 床の範囲を囲む（CoGroundZone）
+  Q->>S: zones.define {id, polygon}
+  U->>Q: 「解除は朝 7 時」
+  Q->>S: rules.confirm {rule_id, refs: {zone_ref_1: zone_play}, until}
+  S-->>Q: 確定したルール → norms に入り、すぐ効く
+</pre>
+    </div>
+    <h3>片付けの依頼から報告まで</h3>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A["task.request ／ 机の上のものを全部片づけて"] --> B["TaskRecord を作る ／ 対象の行を依頼時に固定"]
+  B --> C["plan_task ／ 行ごとに R1・R3 を予測で判定"]
+  C -->|"違反の予測・不明"| D["step: deferred ／ 理由と missing を記録"]
+  C -->|"適合"| E["step: ok ／ 行き先と置き位置"]
+  E --> F["motion.plan ／ ROS で経路と腕の計画"]
+  F -->|"R2 に反しない経路が無い"| D
+  F --> G["exec.start ／ navigate → pick → place"]
+  G --> H["placed_unverified ／ 置いたあとの観測を待つ（5 s）"]
+  H -->|"収納先で観測"| I["done"]
+  H -->|"別の場所"| J["misplaced"]
+  H -->|"観測が来ない"| K["unverified"]
+  D --> R["task.report ／ 住人に伝える文"]
+  I --> R
+  J --> R
+  K --> R
+  R --> COR["訂正 ／ 属性・時刻・例外・範囲"]
+  COR -->|"関係するルールだけ再評価"| C
+</pre>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="runtime">
+    <div class="sec-head">
+      <span class="num">6 / 7</span>
+      <h2>実行と監視（R2・R4）</h2>
+      <p>実行中は Monitor が人の位置・台車の位置・時刻を見張り、R4 の条件が成り立つ（または不明になる）と台車を止めます（hold）。条件が解けても、残りの経路を判定し直すまでは止めたままです。</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant P as Quest（人の位置）
+  participant M as Monitor
+  participant X as Executor
+  participant R as ROS（pick_place_server）
+  X->>R: skill/goal navigate（keepout_zones 付き）
+  loop 0.2 s ごと
+    P->>M: people.update {people[]}
+    M->>M: R4 を観測で判定
+  end
+  Note over M: 子供が 5 m 以内 / 人の観測が 2 s 途切れた
+  M->>R: skill/hold {hold: true, reason}
+  M->>M: holds に「止めるよう求めた時刻・距離」を記録
+  R-->>M: 台車の速さ → 「実際に止まった時刻」を記録
+  Note over M: 条件が解ける
+  M->>R: nav/route_request（残りの経路を R2 で判定し直す）
+  R-->>M: route_result
+  alt 経路が使える
+    M->>R: skill/hold {hold: false}
+  else 使えない
+    M->>X: route_blocks に入れ、その物は deferred
+  end
+</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="types">
+    <div class="sec-head">
+      <span class="num">7 / 7</span>
+      <h2>型</h2>
+      <p>サーバーは pydantic v2（<code>models.py</code>, <code>norms/model.py</code>, <code>norms/task.py</code>）、Unity は Newtonsoft の DTO（<code>CoGroundSceneTypes.cs</code>, <code>CoGroundPlanTypes.cs</code>）。座標はどちらも Unity のワールド座標（左手系、Y が上）で、ROS に渡すときに <code>(x, y, z) → (z, −x, y)</code> に直します。</p>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class SceneObject {
+    +str id
+    +str category
+    +role item|receptacle|surface
+    +group dish|cutlery|trash|...
+    +Vec3 position
+    +Quat rotation
+    +Vec3 size
+    +map attributes
+    +str region_id
+    +RegionBox place_zone
+  }
+  class Attribute {
+    +value bool|float|str
+    +source ground_truth|detector|vlm|user
+    +float confidence
+    +float observed_at
+  }
+  class SceneRegion {
+    +str id
+    +str label
+    +list polygon
+    +RegionBox box
+  }
+  class Person {
+    +str id
+    +kind child|adult|unknown
+    +Vec3 position
+  }
+  class NormRule {
+    +str id
+    +str author
+    +str original_text
+    +norm prohibition|obligation|permission
+    +Scope scope
+    +Target target
+    +Requirement requirement
+    +str exception_of
+  }
+  class Scope {
+    +str from
+    +str until
+    +str requester
+    +Condition when
+  }
+  class Target {
+    +kind object|zone|robot
+    +str id
+    +RuleCondition where
+  }
+  class Requirement {
+    +Window window
+    +str predicate
+    +dict args
+    +Transition transition
+  }
+  class PendingRule {
+    +NormRule rule
+    +list pending_refs
+    +list unresolved
+  }
+  class Verdict {
+    +str rule_id
+    +value violated|compliant|not_applicable|undetermined
+    +basis predicted|observed
+    +str entity_id
+    +list~MissingFact~ missing
+  }
+  class TaskRecord {
+    +str id
+    +str text
+    +str requester
+    +list~TaskRow~ rows
+    +list corrections
+  }
+  class TaskRow {
+    +str object_id
+    +str destination
+    +ExecState exec_state
+    +map verdicts
+    +list~Verdict~ history
+    +list~MissingFact~ missing
+  }
+  class Step {
+    +str id
+    +str object_id
+    +Placement from
+    +Placement to
+    +status ok|deferred|ambiguous|unmatched|infeasible
+    +list~Verdict~ verdicts
+  }
+  SceneObject "1" o-- "*" Attribute
+  NormRule *-- Scope
+  NormRule *-- Target
+  NormRule *-- Requirement
+  PendingRule *-- NormRule
+  NormRule ..> Verdict : evaluate
+  TaskRecord "1" *-- "*" TaskRow
+  TaskRow o-- Verdict
+  Step o-- Verdict
+  TaskRow ..> SceneObject : object_id
+  Target ..> SceneRegion : zone id
+</pre>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>型</th><th>サーバー（Python）</th><th>Unity（C#）</th></tr></thead>
+        <tbody>
+          <tr><td>場面</td><td><code>SceneSnapshot</code>, <code>SceneObject</code>, <code>Attribute</code></td><td><code>SceneSnapshotDto</code>, <code>SceneObjectDto</code>, <code>AttributeDto</code></td></tr>
+          <tr><td>計画</td><td><code>Plan</code>, <code>Step</code>, <code>Placement</code></td><td><code>PlanDto</code>, <code>StepDto</code>, <code>PlacementDto</code></td></tr>
+          <tr><td>判定</td><td><code>Verdict</code>, <code>MissingFact</code></td><td><code>VerdictDto</code>, <code>MissingFactDto</code></td></tr>
+          <tr><td>家庭ルール</td><td><code>NormRule</code>, <code>PendingRule</code></td><td>JObject のまま読む（<code>CoGroundHomeStatus</code>）</td></tr>
+          <tr><td>依頼の記録</td><td><code>TaskRecord</code>, <code>TaskRow</code>（<code>exec_state</code>: pending / deferred / in_progress / placed_unverified / done / misplaced / unverified / failed）</td><td>JObject のまま読む</td></tr>
+          <tr><td>人・領域</td><td><code>Person</code>, <code>SceneRegion</code></td><td><code>CoGroundPerson</code>, <code>CoGroundZone</code>（送るだけ）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>2026-11-18 時点のコードから作成。プロトコルの詳細は <code>Backend/grounding_server/README.md</code>。</span>
+    <span>破線の部分（検出 → 場面、VLM、関係）は設計ガイドにあるが、まだ実装されていない。</span>
+  </footer>
+</div>
