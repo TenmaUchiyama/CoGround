@@ -150,7 +150,7 @@ public class CoGroundServerClient : MonoBehaviour
                 {
                     if (socket == ws) socket = null;
                     SessionId = null;
-                    FailAllPending("disconnected", "サーバーとの接続が切れた");
+                    FailAllPending("disconnected", "Connection to the server was lost");
                     if (opened)
                     {
                         Debug.Log("[CoGroundServer] disconnected");

@@ -21,3 +21,7 @@ buildInfo.txt
 Packages/packages-lock.json
 Library_backup/
 *.slnx
+
+# API キーなどの秘密情報 (MaiTranscribeConfig 等)
+Assets/Main/Secrets/
+Assets/Main/Secrets.meta

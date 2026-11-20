@@ -46,7 +46,7 @@ public class MoveItPickPlaceQueue : MonoBehaviour
     ROSConnection ros;
 
     /// <summary>pick_place_server の最新の状態</summary>
-    public string Status { get; private set; } = "(pick_place_server の状態待ち)";
+    public string Status { get; private set; } = "(Waiting for pick_place_server status)";
     /// <summary>実行中の箱 (なければ null)</summary>
     public MoveItPickable Current => current?.obj;
     public int PendingCount => pending.Count;

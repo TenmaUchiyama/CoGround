@@ -22,3 +22,6 @@ __pycache__/
 # Local developer connection credentials
 /UserApp/CoGround/Assets/Resources/DevAgentSettings.asset
 /UserApp/CoGround/Assets/Resources/DevAgentSettings.asset.meta
+
+# SplatXR docs mirror (local reference only)
+/SplatXR/

@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 350fd05908334ff2a399f5275e27dc34
+TrueTypeFontImporter:
+  serializedVersion: 2
+  fontSize: 48
+  forceTextureCase: -2
+  characterSpacing: 1
+  characterPadding: 0
+  includeFontData: 1
+  fontNames: []
+  fallbackFontReferences: []
+  fontRenderingMode: 0
+  userData: 

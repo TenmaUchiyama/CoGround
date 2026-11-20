@@ -42,6 +42,8 @@ public class SceneObjectDto
     [JsonProperty("region_id", NullValueHandling = NullValueHandling.Ignore)] public string RegionId;
     /// <summary>receptacle / surface のみ: 物を置ける・入れられる範囲。この物体と同じ ID の領域になる</summary>
     [JsonProperty("place_zone", NullValueHandling = NullValueHandling.Ignore)] public BoxDto PlaceZone;
+    /// <summary>place_zone を持つ物のみ: ロボット (台車) が止まって作業する位置と向き (Unity ワールド座標、+Z が台車の正面)。CoGroundApproachPoint</summary>
+    [JsonProperty("approach_poses", NullValueHandling = NullValueHandling.Ignore)] public List<PoseDto> ApproachPoses;
     [JsonProperty("observation")] public ObservationDto Observation = new ObservationDto();
 }
 
@@ -55,6 +57,22 @@ public class BoxDto
     {
         Center = SceneJson.V(center), Rotation = SceneJson.Q(rotation), Size = SceneJson.V(size),
     };
+}
+
+public class PoseDto
+{
+    [JsonProperty("position")] public float[] Position;
+    [JsonProperty("rotation")] public float[] Rotation;
+
+    public static PoseDto From(Vector3 position, Quaternion rotation) => new PoseDto
+    {
+        Position = SceneJson.V(position), Rotation = SceneJson.Q(rotation),
+    };
+
+    // Plan の placement.pose (CoGroundPlanTypes.cs) を読むときに使う
+    [JsonIgnore] public Vector3 PositionV => new Vector3(Position[0], Position[1], Position[2]);
+    [JsonIgnore] public Quaternion RotationQ => Rotation != null && Rotation.Length == 4
+        ? new Quaternion(Rotation[0], Rotation[1], Rotation[2], Rotation[3]) : Quaternion.identity;
 }
 
 public class AttributeDto
@@ -110,6 +128,8 @@ public enum CoGroundCategory
     sink, trash_bin, dish_rack,
     // 置く場所 (surface)
     table, shelf,
+    // 片付けデモ用 (シーンに保存された値がずれないよう、足すときは必ず末尾に)
+    water_bottle, small_box, storage_box,
 }
 
 /// <summary>
@@ -119,11 +139,12 @@ public enum CoGroundCategory
 ///   dirty      : true | false
 ///   contents   : empty | liquid | food
 ///   waste_type : burnable | plastic | can | bottle (ごみ箱では受け付ける分別)
+///   trash      : true | false (ゴミか。片付けデモ用。カテゴリの group とは別に物ごとに決める)
 /// </summary>
 public static class AttributeKey
 {
     public const string Material = "material", Fragile = "fragile", Dirty = "dirty",
-        Contents = "contents", WasteType = "waste_type";
+        Contents = "contents", WasteType = "waste_type", Trash = "trash";
 }
 
 /// <summary>シーンの物体を出すもの。シミュレーションでも検出でも、これを実装して CoGroundSceneReporter に登録する。</summary>

@@ -7,10 +7,10 @@ using UnityEngine;
 /// <summary>
 /// MoveIt の計画結果 (/coground/arm/planned_trajectory) で、エンドエフェクタが通る道を線で表示する。
 ///
-/// 取り込んだ fetch (ルート) に付ける (MoveItTrajectoryPreview と一緒に使う)。
+/// MoveItTrajectoryPreview と一緒に使う。
 /// 緑のゴーストが計画を再生する 1 周目に、ゴーストの手先の位置を記録して線にする。
-/// 順運動学を自分で計算しないので、Unity 上の URDF の形とずれない。
-/// 点は fetch のローカル座標で持つので、台車が動いても線は台車について動く。
+/// 点はゴーストの base_link のローカル座標で持つので、台車が動いても線は台車について動く。
+/// VR 上の Fetch (本物) は読まない。
 ///
 /// 表示するのは状態が planned の間 (showWhileExecuting なら executing の間も)。
 /// </summary>
@@ -38,7 +38,8 @@ public class MoveItTrajectoryLine : MonoBehaviour
     Transform ghostTip;
     LineRenderer line;
 
-    // fetch (このオブジェクト) のローカル座標
+    // ゴーストの base_link のローカル座標
+    Transform frame;
     readonly List<Vector3> localPoints = new List<Vector3>();
     Vector3[] worldPoints = new Vector3[0];
     bool recording;
@@ -78,18 +79,16 @@ public class MoveItTrajectoryLine : MonoBehaviour
     bool FindGhostTip()
     {
         if (ghostTip != null) return true;
-        var ghost = preview.Ghost;
-        if (ghost == null) return false; // Preview の Start がまだ
-        foreach (var t in ghost.GetComponentsInChildren<Transform>(true))
-        {
-            if (t.name == tipLinkName) { ghostTip = t; return true; }
-        }
+        var rig = preview.Rig;
+        if (rig == null) return false; // Preview の Start がまだ (か、ゴースト用モデルが無い)
+        frame = rig.BaseLink;
+        if (rig.TryGetLink(tipLinkName, out ghostTip)) return true;
         Debug.LogError($"[MoveItTrajectoryLine] ゴーストに {tipLinkName} が見つからない");
         enabled = false;
         return false;
     }
 
-    // ゴーストの関節は FixedUpdate で書き込まれ、物理の更新後に Transform に反映されるので LateUpdate で読む
+    // ゴーストは MoveItTrajectoryPreview の Update で動くので LateUpdate で読む
     void LateUpdate()
     {
         if (!FindGhostTip()) return;
@@ -118,7 +117,7 @@ public class MoveItTrajectoryLine : MonoBehaviour
 
     void AddPoint(Vector3 world)
     {
-        var local = transform.InverseTransformPoint(world);
+        var local = frame.InverseTransformPoint(world);
         if (localPoints.Count > 0 &&
             (local - localPoints[localPoints.Count - 1]).sqrMagnitude < minPointDistance * minPointDistance)
         {
@@ -130,7 +129,7 @@ public class MoveItTrajectoryLine : MonoBehaviour
     void Draw()
     {
         if (worldPoints.Length != localPoints.Count) worldPoints = new Vector3[localPoints.Count];
-        for (int i = 0; i < localPoints.Count; i++) worldPoints[i] = transform.TransformPoint(localPoints[i]);
+        for (int i = 0; i < localPoints.Count; i++) worldPoints[i] = frame.TransformPoint(localPoints[i]);
         line.positionCount = worldPoints.Length;
         line.SetPositions(worldPoints);
     }

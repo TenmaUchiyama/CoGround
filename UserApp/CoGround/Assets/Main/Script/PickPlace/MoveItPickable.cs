@@ -18,8 +18,9 @@ using UnityEngine;
 ///
 /// ■ つかんでいる間
 ///   ROS の pick_place_server が「手にくっつけた」(/coground/pick_place/attached) 間は、
-///   この箱を Fetch の gripper_link の子にして手に追従させる (Unity では物理でつかまないため)。
-///   離したらもとの親に戻す。Rigidbody があれば、その間は isKinematic にする。
+///   シミュレーション (FetchRobotModeInfo の Use Real Robot = false) なら、この箱を本物の代わりの Fetch の gripper_link の子にして
+///   手に追従させる (Unity では物理でつかまないため)。離したらもとの親に戻す。Rigidbody があれば、その間は isKinematic にする。
+///   本物のロボットのときは VR 上に Fetch が無いので、箱は動かさない (実物の箱は実物の手にある)。
 /// </summary>
 [RequireComponent(typeof(MoveItCollisionBox))]
 public class MoveItPickable : MonoBehaviour
@@ -116,8 +117,12 @@ public class MoveItPickable : MonoBehaviour
             var c = go.GetComponent<BoxCollider>();
             c.isTrigger = true; // ロボットや箱と物理で押し合わない (レイキャストでは当たる)
             var r = go.GetComponent<MeshRenderer>();
-            var own = GetComponent<Renderer>();
-            Color color = own != null && own.sharedMaterial != null ? own.sharedMaterial.color : Color.white;
+            // 見た目は自分か子 (visual) にある。prefab のマテリアルは色を持たないこともある
+            var own = GetComponentInChildren<Renderer>();
+            var m = own != null ? own.sharedMaterial : null;
+            Color color = m != null && m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor")
+                        : m != null && m.HasProperty("_Color") ? m.GetColor("_Color")
+                        : Color.white;
             color.a = ghostAlpha;
             r.sharedMaterial = FetchGhost.MakeMaterial(color);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -262,10 +267,11 @@ public class MoveItPickable : MonoBehaviour
 
     void Attach()
     {
+        if (!FetchRobotModeInfo.SimulatedRobotPresent()) return; // 本物のロボット: VR 上に手が無い
         var gripper = FindGripperLink();
         if (gripper == null)
         {
-            Debug.LogError($"[MoveItPickable] {gripperLinkName} が見つからない (RosJointToFetch が付いた fetch が必要)");
+            Debug.LogError($"[MoveItPickable] {gripperLinkName} が見つからない (シミュレーションには RosJointToFetch が付いた fetch が必要)");
             return;
         }
         originalParent = transform.parent;
@@ -292,14 +298,12 @@ public class MoveItPickable : MonoBehaviour
 
     Transform FindGripperLink()
     {
-        // 計画結果のゴースト (MoveItTrajectoryPreview の複製) にも gripper_link があるので、
-        // RosJointToFetch が付いている本体から探す
+        // 本物の代わりの Fetch (RosJointToFetch が付いている)。計画のゴーストの手には付けない
         foreach (var robot in FindObjectsByType<RosJointToFetch>(FindObjectsSortMode.None))
         {
+            if (!robot.isActiveAndEnabled) continue;
             foreach (var t in robot.GetComponentsInChildren<Transform>())
-            {
                 if (t.name == gripperLinkName) return t;
-            }
         }
         return null;
     }

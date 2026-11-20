@@ -6,11 +6,23 @@ using UnityEngine;
 public static class FetchGhost
 {
     /// <summary>
-    /// 半透明のマテリアルを作る。Quest ビルドでシェーダーが削られて表示されない場合は、
-    /// 各コンポーネントの Inspector で半透明のマテリアルを指定すること。
+    /// 半透明のマテリアルを作る。URP では Resources のテンプレートを複製し、
+    /// ビルドにも半透明シェーダーバリアントを含める。
     /// </summary>
     public static Material MakeMaterial(Color color)
     {
+        if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is
+            UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset)
+        {
+            var template = Resources.Load<Material>("FetchGhostURP");
+            if (template == null)
+                throw new System.InvalidOperationException("FetchGhostURP material is missing from Resources.");
+
+            var material = new Material(template);
+            material.SetColor("_BaseColor", color);
+            return material;
+        }
+
         var standard = Shader.Find("Standard");
         if (standard != null)
         {

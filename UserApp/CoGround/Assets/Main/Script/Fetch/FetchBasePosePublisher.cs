@@ -22,6 +22,9 @@ public class FetchBasePosePublisher : MonoBehaviour
     ROSConnection ros;
     float nextTime;
 
+    /// <summary>ROS に送っている base_link (NAV=false のとき、ゴーストの台車の位置にも使う)</summary>
+    public Transform BaseLink => baseLink != null ? baseLink : transform;
+
     void Start()
     {
         if (baseLink == null)

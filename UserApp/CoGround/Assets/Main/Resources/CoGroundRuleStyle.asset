@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45f3caed3738f984b83af2d79d9237db, type: 3}
+  m_Name: CoGroundRuleStyle
+  m_EditorClassIdentifier: Assembly-CSharp::CoGroundRuleStyle
+  entries:
+  - kind: 0
+    label: "Obligation"
+    color: {r: 0.16, g: 0.42, b: 0.92, a: 1}
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    icon: {fileID: 0}
+  - kind: 1
+    label: "Prohibition"
+    color: {r: 0.86, g: 0.18, b: 0.18, a: 1}
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    icon: {fileID: 0}
+  - kind: 2
+    label: "Undecidable"
+    color: {r: 0.98, g: 0.8, b: 0.12, a: 1}
+    textColor: {r: 0.12, g: 0.12, b: 0.12, a: 1}
+    icon: {fileID: 0}
+  - kind: 3
+    label: "Infeasible"
+    color: {r: 0.45, g: 0.47, b: 0.5, a: 1}
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    icon: {fileID: 0}
+  - kind: 4
+    label: "Permission"
+    color: {r: 0.56, g: 0.3, b: 0.86, a: 1}
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+    icon: {fileID: 0}

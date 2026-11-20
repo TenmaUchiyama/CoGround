@@ -27,6 +27,21 @@ public class CoGroundSceneReporter : MonoBehaviour
 
     CoGroundServerClient Client => client != null ? client : CoGroundServerClient.Instance;
 
+    /// <summary>シーン内の CoGroundSceneObject (真値) を送るか。MockSimulatedObjects が認識済みの物体だけを送るときに false にする</summary>
+    public bool IncludeSimulationObjects
+    {
+        get => includeSimulationObjects;
+        set { includeSimulationObjects = value; lastSentKey = null; }
+    }
+
+    /// <summary>ICoGroundSceneSource を実装したコンポーネントを Extra Sources に足す (すでにあれば何もしない)</summary>
+    public void AddSource(MonoBehaviour source)
+    {
+        if (source == null || extraSources.Contains(source)) return;
+        extraSources.Add(source);
+        lastSentKey = null;
+    }
+
     string lastSentKey;
     float nextCheck;
     bool sending;
@@ -114,6 +129,8 @@ public class CoGroundSceneReporter : MonoBehaviour
             Round(o.Position, positionResolution);
             Round(o.Rotation, 0.001f);
             if (o.PlaceZone != null) Round(o.PlaceZone.Center, positionResolution);
+            if (o.ApproachPoses != null)
+                foreach (var a in o.ApproachPoses) { Round(a.Position, positionResolution); Round(a.Rotation, 0.001f); }
         }
         return JsonConvert.SerializeObject(copy);
     }
