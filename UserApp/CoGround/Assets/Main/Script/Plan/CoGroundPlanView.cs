@@ -147,7 +147,12 @@ public class CoGroundPlanView : MonoBehaviour
 
         Clear();
         if (plan != null)
-            foreach (var step in plan.Steps) visuals.Add(Build(step, sizes, ruleTexts));
+            foreach (var step in plan.Steps)
+            {
+                // まだ確かめている途中の step は、結果が出るまで出さない
+                if (CoGroundFuture.IsChecking(state, plan, step)) continue;
+                visuals.Add(Build(step, sizes, ruleTexts));
+            }
         SetVisible(isActiveAndEnabled);
         ApplyHighlight();
         PlanChanged?.Invoke(plan);

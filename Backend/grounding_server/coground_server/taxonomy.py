@@ -46,6 +46,9 @@ CATEGORIES: dict[str, tuple[ObjectRole, ObjectGroup]] = {
     "water_bottle": ("item", "other"),
     "small_box": ("item", "other"),
     "storage_box": ("receptacle", "receptacle"),
+    # 閉じた語彙の検出（detection_vocab.json）で足したもの
+    "scissors": ("item", "other"),
+    "paper_scrap": ("item", "trash"),
 }
 
 # 属性の語彙（ルールの条件と VLM のプロンプトに使う）。値は検証しない（VLM の出力で scene.update 全体を落とさないため）。

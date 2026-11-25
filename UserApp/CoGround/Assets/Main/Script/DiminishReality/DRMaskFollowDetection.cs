@@ -1,6 +1,9 @@
 using System;
 using Meta.XR.BuildingBlocks.AIBlocks;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
 /// Diminished Reality: moves a mask box (DR/StencilMask material) onto a real object
@@ -59,17 +62,25 @@ public class DRMaskFollowDetection : MonoBehaviour
     [Tooltip("Write a Debug.Log line when the mask starts following an object and when it locks.")]
     [SerializeField] private bool logDetections = true;
 
-    [Tooltip("Draw the outline of the mask box (the box itself is invisible). Cyan = following, green = locked.\n" +
-             "Drawn on top of everything, so the edges on the far side are visible too.")]
+    [Tooltip("Draw the outline of the mask box (the box itself is invisible). Green = following, gray = locked.\n" +
+             "Drawn on top of everything, so the edges on the far side are visible too.\n" +
+             "Keyboard: Space = show / hide.")]
     [SerializeField] private bool showDebugOutline = true;
 
     [SerializeField] private float outlineWidth = 0.002f;
 
-    [Tooltip("Outline color while following. Alpha = how strong the line is.")]
-    [SerializeField] private Color outlineColor = new Color(0.7f, 0.9f, 1f, 0.35f);
+    [Tooltip("Outline color while following (RGB only, the strength is Outline Alpha).")]
+    [SerializeField] private Color outlineColor = new Color(0.7f, 1f, 0.75f, 1f);
 
-    [Tooltip("Outline color once locked. Alpha = how strong the line is.")]
-    [SerializeField] private Color outlineLockedColor = new Color(0.7f, 1f, 0.75f, 0.35f);
+    [Tooltip("Outline color once locked (RGB only, the strength is Outline Alpha).")]
+    [SerializeField] private Color outlineLockedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+
+    [Tooltip("How strong the outline is (0 = invisible, 1 = solid). Keyboard: I = brighter, K = darker / fainter. Logged on change.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float outlineAlpha = 0.35f;
+
+    [Tooltip("How much I / K change Outline Alpha per press.")]
+    [SerializeField] private float outlineAlphaStep = 0.05f;
 
     private Renderer _maskRenderer;
     private LineRenderer _outline;
@@ -97,7 +108,7 @@ public class DRMaskFollowDetection : MonoBehaviour
         pipeline.EnablePhysicsFallback(raycastLayers, maskBox.GetComponentsInChildren<Collider>(true));
 
         if (hideUntilDetected && _maskRenderer) _maskRenderer.enabled = false;
-        if (showDebugOutline) _outline = CreateOutline(maskBox, outlineWidth);
+        _outline = CreateOutline(maskBox, outlineWidth); // created even when hidden, so Space can show it
 
         Debug.Log($"[{nameof(DRMaskFollowDetection)}] Ready. pipeline='{pipeline.name}' mask='{maskBox.name}' target='{targetLabel}'", this);
     }
@@ -116,8 +127,33 @@ public class DRMaskFollowDetection : MonoBehaviour
         if (!_outline) return;
         // Visible only while the mask is active.
         _outline.enabled = showDebugOutline && maskBox.gameObject.activeInHierarchy && (!_maskRenderer || _maskRenderer.enabled);
-        _outline.startColor = _outline.endColor = IsLocked ? outlineLockedColor : outlineColor;
+        var c = IsLocked ? outlineLockedColor : outlineColor;
+        c.a = outlineAlpha;
+        _outline.startColor = _outline.endColor = c;
     }
+
+    /// <summary>Space = outline on / off, I = brighter, K = darker / fainter.</summary>
+    private void HandleKeys()
+    {
+        if (KeyDown(Key.Space))
+        {
+            showDebugOutline = !showDebugOutline;
+            Debug.Log($"[{nameof(DRMaskFollowDetection)}] Outline {(showDebugOutline ? "on" : "off")}", this);
+        }
+        var delta = (KeyDown(Key.I) ? 1 : 0) - (KeyDown(Key.K) ? 1 : 0);
+        if (delta != 0)
+        {
+            outlineAlpha = Mathf.Clamp01(Mathf.Round((outlineAlpha + delta * outlineAlphaStep) * 1000f) / 1000f);
+            Debug.Log($"[{nameof(DRMaskFollowDetection)}] Outline alpha = {outlineAlpha:0.00}", this);
+        }
+    }
+
+#if ENABLE_INPUT_SYSTEM
+    private static bool KeyDown(Key key) => Keyboard.current != null && Keyboard.current[key].wasPressedThisFrame;
+#else
+    private enum Key { Space = KeyCode.Space, I = KeyCode.I, K = KeyCode.K }
+    private static bool KeyDown(Key key) => Input.GetKeyDown((KeyCode)key);
+#endif
 
     /// <summary>Wireframe of the unit cube as a child of the box, so it follows the box position, rotation and size.</summary>
     private static LineRenderer CreateOutline(Transform box, float width)
@@ -149,6 +185,7 @@ public class DRMaskFollowDetection : MonoBehaviour
 
     private void Update()
     {
+        HandleKeys();
         var track = FindTarget();
         if (track == null) return; // target lost: leave the mask where it was
 

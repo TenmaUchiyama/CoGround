@@ -20,6 +20,7 @@ from .perception.schema import AttributeQuestion
 from .robot import Robot, make_robot
 from .rulebank import RuleBank
 from .state import StateStore
+from .vlm import PerceptionVlm, configured_kind
 
 
 @dataclass
@@ -43,6 +44,9 @@ class Services:
     def __post_init__(self) -> None:
         # VLM に聞く属性は、いまあるルールから作る（ルールが変われば、次の解析から質問も変わる）
         self.perception = Perception.from_env(lambda: self.llm, self._vlm_questions)
+        # COGROUND_VLM=perception: scene.update で届いた物体に、perception の VLM が答えた属性を付ける（vlm.py）
+        if configured_kind() == "perception":
+            self.state.attributes = PerceptionVlm(self.perception.memory)
         # ルールをファイルに残す（COGROUND_RULE_BANK。空なら残さない）。先に読み込んでから、書き出しを有効にする
         bank = RuleBank.from_env()
         if bank is not None:

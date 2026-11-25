@@ -68,6 +68,14 @@ public class CoGroundSceneObject : MonoBehaviour, ICoGroundSceneSource
     /// <summary>ロボットが運べる物 (MoveItPickable が付いている)</summary>
     public bool IsPickable => GetComponent<MoveItPickable>() != null;
 
+    /// <summary>実行中に作った物体の設定 (Inspector で設定する代わり)。EnvironmentBoxPlaces が使う</summary>
+    public void Configure(string id, CoGroundCategory category, Transform placeZone)
+    {
+        objectId = id;
+        this.category = category;
+        this.placeZone = placeZone;
+    }
+
     /// <summary>ID で探す (無ければ null)</summary>
     public static CoGroundSceneObject Find(string id)
     {
@@ -165,6 +173,10 @@ public class CoGroundSceneObject : MonoBehaviour, ICoGroundSceneSource
         localPosition = inv * (transform.position - center);
         localRotation = inv * transform.rotation;
     }
+
+    /// <summary>サーバーに送っている箱 (bbox の中心・向き・大きさ [m])。Renderer を切っていても同じ値</summary>
+    public void GetBox(out Vector3 center, out Quaternion rotation, out Vector3 size) =>
+        GetBounds(out center, out rotation, out size);
 
     /// <summary>bbox の中心 (ワールド)・向き・大きさ (ローカル軸、m)</summary>
     void GetBounds(out Vector3 center, out Quaternion rotation, out Vector3 size)

@@ -56,15 +56,6 @@ public class NavMapPublisher : MonoBehaviour
 
     void Start()
     {
-        if (floors == null || floors.Length == 0) floors = GetComponentsInChildren<Collider>();
-        if (floors.Length == 0)
-        {
-            Debug.LogError("[NavMapPublisher] 床のコライダーがない。Plane (MeshCollider / BoxCollider) に付けること");
-            enabled = false;
-            return;
-        }
-        floorSet.UnionWith(floors);
-
         if (robot == null)
         {
             var r = FindAnyObjectByType<RosJointToFetch>();
@@ -74,6 +65,27 @@ public class NavMapPublisher : MonoBehaviour
 
         ros = ROSConnection.GetOrCreateInstance();
         ros.RegisterPublisher<OccupancyGridMsg>(Topic);
+
+        if (floors == null || floors.Length == 0) floors = GetComponentsInChildren<Collider>();
+        if (floors.Length == 0)
+        {
+            // MrukSceneColliders などが後から SetFloors で床を渡すまで待つ
+            Debug.LogWarning("[NavMapPublisher] 床のコライダーがない。SetFloors で渡されるまで地図を送らない");
+            enabled = false;
+            return;
+        }
+        floorSet.UnionWith(floors);
+    }
+
+    /// <summary>床を入れ替える (MRUK の部屋を読み込んだ後など、実行中に床が決まる場合)。空を渡すと送信を止める</summary>
+    public void SetFloors(IEnumerable<Collider> newFloors)
+    {
+        floors = new List<Collider>(newFloors).ToArray();
+        floorSet.Clear();
+        floorSet.UnionWith(floors);
+        data = null;      // 次の Update で必ず作り直して送る
+        nextCheck = 0f;
+        enabled = floors.Length > 0;
     }
 
     void Update()

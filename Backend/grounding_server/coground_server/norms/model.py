@@ -236,10 +236,12 @@ class NormRule(BaseModel):
     requirement: Requirement
     reason: str | None = Field(default=None, description="説明用の理由（判定には使わない）")
     exception_of: str | None = Field(default=None, description="許可のとき: 例外にする元の禁止の ID")
-    origin: Literal["norm", "tidy"] = Field(
+    origin: Literal["norm", "tidy", "task"] = Field(
         default="norm",
-        description="どの口で登録したか。norm: norms.set など / tidy: 片付けルール（rules.set。属性 = 値 → 行き先）。"
-        "どちらも同じ家庭ルールとして判定する。rules.set は tidy だけを、norms.set は norm だけを置き換える")
+        description="どの口で登録したか。norm: norms.set など / tidy: 片付けルール（rules.set。属性 = 値 → 行き先）/ "
+        "task: 依頼の間だけのルール（task.request。依頼の記録が持ち、閉じると効かない）。"
+        "どれも同じ家庭ルールとして判定する。rules.set は tidy だけを、norms.set は norm だけを置き換える。"
+        "収納先は task のルールが常設のルールより先に立つ（norms/planner.py）")
     source: RuleSource = Field(default="script", description="speech / demo / script")
     attributes: list[AttributeDef] = Field(
         default_factory=list, description="対象の条件に使う属性の定義（見分け方など）。登録のときに入れる")

@@ -279,3 +279,92 @@ def test_clock_over_websocket(client):
         assert "T18:02:00" in call(ws, "3", "clock.get")["result"]["now"]
         assert call(ws, "4", "clock.set", {"time": "25:99"})["error"]["code"] == "invalid_params"
         assert call(ws, "5", "clock.reset")["result"]["overridden"] is False
+
+
+# ---------------------------------------------------------------- 依頼の間だけのルール（全部 box に入れて）
+
+
+def everything_to(region: str, where: dict | None = None, text: str = "Put everything on the lower shelf") -> NormRule:
+    return NormRule.model_validate({
+        "id": "T", "original_text": text, "norm": "obligation", "origin": "task",
+        "target": {"kind": "object", "where": where, "unknown_as": "false"},
+        "requirement": {"window": "at_place_complete", "predicate": "placed_in", "args": {"region": region}},
+    })
+
+
+def test_request_destination_takes_priority_over_standing_rule():
+    # 皿は R3a（上段）だが、依頼が「全部下段」と言ったので下段へ。R3a を使わなかったことは記録に残す
+    state = store(plate_fragile=False)
+    task = state.open_task(TEXT, ["plate_A", "cup_B"], source_region="table_01", rules=[everything_to("shelf_lower")])
+    assert [r.id for r in task.rules] == ["T1"] and task.rules[0].origin == "task"
+    plate = step(state, "plate_A")
+    assert (plate.status, plate.to.region_id, plate.rule_id) == ("ok", "shelf_lower", "T1")
+    assert "R3a" in plate.message and "T1" in plate.message
+    assert task.row("plate_A").overridden_rule_ids == ["R3a"]
+    cup = step(state, "cup_B")  # コップはもともと下段なので、上書きは無い
+    assert (cup.status, cup.to.region_id, cup.message) == ("ok", "shelf_lower", None)
+    assert task.row("cup_B").overridden_rule_ids == []
+
+
+def test_request_destination_does_not_lift_prohibitions():
+    # 「全部下段」と言っても、割れ物に触るな（R1）は先に立たない
+    state = store()
+    state.open_task(TEXT, ["plate_A", "cup_B"], source_region="table_01", rules=[everything_to("shelf_lower")])
+    plate = step(state, "plate_A")
+    assert (plate.status, plate.to.region_id) == ("deferred", "shelf_lower")
+    assert "R1" in plate.message
+
+
+def test_request_destination_covers_objects_without_a_rule_and_ends_with_the_request():
+    # 収納先のルールが無い物も、依頼の置き先で運ぶ。依頼を閉じると、そのルールは効かない
+    state = store(norms=[R1], plate_fragile=False)
+    state.open_task(TEXT, ["plate_A", "cup_B"], source_region="table_01", rules=[everything_to("shelf_upper")])
+    assert [(s.object_id, s.status, s.to.region_id) for s in state.plan.steps] == [
+        ("plate_A", "ok", "shelf_upper"), ("cup_B", "ok", "shelf_upper")]
+    assert [n.id for n in state.all_norms()] == ["R1", "T1"]
+    state.close_task()
+    assert [n.id for n in state.all_norms()] == ["R1"]
+    assert state.plan is None  # 依頼が無ければ、収納先を決める取り決めが無い
+
+
+def test_request_destination_with_condition_only_moves_matching_objects():
+    state = store(plate_fragile=False)
+    task = state.open_task(TEXT, ["plate_A", "cup_B"], source_region="table_01",
+                           rules=[everything_to("shelf_upper", {"attribute": "category", "equals": "cup"}, "Cups on the upper shelf")])
+    assert step(state, "cup_B").to.region_id == "shelf_upper" and task.row("cup_B").overridden_rule_ids == ["R3b"]
+    assert step(state, "plate_A").to.region_id == "shelf_upper" and step(state, "plate_A").rule_id == "R3a"
+
+
+def test_request_destination_must_be_in_the_scene():
+    with pytest.raises(ValueError, match="box_9"):
+        store().open_task(TEXT, ["plate_A"], rules=[everything_to("box_9")])
+
+
+def test_request_destinations_over_websocket(client):
+    from coground_server.llm import FakeLlm
+
+    client.app.state.services.llm = FakeLlm({"interpret_task": {
+        "object_ids": ["plate_A", "cup_B"], "source_region": "table_01",
+        "destinations": [{"region": "shelf_lower", "where": None, "text": "Put everything on the lower shelf"},
+                         {"region": "box_9", "text": "and the rest in box 9"}]}})
+    with connect(client) as (ws, _w, _s):
+        assert call(ws, "1", "scene.update", scene_json(plate_fragile=False))["ok"]
+        norms = [n.model_dump(mode="json", by_alias=True) for n in NORMS]
+        assert call(ws, "2", "norms.set", {"norms": norms})["ok"]
+
+        res = call(ws, "3", "task.request", {"text": "Put everything on the lower shelf", "interpret": True})
+        assert res["ok"], res
+        result = res["result"]
+        assert [r["id"] for r in result["task"]["rules"]] == ["T1"]
+        assert result["unresolved"] == ["Destination 'box_9' is not in the scene"]
+        state = call(ws, "4", "state.get")["result"]
+        assert [(s["object_id"], s["to"]["region_id"]) for s in state["plan"]["steps"]] == [
+            ("plate_A", "shelf_lower"), ("cup_B", "shelf_lower")]
+        assert state["task"]["rows"][0]["overridden_rule_ids"] == ["R3a"]
+
+        # LLM を使わずに、置き先だけを渡す
+        res = call(ws, "5", "task.request", {"text": "Upper shelf this time", "destinations": [{"region": "shelf_upper"}]})
+        assert res["ok"], res
+        assert res["result"]["task"]["rules"][0]["original_text"] == "Upper shelf this time"
+        state = call(ws, "6", "state.get")["result"]
+        assert [s["to"]["region_id"] for s in state["plan"]["steps"]] == ["shelf_upper", "shelf_upper"]

@@ -12,8 +12,14 @@ using UnityEngine;
 ///
 /// ■ After で見せるもの
 ///   - その時点までに動く物 (この順番で、把持・移動・配置まで実行できると検証できた step。CoGroundFuture.MovedAtView):
-///     元の位置の物体を薄くし (Diminish。Renderer を切って、薄いコピーを置く。当たり判定や MoveIt はそのまま)、
-///     置き終わった姿勢に予測位置のコピーを置く。
+///     元の位置の物体を消し (Diminish。当たり判定や MoveIt はそのまま)、置き終わった姿勢に予測位置のコピーを置く。
+///     消し方は Diminish Style で選ぶ:
+///       DiminishedReality  物体の箱に DR のマスク (DR/StencilMask) を置く。箱の中だけ、物が無いときの背景メッシュ
+///                          (DR/StencilReadTextured。Script/DiminishReality/README.md) が見えるので、
+///                          パススルーに写っている実物も消えて見える。Renderer がある物体 (シミュレーション) は Renderer も切る。
+///                          カメラで認識した物体 (CoGroundPerceivedObjects) にも効く。
+///                          背景メッシュがシーンに無いときは Ghost と同じ見せ方にする
+///       Ghost              Renderer を切って、薄いコピーを置く (実物は消えない)
 ///     「皿を棚に置く」という作業の候補ができただけ (検証前・検証で成立しなかった) の物は、動かさない。
 ///     置き終わった姿勢は、動作計画 (motion.plan) があればその最後の姿勢、無ければ Plan の置き位置
 ///     (動作計画は再生しない。計算が終われば最後の姿勢は決まっている)
@@ -37,6 +43,7 @@ using UnityEngine;
 public class CoGroundAfterView : MonoBehaviour
 {
     public enum ViewMode { Before, After }
+    public enum DiminishStyle { DiminishedReality, Ghost }
 
     [SerializeField] CoGroundServerClient client;
     [SerializeField] ViewMode mode = ViewMode.After;
@@ -62,8 +69,21 @@ public class CoGroundAfterView : MonoBehaviour
     [Tooltip("片付いた物を、置き終わった姿勢に半透明で置く")]
     [SerializeField] bool showFutureObjects = true;
     [SerializeField] Color futureColor = new Color(0.85f, 0.92f, 1f, 0.55f);
-    [Tooltip("動く物の、元の位置に残す薄い姿 (Diminish)。alpha を 0 にすると完全に消す")]
+    [Tooltip("動く物を元の位置からどう消すか。\n" +
+             "DiminishedReality: 物体の箱に DR のマスクを置き、物が無いときの背景メッシュを見せる (実物も消える)。" +
+             "背景メッシュ (DR/StencilReadTextured) がシーンに無ければ Ghost になる\n" +
+             "Ghost: 薄い姿を残す")]
+    [SerializeField] DiminishStyle diminishStyle = DiminishStyle.DiminishedReality;
+    [Tooltip("Ghost のとき、動く物の元の位置に残す薄い姿。alpha を 0 にすると完全に消す")]
     [SerializeField] Color diminishedColor = new Color(0.8f, 0.8f, 0.85f, 0.14f);
+    [Tooltip("DR のマスクの材質 (DR_StencilMask.mat)。空なら Resources の DR_StencilMask シェーダーから作る")]
+    [SerializeField] Material drMaskMaterial;
+    [Tooltip("DR のマスクを物体の箱より大きくする倍率 (影や位置のずれを覆う)")]
+    [SerializeField] float drMaskMargin = 1.2f;
+    [Tooltip("DR のマスクを各方向に広げる量 [m] (倍率のあとに足す。下は机にめり込ませる)")]
+    [SerializeField] float drMaskPadding = 0.02f;
+    [Tooltip("カメラで認識した物体の箱 (空なら同じシーンから探す)。Renderer の無い実物を DR で消すのに使う")]
+    [SerializeField] CoGroundPerceivedObjects perceivedObjects;
     [Tooltip("未確認 (検証できなかった。実行の対象から外れる)")]
     [SerializeField] Color unverifiedColor = new Color(0.75f, 0.75f, 0.78f, 0.95f);
 
@@ -81,6 +101,9 @@ public class CoGroundAfterView : MonoBehaviour
     CoGroundTaskPlanPlayer player;
     Material futureMaterial;
     Material diminishedMaterial;
+    Material createdMaskMaterial;
+    bool hasDrBackground;
+    bool warnedNoDrBackground;
     readonly List<GameObject> futureObjects = new List<GameObject>();
     readonly Dictionary<string, string> ruleTexts = new Dictionary<string, string>();
     string drawnKey;
@@ -93,6 +116,7 @@ public class CoGroundAfterView : MonoBehaviour
     {
         if (labelPrefab == null) labelPrefab = Resources.Load<CoGroundObjectLabel>("CoGroundObjectLabel");
         if (planView == null) planView = FindAnyObjectByType<CoGroundPlanView>();
+        if (perceivedObjects == null) perceivedObjects = FindAnyObjectByType<CoGroundPerceivedObjects>();
         subscribed = Client;
         if (subscribed == null) { Debug.LogWarning("[CoGroundAfterView] CoGroundServerClient が見つからない", this); return; }
         subscribed.StateUpdated += OnStateUpdated;
@@ -112,6 +136,7 @@ public class CoGroundAfterView : MonoBehaviour
         Restore();
         if (futureMaterial != null) Destroy(futureMaterial);
         if (diminishedMaterial != null) Destroy(diminishedMaterial);
+        if (createdMaskMaterial != null) Destroy(createdMaskMaterial);
     }
 
     void OnDisable() { Restore(); SetPlanViewVisible(true); SetPlayerSuppressed(false); }
@@ -165,6 +190,10 @@ public class CoGroundAfterView : MonoBehaviour
                 var original = (string)n["original_text"];
                 if (id != null && (!string.IsNullOrEmpty(original) || !ruleTexts.ContainsKey(id))) ruleTexts[id] = original;
             }
+        // 依頼の間だけのルール (T1 など。「全部 box_1 に入れて」)。依頼が開いている間だけ効く
+        if (state["task"] is JObject task && task["closed_at"]?.Type == JTokenType.Null && task["rules"] is JArray taskRules)
+            foreach (var n in taskRules)
+                if ((string)n["id"] is string id) ruleTexts[id] = (string)n["original_text"];
 
         var key = planToken?.ToString(Newtonsoft.Json.Formatting.None) + "|" + string.Join(";", ruleTexts)
                   + "|" + state["motion"]?.ToString(Newtonsoft.Json.Formatting.None);
@@ -192,9 +221,11 @@ public class CoGroundAfterView : MonoBehaviour
                 // 予測位置のコピーは、物体を隠す前に作る (隠した Renderer は写せない)
                 var hasPose = CoGroundFuture.TryFinalPose(state, plan, step, out var pos, out var rot);
                 if (showFutureObjects && hasPose) AddFutureObject(step, obj, pos, rot);
-                if (obj != null) Diminish(step, obj);
+                Diminish(step, obj);
                 continue;
             }
+            // まだ確かめている途中の step は、結果が出るまで何も出さない (元の位置に通常の濃さである)
+            if (stepState == CoGroundFuture.StepState.Checking) continue;
             AddLabel(step, obj, step.Status == StepStatus.Ok ? reason ?? "" : null,
                      stepState == CoGroundFuture.StepState.Unverified);
         }
@@ -233,9 +264,16 @@ public class CoGroundAfterView : MonoBehaviour
         futureObjects.Add(copy);
     }
 
-    /// <summary>元の位置の物体を薄くする: 物体の Renderer を切り、同じ姿勢に薄いコピーを置く</summary>
+    /// <summary>元の位置の物体を消す (DR のマスク、または薄いコピー)。obj が null = Renderer の無い実物 (カメラで認識した物体)</summary>
     void Diminish(StepDto step, CoGroundSceneObject obj)
     {
+        if (diminishStyle == DiminishStyle.DiminishedReality && HasDrBackground())
+        {
+            if (TryGetObjectBox(step, obj, out var center, out var rotation, out var size)) AddDrMask(step, center, rotation, size);
+            if (obj != null) Hide(obj.transform);
+            return;
+        }
+        if (obj == null) return;
         if (diminishedColor.a > 0.001f)
         {
             if (diminishedMaterial == null) diminishedMaterial = FetchGhost.MakeMaterial(diminishedColor);
@@ -246,6 +284,66 @@ public class CoGroundAfterView : MonoBehaviour
             futureObjects.Add(copy);
         }
         Hide(obj.transform);
+    }
+
+    /// <summary>動かす前の物体の箱。シーンの物体ならその箱、カメラで認識した物体なら認識結果の箱</summary>
+    bool TryGetObjectBox(StepDto step, CoGroundSceneObject obj, out Vector3 center, out Quaternion rotation, out Vector3 size)
+    {
+        if (obj != null) { obj.GetBox(out center, out rotation, out size); return true; }
+        rotation = Quaternion.identity; // 認識結果の箱はワールド軸に沿っている
+        if (perceivedObjects != null && perceivedObjects.TryGetBox(step.ObjectId, out center, out size)) return true;
+        center = size = Vector3.zero;
+        return false;
+    }
+
+    /// <summary>
+    /// DR のマスク (見えない箱。覆った画素のステンシルに印を付ける) を物体の箱に置く。
+    /// 背景メッシュ (DR/StencilReadTextured) はこの箱の中だけ描かれる。
+    /// </summary>
+    void AddDrMask(StepDto step, Vector3 center, Quaternion rotation, Vector3 size)
+    {
+        var material = DrMaskMaterial();
+        if (material == null) return;
+        var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = $"DR Mask ({step.ObjectId})";
+        Destroy(box.GetComponent<Collider>()); // 検出のレイや把持の当たり判定に入れない
+        box.transform.SetPositionAndRotation(center, rotation);
+        box.transform.localScale = size * Mathf.Max(1f, drMaskMargin) + Vector3.one * (2f * Mathf.Max(0f, drMaskPadding));
+        box.transform.SetParent(transform, true);
+        var r = box.GetComponent<Renderer>();
+        r.sharedMaterial = material;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        box.AddComponent<DRMaskShaderGlobals>(); // 箱の輪郭をぼかす (背景のシェーダーに箱の位置を渡す)
+        futureObjects.Add(box);
+    }
+
+    Material DrMaskMaterial()
+    {
+        if (drMaskMaterial != null) return drMaskMaterial;
+        if (createdMaskMaterial == null)
+        {
+            var shader = Resources.Load<Shader>("DR_StencilMask");
+            if (shader == null) { Debug.LogError("[CoGroundAfterView] Resources/DR_StencilMask (シェーダー) が無い", this); return null; }
+            createdMaskMaterial = new Material(shader);
+        }
+        return createdMaskMaterial;
+    }
+
+    /// <summary>物が無いときの背景メッシュ (DR/StencilRead... の材質) がシーンにあるか。無ければ DR では何も出ない</summary>
+    bool HasDrBackground()
+    {
+        if (hasDrBackground) return true;
+        foreach (var r in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            foreach (var m in r.sharedMaterials)
+                if (m != null && m.shader != null && m.shader.name.StartsWith("DR/StencilRead")) return hasDrBackground = true;
+        if (!warnedNoDrBackground)
+        {
+            warnedNoDrBackground = true;
+            Debug.LogWarning("[CoGroundAfterView] Diminish Style = DiminishedReality だが、背景メッシュ (DR/StencilReadTextured の材質) が" +
+                             "シーンに無いので Ghost で見せる。Script/DiminishReality/README.md の手順 2・3", this);
+        }
+        return false;
     }
 
     void SetPlayerSuppressed(bool suppressed)
@@ -325,7 +423,11 @@ public class CoGroundAfterView : MonoBehaviour
             if (l != null) Destroy(l);
         labels.Clear();
         foreach (var f in futureObjects)
-            if (f != null) Destroy(f);
+        {
+            if (f == null) continue;
+            f.SetActive(false); // DR のマスクは、この場で数から外す (Destroy はフレームの終わり)
+            Destroy(f);
+        }
         futureObjects.Clear();
     }
 

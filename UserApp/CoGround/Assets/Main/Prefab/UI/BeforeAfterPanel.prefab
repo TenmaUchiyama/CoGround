@@ -325,6 +325,7 @@ GameObject:
   - component: {fileID: 4749534051099449254}
   - component: {fileID: 6748248590808539700}
   - component: {fileID: 7145446878658943863}
+  - component: {fileID: 2873301946157220418}
   m_Layer: 0
   m_Name: BeforeAfterPanel
   m_TagString: Untagged
@@ -443,6 +444,26 @@ MonoBehaviour:
   beforeCaption: "The room now"
   afterCaption: "The room after tidying (objects that can't be tidied show the reason)"
   previewMode: 0
+--- !u!114 &2873301946157220418
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3779332409816720374}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0886f913beb54029a4f9f72f1d1269a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LazyFollowHead
+  head: {fileID: 0}
+  distance: 0.5
+  heightOffset: -0.2
+  sideOffset: -0.3
+  extraTilt: 0
+  angleThreshold: 35
+  distanceThreshold: 0.2
+  smoothTime: 0.3
 --- !u!1 &5189168238420572334
 GameObject:
   m_ObjectHideFlags: 0

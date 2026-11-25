@@ -1,0 +1,152 @@
+[
+ {
+  "q": "robot failure taxonomy",
+  "count": 47804,
+  "got": 200
+ },
+ {
+  "q": "robot failure classification",
+  "count": 182606,
+  "got": 200
+ },
+ {
+  "q": "robot failure types categories",
+  "count": 169128,
+  "got": 200
+ },
+ {
+  "q": "robot fault taxonomy",
+  "count": 19344,
+  "got": 200
+ },
+ {
+  "q": "robot error taxonomy human-robot interaction",
+  "count": 49356,
+  "got": 200
+ },
+ {
+  "q": "taxonomy of robot errors",
+  "count": 71119,
+  "got": 200
+ },
+ {
+  "q": "robot failure modes manipulation",
+  "count": 48986,
+  "got": 200
+ },
+ {
+  "q": "robotic manipulation failure dataset taxonomy",
+  "count": 8610,
+  "got": 200
+ },
+ {
+  "q": "robot task failure causes",
+  "count": 215049,
+  "got": 200
+ },
+ {
+  "q": "robot incapability explanation",
+  "count": 12952,
+  "got": 200
+ },
+ {
+  "q": "infeasible instruction robot",
+  "count": 10700,
+  "got": 200
+ },
+ {
+  "q": "robot task feasibility language model",
+  "count": 132565,
+  "got": 200
+ },
+ {
+  "q": "LLM robot planning failure analysis",
+  "count": 22450,
+  "got": 200
+ },
+ {
+  "q": "embodied agent failure analysis error types",
+  "count": 96135,
+  "got": 200
+ },
+ {
+  "q": "vision-language-action model failure modes",
+  "count": 258311,
+  "got": 200
+ },
+ {
+  "q": "robot failure explanation",
+  "count": 116780,
+  "got": 200
+ },
+ {
+  "q": "robot failure recovery taxonomy",
+  "count": 14016,
+  "got": 200
+ },
+ {
+  "q": "mobile robot navigation failure classification",
+  "count": 24874,
+  "got": 200
+ },
+ {
+  "q": "field robot failure analysis reliability",
+  "count": 136718,
+  "got": 200
+ },
+ {
+  "q": "service robot failure",
+  "count": 225349,
+  "got": 200
+ },
+ {
+  "q": "domestic robot failures",
+  "count": 49886,
+  "got": 200
+ },
+ {
+  "q": "social robot failure taxonomy",
+  "count": 29803,
+  "got": 200
+ },
+ {
+  "q": "robot norm violation",
+  "count": 54303,
+  "got": 200
+ },
+ {
+  "q": "household robot safety hazard task planning",
+  "count": 5817,
+  "got": 200
+ },
+ {
+  "q": "human error human-robot interaction taxonomy",
+  "count": 49361,
+  "got": 200
+ },
+ {
+  "q": "collaborative robot failure industrial taxonomy",
+  "count": 14914,
+  "got": 200
+ },
+ {
+  "q": "autonomous robot fault diagnosis survey",
+  "count": 16438,
+  "got": 200
+ },
+ {
+  "q": "ontology robot failure",
+  "count": 30909,
+  "got": 200
+ },
+ {
+  "q": "motion planning failure explanation unreachable",
+  "count": 2132,
+  "got": 200
+ },
+ {
+  "q": "robot failure detection survey",
+  "count": 120432,
+  "got": 200
+ }
+]

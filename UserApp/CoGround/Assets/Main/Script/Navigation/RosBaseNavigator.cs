@@ -65,6 +65,9 @@ public class RosBaseNavigator : MonoBehaviour
     public string State { get; private set; } = "";
     public string Status { get; private set; } = "(Not connected: waiting for base_command_server status. Was it started with NAV=true?)";
     public Transform Goal => goal;
+
+    /// <summary>目標を動かして止めたら自動で計画を頼むか (ボタンで Plan したいときは false)</summary>
+    public bool PlanWhenGoalStops { get => planWhenGoalStops; set => planWhenGoalStops = value; }
     public IReadOnlyList<Vector3> PathPoints => path;
 
     ROSConnection ros;
@@ -163,6 +166,7 @@ public class RosBaseNavigator : MonoBehaviour
     /// <summary>目標を置く (位置と向き [deg])。planWhenGoalStops なら少し後に自動で計画を頼む</summary>
     public void SetGoal(Vector3 position, float yaw)
     {
+        goalPending = false; // 台車の位置が後から届いても、置いた目標を今の位置で上書きしない
         goal.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
     }
 

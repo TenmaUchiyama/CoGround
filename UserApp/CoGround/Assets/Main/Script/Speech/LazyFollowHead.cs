@@ -64,8 +64,10 @@ public class LazyFollowHead : MonoBehaviour
         Vector3 forward = HeadForward();
         Vector3 target = TargetPosition(forward);
 
+        // 定位置の方向と比べる (横にずらしたパネルが、正面からのずれだけで追従し続けないように)
         Vector3 toPanel = Vector3.ProjectOnPlane(transform.position - head.position, Vector3.up);
-        float angle = Vector3.Angle(toPanel, forward);
+        Vector3 toTarget = Vector3.ProjectOnPlane(target - head.position, Vector3.up);
+        float angle = Vector3.Angle(toPanel, toTarget.sqrMagnitude > 1e-6f ? toTarget : forward);
         if (angle > angleThreshold || (transform.position - target).magnitude > distanceThreshold + distance * 0.5f)
             following = true;
 

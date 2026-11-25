@@ -1,0 +1,32 @@
+[
+ {
+  "q": "\"institutional grammar\" robot",
+  "total": 37,
+  "got": 37
+ },
+ {
+  "q": "\"institutional grammar\" agent norms",
+  "total": 247,
+  "got": 50
+ },
+ {
+  "q": "household robot rules user-defined natural language verification",
+  "total": 7972,
+  "got": 50
+ },
+ {
+  "q": "end-user robot constraints correct misinterpretation household",
+  "total": 893,
+  "got": 50
+ },
+ {
+  "q": "robot norm representation household deontic context",
+  "total": 72,
+  "got": 50
+ },
+ {
+  "q": "augmented reality robot plan preview rule violation",
+  "total": 573,
+  "got": 50
+ }
+]

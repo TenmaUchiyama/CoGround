@@ -1,9 +1,8 @@
 [
-  {"prompt": "plastic bottle", "label": "plastic_bottle"},
-  {"prompt": "cup", "label": "cup"},
+  {"prompt": "scissors", "label": "scissors"},
+  {"prompt": "kitchen knife", "label": "knife"},
+  {"prompt": "drinking glass", "label": "glass"},
   {"prompt": "mug", "label": "mug"},
-  {"prompt": "plate", "label": "plate"},
-  {"prompt": "paper cup", "label": "paper_cup"},
-  {"prompt": "crumpled tissue", "label": "tissue"},
-  {"prompt": "snack wrapper", "label": "wrapper"}
+  {"prompt": "crumpled paper", "label": "paper_scrap"},
+  {"prompt": "plate", "label": "plate"}
 ]

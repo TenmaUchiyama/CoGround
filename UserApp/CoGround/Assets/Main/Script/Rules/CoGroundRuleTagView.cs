@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
 /// サーバーの状態 (state.updated の plan / norms / zones) から、ルール表示の Prefab
@@ -20,8 +24,16 @@ using UnityEngine;
 ///   VLM が割れ物を「割れ物ではない」と間違えると、ルールは黙って非該当になる。ここに出しておけば、住人がその場で
 ///   気づいて直せる (CoGroundHomeCommands の「属性を訂正する」)。
 ///
+/// ■ 吹き出しを押す (Press To Preview。Unity だけの計画 = CoGroundUnityPlanner があるとき)
+///   Before で、運ぶ物 (Carry to …) の吹き出しを押すと、Ghost がその物を「取りに行く → つかむ → 持ち上げる」ところだけを繰り返す。
+///   選んでいる間は、ほかの吹き出しと置き位置のゴーストを薄くする。同じ吹き出しをもう一度押すと、全体の再生に戻る。
+///   押し方: コントローラの Ray を当ててトリガー (既定は左手。右トリガーは音声入力が使っている)、エディタではマウスの左クリック。
+///   Ray が当たっている吹き出しは少し大きくなる。
+///
 /// ■ 置き場所の看板 (家庭ルールごと)
 ///   placed_in で領域を指すルール (片付けルールも含む) を、その領域を持つ物体 (流し・棚など) の上に立てる。
+///   既定 (Signs Only For Plan) では、依頼の計画で使ったルールの看板だけを出す。依頼の前は出さない
+///   (全部のルールを常に立てると看板だらけになり、今回の行き先と区別がつかないため)。
 ///   色はルールの norm (義務 = ここに置く / 禁止 = ここには置かない / 許可)。同じ場所に複数あれば横に並べる。
 ///   2 行目に条件 (「18:00–23:00」「unless box_white has no free space」など)。
 ///
@@ -57,6 +69,8 @@ public class CoGroundRuleTagView : MonoBehaviour
     [Header("出すもの")]
     [SerializeField] bool showObjectBubbles = true;
     [SerializeField] bool showPlaceSigns = true;
+    [Tooltip("置き場所の看板は、依頼の計画で使ったルールのものだけ出す (依頼の前は出さない)。オフなら家庭ルールの看板を全部出す")]
+    [SerializeField] bool signsOnlyForPlan = true;
     [SerializeField] bool showFloorAreas = true;
     [Tooltip("ロボット自身についてのルール (止まれ・ゆっくり動け) を、ロボットの上に出す")]
     [SerializeField] bool showRobotRules = true;
@@ -84,12 +98,27 @@ public class CoGroundRuleTagView : MonoBehaviour
     [SerializeField] float robotRuleSpacing = 0.16f;
 
     [Header("依頼")]
-    [Tooltip("依頼 (task.request) が開いていない間は、Plan (吹き出し・置き位置のゴースト・After) を出さない。看板と床はルールなので出す")]
+    [Tooltip("依頼 (task.request) が開いていない間は、Plan (吹き出し・置き位置のゴースト・After) を出さない。床はルールなので出す (看板は Signs Only For Plan に従う)")]
     [SerializeField] bool showOnlyWithRequest = true;
     [Tooltip("Play を始めてサーバーにつながったら、前の依頼を閉じる (task.close)。毎回、依頼の前から始める")]
     [SerializeField] bool closeRequestOnStart = true;
     [Tooltip("依頼の結果は、動作計画 (腕が届くか・禁止区域を通らずに行けるか) で確かめ終わってから出す。確かめている間はロボットの上に「確認中」を出す")]
     [SerializeField] bool showOnlyAfterMotionPlan = true;
+
+    public enum PressHand { Left, Right }
+
+    [Header("吹き出しを押す (その物をつかむところを再生)")]
+    [Tooltip("Before で、運ぶ物の吹き出しを押すと、Ghost がその物を取りに行ってつかむところだけを繰り返す (もう一度押すと全体に戻る)")]
+    [SerializeField] bool pressToPreview = true;
+    [Tooltip("Ray を出してトリガーで押す手。右トリガーは PushToTalk (音声入力) が使っているので、既定は左")]
+    [SerializeField] PressHand pressHand = PressHand.Left;
+    [Tooltip("未設定なら OVRCameraRig の手のアンカーを使う")]
+    [SerializeField] Transform pressOrigin;
+    [SerializeField] float pressMaxDistance = 10f;
+    [Tooltip("マウスの左クリックでも押す (エディタ確認用)")]
+    [SerializeField] bool allowMouse = true;
+    [Tooltip("ほかの吹き出しを選んでいる間の濃さ")]
+    [Range(0f, 1f)] [SerializeField] float dimmedOpacity = 0.3f;
 
     CoGroundServerClient subscribed;
     JObject state;
@@ -106,6 +135,8 @@ public class CoGroundRuleTagView : MonoBehaviour
     public bool Visible { get => enabled; set => enabled = value; }
     public bool ShowObjectBubbles { get => showObjectBubbles; set { showObjectBubbles = value; Rebuild(); } }
     public bool ShowPlaceSigns { get => showPlaceSigns; set { showPlaceSigns = value; Rebuild(); } }
+    /// <summary>看板を、依頼の計画で使ったルールのものだけにする</summary>
+    public bool SignsOnlyForPlan { get => signsOnlyForPlan; set { signsOnlyForPlan = value; Rebuild(); } }
     public bool ShowFloorAreas { get => showFloorAreas; set { showFloorAreas = value; Rebuild(); } }
     public bool ShowKindLabel { get => showKindLabel; set { showKindLabel = value; Rebuild(); } }
     public bool ShowRobotRules { get => showRobotRules; set { showRobotRules = value; Rebuild(); } }
@@ -159,6 +190,7 @@ public class CoGroundRuleTagView : MonoBehaviour
         }
         player = CoGroundTaskPlanPlayer.Instance;
         if (player != null) player.TimelineChanged += Rebuild;
+        FindPressPartners();
         if (subscribed.LatestState != null) OnStateUpdated(subscribed.LatestState);
     }
 
@@ -166,6 +198,7 @@ public class CoGroundRuleTagView : MonoBehaviour
     {
         if (subscribed != null) { subscribed.StateUpdated -= OnStateUpdated; subscribed.Connected -= CloseRequestOnce; }
         if (player != null) player.TimelineChanged -= Rebuild;
+        if (planner != null) planner.FocusChanged -= OnFocusChanged;
         Clear();
     }
 
@@ -177,6 +210,89 @@ public class CoGroundRuleTagView : MonoBehaviour
         // Before / After が切り替わったら描き直す
         var mode = IsAfter ? CoGroundAfterView.ViewMode.After : CoGroundAfterView.ViewMode.Before;
         if (state != null && (mode != drawnMode || CoGroundFuture.UpToIndex != drawnUpTo)) Rebuild();
+        if (pressToPreview) PollPress();
+    }
+
+    // ---- 吹き出しを押す ----
+
+    CoGroundUnityPlanner planner;
+
+    /// <summary>Unity の計画 (押したときに再生する相手) と、Ray を出す手を探す。どちらも無くてよい</summary>
+    void FindPressPartners()
+    {
+        if (planner == null)
+        {
+            planner = FindAnyObjectByType<CoGroundUnityPlanner>();
+            if (planner != null) planner.FocusChanged += OnFocusChanged;
+        }
+        if (pressOrigin == null)
+        {
+            var rig = FindAnyObjectByType<OVRCameraRig>();
+            if (rig != null) pressOrigin = pressHand == PressHand.Left ? rig.leftControllerAnchor : rig.rightControllerAnchor;
+        }
+    }
+
+    /// <summary>選んでいる step が変わった: 置き位置のゴーストと吹き出しの濃さを合わせる</summary>
+    void OnFocusChanged()
+    {
+        string stepId = null;
+        if (planner != null && planner.FocusStep >= 0 && drawnPlan != null)
+            foreach (var step in drawnPlan.Steps)
+                if (step.Index == planner.FocusStep) { stepId = step.Id; break; }
+        if (planView != null) planView.Highlight(stepId);
+        Rebuild();
+    }
+
+    void PollPress()
+    {
+        CoGroundPressable target = null;
+        bool pressed = false;
+        var controller = pressHand == PressHand.Left ? OVRInput.Controller.LTouch : OVRInput.Controller.RTouch;
+        if (pressOrigin != null && pressOrigin.gameObject.activeInHierarchy && OVRInput.IsControllerConnected(controller))
+        {
+            target = CoGroundPressable.Raycast(new Ray(pressOrigin.position, pressOrigin.forward), pressMaxDistance);
+            pressed = OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger, controller);
+        }
+        if (target == null && allowMouse && TryMouseRay(out var ray, out var clicked))
+        {
+            target = CoGroundPressable.Raycast(ray, pressMaxDistance);
+            pressed = clicked;
+        }
+        CoGroundPressable.SetHovered(target);
+        if (target != null && pressed) target.Press();
+    }
+
+    static readonly List<RaycastResult> uiHits = new List<RaycastResult>();
+
+    /// <summary>マウスの位置からの Ray。パネルなど、ほかの UI の上にあるときは false (そちらのクリックにする)</summary>
+    static bool TryMouseRay(out Ray ray, out bool clicked)
+    {
+        ray = default; clicked = false;
+        Vector2 position;
+#if ENABLE_INPUT_SYSTEM
+        var mouse = Mouse.current;
+        if (mouse == null) return false;
+        position = mouse.position.ReadValue();
+        clicked = mouse.leftButton.wasPressedThisFrame;
+#else
+        position = Input.mousePosition;
+        clicked = Input.GetMouseButtonDown(0);
+#endif
+        var cam = Camera.main;
+        if (cam == null)
+            foreach (var c in Camera.allCameras)
+                if (c.targetTexture == null && (cam == null || c.depth > cam.depth)) cam = c;
+        if (cam == null || !cam.pixelRect.Contains(position)) return false;
+
+        var events = EventSystem.current;
+        if (events != null)
+        {
+            uiHits.Clear();
+            events.RaycastAll(new PointerEventData(events) { position = position }, uiHits);
+            if (uiHits.Count > 0 && uiHits[0].gameObject.GetComponentInParent<CoGroundPressable>() == null) return false;
+        }
+        ray = cam.ScreenPointToRay(position);
+        return true;
     }
 
     CoGroundTaskPlanPlayer player;
@@ -218,6 +334,7 @@ public class CoGroundRuleTagView : MonoBehaviour
     {
         Clear();
         if (state == null) return;
+        if (pressToPreview) FindPressPartners();
         drawnMode = IsAfter ? CoGroundAfterView.ViewMode.After : CoGroundAfterView.ViewMode.Before;
         drawnUpTo = CoGroundFuture.UpToIndex;
         ReadTables();
@@ -226,15 +343,12 @@ public class CoGroundRuleTagView : MonoBehaviour
         var checking = showObjectBubbles && bubblePrefab != null && CoGroundFuture.StageOf(state) == CoGroundFuture.Stage.Checking;
         if (checking) BuildChecking();
         if (showRobotRules && bubblePrefab != null && norms != null) BuildRobotRules(norms, checking ? 1 : 0);
-        if (showObjectBubbles && bubblePrefab != null)
-        {
-            var plan = drawnPlan = CoGroundFuture.ReadPlan(state);
-            if (plan != null)
-                foreach (var step in plan.Steps) BuildBubble(step);
-        }
+        var plan = drawnPlan = CoGroundFuture.ReadPlan(state);
+        if (showObjectBubbles && bubblePrefab != null && plan != null)
+            foreach (var step in plan.Steps) BuildBubble(step);
         if (norms != null)
         {
-            if (showPlaceSigns && signPrefab != null) BuildSigns(norms);
+            if (showPlaceSigns && signPrefab != null) BuildSigns(norms, signsOnlyForPlan ? RulesUsedBy(plan) : null);
             if (showFloorAreas && floorPrefab != null) BuildFloors(norms);
         }
         if (!isActiveAndEnabled) OnDisable();
@@ -312,12 +426,15 @@ public class CoGroundRuleTagView : MonoBehaviour
         // 置き終わった位置の半透明のコピー (どの物がここに来たか) で分かる
         // 見せている時点 (①の後 など) より後で動く物は、まだ元の位置にあるので「これから運ぶ」吹き出しを出す
         if (after && CoGroundFuture.MovedAtView(state, drawnPlan, step)) return;
+        // 動作計画でまだ確かめている途中の物には出さない (結果が出た物から順に出す。確認中はロボットの上の吹き出しで分かる)
+        if (CoGroundFuture.IsChecking(state, drawnPlan, step)) return;
         var obj = CoGroundSceneObject.Find(step.ObjectId);
         CoGroundRuleKind kind;
         string id = step.RuleId, text, note;
 
         // 動作計画 (motion.plan) で計画できないと分かった ok の step は「計画できない」
         string motionReason = null;
+        bool pressable = false; // Before の、運ぶ物の吹き出し: 押すと、つかむところを再生する
         bool motionInfeasible = step.Status == StepStatus.Ok
                                 && CoGroundFuture.IsMotionInfeasible(state, drawnPlan, step, out motionReason);
 
@@ -341,6 +458,9 @@ public class CoGroundRuleTagView : MonoBehaviour
                 text = Or(RuleText(id), step.ObjectId);
                 var region = step.To?.RegionId ?? "?";
                 note = $"Carry to {region}";
+                pressable = pressToPreview && !after && planner != null && planner.CanFocus(step.Index);
+                if (pressable)
+                    note += planner.FocusStep == step.Index ? "\nShowing the pick-up · press to stop" : " · press to see the pick-up";
                 break;
             case StepStatus.Deferred:
                 DeferredReason(step, after, out kind, out id, out text, out note);
@@ -387,6 +507,11 @@ public class CoGroundRuleTagView : MonoBehaviour
         var tag = Spawn(bubblePrefab, $"Rule Bubble {step.Id} ({step.ObjectId})", anchor, bubbleScale);
         tag.Set(kind, id ?? "", text, note, showKindLabel);
         if (follow != null) tag.Follow(follow);
+
+        int index = step.Index;
+        if (pressable) CoGroundPressable.Add(tag.gameObject, () => planner.ToggleFocus(index));
+        // ほかの物を選んでいる間は薄くする
+        if (!after && planner != null && planner.FocusStep >= 0 && planner.FocusStep != index) tag.SetOpacity(dimmedOpacity);
     }
 
     /// <summary>
@@ -446,12 +571,36 @@ public class CoGroundRuleTagView : MonoBehaviour
 
     // ---- 置き場所の看板 ----
 
-    void BuildSigns(JArray norms)
+    /// <summary>
+    /// 計画の step が使ったルール (行き先を決めたルール・違反や未確定の判定・候補)。
+    /// 動作計画でまだ確かめている step は除く (吹き出しと同じく、結果が出てから出す)。依頼が無ければ空
+    /// </summary>
+    HashSet<string> RulesUsedBy(PlanDto plan)
+    {
+        var used = new HashSet<string>();
+        if (plan == null) return used;
+        foreach (var step in plan.Steps)
+        {
+            if (CoGroundFuture.IsChecking(state, plan, step)) continue;
+            if (!string.IsNullOrEmpty(step.RuleId)) used.Add(step.RuleId);
+            if (step.Verdicts != null)
+                foreach (var v in step.Verdicts)
+                    if (!string.IsNullOrEmpty(v.RuleId)) used.Add(v.RuleId);
+            if (step.CandidateRuleIds != null)
+                foreach (var id in step.CandidateRuleIds)
+                    if (!string.IsNullOrEmpty(id)) used.Add(id);
+        }
+        return used;
+    }
+
+    /// <summary>onlyRules が null なら placed_in のルールを全部、そうでなければその中のものだけ立てる</summary>
+    void BuildSigns(JArray norms, HashSet<string> onlyRules)
     {
         var perRegion = new Dictionary<string, int>();
         foreach (var n in norms)
         {
             if ((string)n["requirement"]?["predicate"] != "placed_in") continue;
+            if (onlyRules != null && !onlyRules.Contains((string)n["id"] ?? "")) continue;
             var region = (string)n["requirement"]?["args"]?["region"];
             if (string.IsNullOrEmpty(region) || !TryRegionTop(region, out var top)) continue;
 

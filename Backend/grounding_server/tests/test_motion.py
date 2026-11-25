@@ -57,6 +57,32 @@ def test_coordinate_round_trip():
     assert ros_to_unity(unity_to_ros([1.0, 2.0, 3.0])) == [1.0, 2.0, 3.0]
 
 
+def test_plan_shows_each_step_as_soon_as_it_is_done():
+    """step は順に計画される。全体の結果を待たずに、終わった step から予測（preview）に結果が出る。"""
+    async def main():
+        rig = Rig()
+        order = [s.id for s in rig.state.plan.steps if s.status == "ok" and s.to is not None]
+        assert len(order) >= 2
+        rig.robot.infeasible.add(rig.state.plan.steps[0].object_id)
+        seen: list[dict[str, str]] = []
+
+        async def publish() -> None:
+            p = rig.motion.preview()
+            seen.append({x["step_id"]: x["state"] for x in p["steps"]} | {"_": p["status"]})
+
+        rig.motion._publish = publish
+        await rig.motion.plan()
+        # 1 つ目の結果が出た時点: まだ全体は確認中で、2 つ目は確認中のまま
+        first = next(x for x in seen if x[order[0]] != "checking")
+        assert first["_"] == "checking" and first[order[0]] == "stay_infeasible" and first[order[1]] == "checking"
+        # 一度出た結果は、最後まで変わらない
+        for sid in order:
+            states = [x[sid] for x in seen if x[sid] != "checking"]
+            assert states and len(set(states)) == 1
+        assert seen[-1]["_"] == "ready" and seen[-1][order[1]] == "move"
+    run(main())
+
+
 def test_plan_makes_timeline_with_phases_in_order():
     async def main():
         rig = Rig()

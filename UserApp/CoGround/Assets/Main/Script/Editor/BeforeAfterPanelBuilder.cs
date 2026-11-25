@@ -88,6 +88,13 @@ public static class BeforeAfterPanelBuilder
         so.FindProperty("caption").objectReferenceValue = caption;
         so.ApplyModifiedPropertiesWithoutUndo();
 
+        // 頭に追従 (音声入力パネルの左上)。床などに置きっぱなしにならない
+        var follow = new SerializedObject(root.AddComponent<LazyFollowHead>());
+        follow.FindProperty("distance").floatValue = 0.5f;
+        follow.FindProperty("heightOffset").floatValue = -0.2f;
+        follow.FindProperty("sideOffset").floatValue = -0.3f;
+        follow.ApplyModifiedPropertiesWithoutUndo();
+
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
         Object.DestroyImmediate(root);
         return prefab;

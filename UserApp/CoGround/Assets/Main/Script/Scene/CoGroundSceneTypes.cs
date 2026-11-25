@@ -130,6 +130,8 @@ public enum CoGroundCategory
     table, shelf,
     // 片付けデモ用 (シーンに保存された値がずれないよう、足すときは必ず末尾に)
     water_bottle, small_box, storage_box,
+    // 閉じた語彙の検出 (CoGroundYoloWorldProvider / detection_vocab.json) で足したもの
+    scissors, paper_scrap,
 }
 
 /// <summary>

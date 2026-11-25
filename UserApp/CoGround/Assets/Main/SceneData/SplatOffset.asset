@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cefb5322d9232140af3252a043bc891, type: 3}
+  m_Name: SplatOffset
+  m_EditorClassIdentifier: Assembly-CSharp::SplatOffset
+  saved: 1
+  position: {x: 0.79222274, y: -1.556005, z: -2.0561392}
+  rotation: {x: -0, y: 0.51395506, z: 0, w: -0.8578171}
+  scale: 1.0626745
+  roomUuid: d2550fa9-25d6-657f-17c0-7ed683aa85e1
+  originPosition: {x: -4.1814413, y: -0.0007389784, z: 2.856988}
+  originYaw: 288.23492

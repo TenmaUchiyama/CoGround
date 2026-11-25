@@ -1,0 +1,142 @@
+Granny and the robots
+A spotlight on security and privacy risks with future household robots
+The Safety of Domestic Robotics: A Survey
+Social Roles and Baseline Proxemic Preferences for a Domestic Service Robot
+Robot, organize my shelves
+Detection of privacy-sensitive situations for social robots in smart homes
+Responsible domestic robotics
+IS-Bench
+Perceptions of Domestic Robots' Normative Behavior Across Cultures
+Privacy at Home: An Inquiry into Sensors and Robots
+I still need my privacy
+LLM-Personalize
+My House, My Rules
+Hazards in Daily Life
+Our business, not the robot
+Snitches Get Unplugged
+More work for Roomba
+Form, Function and Etiquette
+Exploring Robot Etiquette: Refining a HRI Home Companion
+It becomes more of an abstract idea, this privacy
+A Robot Jumping the Queue
+HomeSafeBench
+Privacy Risks in Reinforcement Learning for Household Robots
+Designing for In-Home Long-Term Family-Robot Interactions
+Towards Designing Privacy-Compliant Social Robots for Use in Private Households
+Federated Learning of Socially Appropriate Agent Behaviours in Simulated Home
+Is it always watching? Is it always listening?
+Older Adults' Task Preferences for Robot Assistance in the Home
+Surveying Adult Perceptions of Privacy and Attitudes towards Social Robots in the Home
+A Picture is Worth a Thousand Risks
+Unwritten rules of healthcare assistance
+Enhancing Privacy and Trust in Domestic Robots Through Real-Time Feedback
+It's like a pet...but my pet doesn't collect data
+Understanding Social Appropriateness Perceptions in Secondary Users of Domestic Robots
+Building Trustworthy Household Robots through Open-World Safety
+Navigating privacy in smart homes: how robot roles
+Rules for Robots: Co-Designing Privacy-Conscious Social Robots
+Privacy-aware LLM-assisted Task Planning for Home Robots
+Design Guidelines for Privacy-Aware Interactions in Home Robots
+Position: Robot Privacy as Embodied Boundary Work
+Implementing Pro-social Rule Bending in an Elder-care Robot
+Mind Your Manners
+Explicit representation of social norms for social robots
+The Role of Social Norms in Human
+Updating Robot Safety Representations Online From Natural Language Feedback
+GRACE: Generating Socially Appropriate Robot Actions
+APRICOT: Active Preference Learning and Constraint-Aware Task Planning
+Organizing objects by predicting user preferences through collaborative filtering
+Benchmarking LLM Privacy Recognition for Social Robot Decision Making
+OopsieVerse
+Examining the Impact of Robot Norm Violations
+Should a Robot Follow Social Norms
+A Computational Framework for Integrating Task Planning and Norm Aware Reasoning
+Multi-User Personalisation in Human-Robot Interaction: Resolving Preference Conflicts
+NormAct
+Toward ownership understanding of objects
+SafetyALFRED: Evaluating Safety-Conscious Planning of Multimodal
+SafeRelBench
+EgoSafetyBench
+MANIGUARD
+Privacy-Sensitive Robotics: Perceptions, Measures, and Metrics
+Care Robots Learning Rules of Ethical Behavior
+To Help or Not to Help
+Whose Is This
+How Far Are VLMs from Privacy Awareness in the Physical World
+ROBOSHACKLES
+Explaining Why Things Go Where They Go
+COOL: Curiosity-Driven Object Ownership Learning
+Mind the Context: Continual Learning of Socially Appropriate
+CAPSafe
+InterSocialBench
+Operationalising Normative Rules in Autonomous Robotic Systems
+Personalization of Basic and Moral Values Guiding LLM-Controlled Assistant Robots
+TidyBot: Personalized Robot Assistance
+Housekeep: Tidying Virtual Households
+RobotValues
+HomeSafe-Bench
+HygieneRoboBench
+HoRoTrust
+Interactive Restriction of a Mobile Robot's Workspace in a Smart Home
+Application of modified Asimov
+Step Aside! VR-Based Evaluation of Adaptive Robot Conflict Resolution
+EARBench
+VestaBench
+Personalized Robotic Object Rearrangement from Scene Context
+Users' Perspectives on Value Awareness in Social Robots
+PersONAL
+Robotic etiquette: results from user studies involving a fetch and carry task
+Networks of Social and Moral Norms in Human and Robot Agents
+Generating Robot Constitutions
+Requirements for an Artificial Agent with Norm Competence
+Learning behavioral norms in uncertain and changing contexts
+When Exceptions Are the Norm: Exploring the Role of Consent in HRI
+Making Place for Social Norms in the Design of Human-Robot Interaction
+Robot: Asker of questions and changer of norms
+The seven troubles with norm-compliant robots
+A General Methodology for Teaching Norms to Social Robots
+That’s Mine! Learning Ownership Relations
+Instruct or Evaluate: How People Choose to Teach Norms
+Inferring the Unspoken: Aligning Embodied Agents with Implicit Preferences
+Norms, Institutions, and Robots
+What Properties of Norms can we Implement in Robots
+An Interactive Learning Framework for Item Ownership Relationship
+What Norms Are Social Robots Reflecting
+Inferring and Obeying Norms in Temporal Logic
+Robby is Not a Robber
+Multi-user Norm Consensus
+What's Left Unsaid: How Command Rejection Communication
+Norm Conflict Resolution in Stochastic Domains
+Inverse Norm Conflict Resolution
+What Am I Allowed to Do Here
+Sorry, I Can’t Do That
+Plug in the Safety Chip
+AGENTSAFE
+SafeAgentBench
+EgoNormia
+NormBank
+Themes and Research Directions in Privacy-Sensitive Robotics
+A Taxonomy of Privacy Constructs for Privacy-Sensitive Robotics
+A Taxonomy of Social Errors in Human-Robot Interaction
+Exploring the role of robots in home organization
+What is a robot companion
+What do people expect from robots
+Robots in the Home: Qualitative and Quantitative Insights into Kitchen Organization
+Investigating family perceptions and design preferences for an in-home robot
+Modularity as Accommodation: How Families Negotiate One Shared Domestic Robot
+Preserving Sense of Agency: User Preferences for Robot Autonomy
+Dignity, Autonomy, and Style of Company
+Domestic Robots for Older Adults: Attitudes, Preferences
+Semantically Safe Robot Manipulation
+How to Raise a Robot
+AI Models Exceed Individual Human Accuracy in Predicting Everyday Social Norms
+Can AI Perceive Physical Danger and Intervene
+Should I Help?: A Skill-Based Framework
+Service robots and artificial morality: an examination of robot behavior that violates human privacy
+What Does It Mean for a Robot to Be Respectful
+Measuring Physical-World Privacy Awareness of Large Language Models
+SciFi-Benchmark
+Harnessing Embodied Agents: Runtime Governance
+Using large language models for embodied planning introduces systematic safety risks
+Reading Books is Great, But Not if You Are Driving
+Social Norm Reasoning in Multimodal Language Models

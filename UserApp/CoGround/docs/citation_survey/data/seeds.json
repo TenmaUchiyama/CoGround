@@ -1,0 +1,58 @@
+[
+ {
+  "key": "Malle2019",
+  "found": true,
+  "id": "W2957196863",
+  "title": "Requirements for an Artificial Agent with Norm Competence",
+  "year": 2019,
+  "cites": 38
+ },
+ {
+  "key": "Malle2017",
+  "found": true,
+  "id": "W2569421824",
+  "title": "Networks of Social and Moral Norms in Human and Robot Agents",
+  "year": 2017,
+  "cites": 72
+ },
+ {
+  "key": "Kasenberg2018",
+  "found": true,
+  "id": "W2783314786",
+  "title": "Norm Conflict Resolution in Stochastic Domains",
+  "year": 2018,
+  "cites": 27
+ },
+ {
+  "key": "ThatsMine",
+  "found": true,
+  "id": "W2964255654",
+  "title": "That’s Mine! Learning Ownership Relations and Norms for Robots",
+  "year": 2019,
+  "cites": 18
+ },
+ {
+  "key": "VeriPlan",
+  "found": true,
+  "id": "W4409779994",
+  "title": "VeriPlan: Integrating Formal Verification and LLMs into End-User Planning",
+  "year": 2025,
+  "cites": 65
+ },
+ {
+  "key": "MARCER",
+  "found": true,
+  "id": "W4410297857",
+  "title": "MARCER: Multimodal Augmented Reality for Composing and Executing Robot Tasks",
+  "year": 2025,
+  "cites": 19
+ },
+ {
+  "key": "SafetyChip",
+  "found": true,
+  "id": "W4401415471",
+  "title": "Plug in the Safety Chip: Enforcing Constraints for LLM-driven Robot Agents",
+  "year": 2024,
+  "cites": 164
+ }
+]

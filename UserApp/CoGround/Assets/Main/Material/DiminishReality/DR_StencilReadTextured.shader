@@ -64,9 +64,11 @@ Shader "DR/StencilReadTextured"
             float _Contrast;
             float _Saturation;
 
-            // Set by DRMaskShaderGlobals (mask box transform). _DRMaskEnabled = 0 when no box is active.
-            float4x4 _DRMaskWorldToLocal;
-            float _DRMaskEnabled;
+            // Set by DRMaskShaderGlobals (mask box transforms). _DRMaskCount = 0 when no box is active
+            // (or there are more boxes than DR_MASK_MAX): then there is no feather.
+            #define DR_MASK_MAX 8
+            float4x4 _DRMaskWorldToLocal[DR_MASK_MAX];
+            float _DRMaskCount;
 
             struct appdata
             {
@@ -99,10 +101,10 @@ Shader "DR/StencilReadTextured"
 
             // Length (m) of the view ray's path through the mask box (a unit cube in its local space).
             // It goes to 0 at the box silhouette, so it works as a soft edge.
-            float ChordThroughMask(float3 camPos, float3 worldPos)
+            float ChordThroughMask(float4x4 worldToLocal, float3 camPos, float3 worldPos)
             {
-                float3 ro = mul(_DRMaskWorldToLocal, float4(camPos, 1)).xyz;
-                float3 p  = mul(_DRMaskWorldToLocal, float4(worldPos, 1)).xyz;
+                float3 ro = mul(worldToLocal, float4(camPos, 1)).xyz;
+                float3 p  = mul(worldToLocal, float4(worldPos, 1)).xyz;
                 float3 rd = p - ro;
                 // Avoid division by zero on axis-aligned rays.
                 rd = sign(rd) * max(abs(rd), 1e-6) + (rd == 0) * 1e-6;
@@ -135,9 +137,17 @@ Shader "DR/StencilReadTextured"
                 c += (Hash(i.pos.xy + frac(_Time.y * 7.13) * 100) - 0.5) * _Grain;
 
                 float alpha = 1;
-                if (_DRMaskEnabled > 0.5 && _FeatherWidth > 0)
+                int maskCount = (int)min(_DRMaskCount + 0.5, DR_MASK_MAX);
+                if (maskCount > 0 && _FeatherWidth > 0)
                 {
-                    alpha = smoothstep(0, _FeatherWidth, ChordThroughMask(i.camPos, i.worldPos));
+                    // Several boxes: the pixel is as opaque as the box that covers it best.
+                    float chord = 0;
+                    for (int m = 0; m < DR_MASK_MAX; m++)
+                    {
+                        if (m < maskCount)
+                            chord = max(chord, ChordThroughMask(_DRMaskWorldToLocal[m], i.camPos, i.worldPos));
+                    }
+                    alpha = smoothstep(0, _FeatherWidth, chord);
                 }
 
                 return fixed4(saturate(c), alpha);

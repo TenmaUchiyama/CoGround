@@ -20,7 +20,7 @@
 
 | 種類 | パス | 役割 |
 |---|---|---|
-| シェーダー | `Assets/Main/Material/DiminishReality/DR_StencilMask.shader` | マスク（ステンシルに書くだけ） |
+| シェーダー | `Assets/Main/Material/DiminishReality/Resources/DR_StencilMask.shader` | マスク（ステンシルに書くだけ）。実行中に箱を作るスクリプトが読めるように Resources に置いている |
 | シェーダー | `Assets/Main/Material/DiminishReality/DR_StencilReadTextured.shader` | 背景メッシュ用（テクスチャ、ライティングなし） |
 | シェーダー | `Assets/Main/Material/DiminishReality/DR_StencilReadUnlit.shader` | 単色。マスクの動作確認用 |
 | マテリアル | `Assets/Main/Material/DiminishReality/DR_StencilMask.mat` | 箱に付ける |
@@ -48,6 +48,26 @@ Meta の Building Blocks から追加する:
    - Texture: スキャンのテクスチャ
    - Stencil Ref: **1**（マスクと同じ値）
 4. シーンに置いて、モデルの全マテリアルをこれにする。
+
+### 2b. 背景をガウシアンスプラットにする（メッシュの代わり）
+
+メッシュの代わりに、SplatXR のスプラットを背景にできる。マスクの箱・検出・After 表示はそのまま使える。
+
+1. 消したい物を**どけた状態**でスキャンし、`.ply` にする（`.spz` なら SuperSplat か `npx @playcanvas/splat-transform in.spz out.ply` で変換）。
+   - 軽くする: `npx @playcanvas/splat-transform in.ply -H 0 out.ply`（SH を 0 に）。SplatXR の目安はシーン全体で **20 万点以下**。DR では箱の周りしか見えないので、`-B`（箱）で物の周りだけ切り出すと大きく減らせる。
+2. **SplatXR > Building Blocks Panel → Splat Renderer** で `.ply` を指定して Add to Scene。
+3. 作られたマテリアル（`Assets/Materials/SplatMaterials/SplatMaterial_<名前>.mat`）の Shader を **`DR/StencilReadSplat`** にする。Stencil Ref は **1**。
+4. 位置合わせは手順 3 と同じ。合わせる間は Shader を `SplatXR/SplatShader` に戻すと全体が見える。
+
+| 項目 | 初期値 | 効果 |
+|---|---|---|
+| Feather Width (m) | 0.03 | メッシュ版と同じ（`DRMaskShaderGlobals` が必要） |
+| Alpha Dst Blend | OneMinusSrcAlpha | スキャンが薄い所で実物が透けるときは **One** にする（どこでもパススルーを隠す。薄い所は少し暗くなる） |
+| Grain | 0.03 | パススルーのノイズに合わせる |
+| Brightness など / ASC-CDL | SplatXR と同じ | 色合わせ。`SplatPassthroughColorAdjustment` で ASC-CDL を自動で求めることもできる |
+
+- **右手の箱で消す（DRHandMask）**: スプラットを `Splat Align`（Splat Offset Placer の Target）の子に入れて、メニュー **CoGround > DR 右手マスクを配置** を実行する。Target の下にスプラットがあれば、背景はスプラットになる（マテリアルは実行中に `DR/StencilReadSplat` の複製を作るので、手順 3 の差し替えは不要）。Feather / Grain / 透け防止は `DRHandMask` の「スプラットの DR」で変える。右スティック押し込みで ON / OFF、OFF のときスプラットは出ない（Splat Offset Placer で動かしている間だけ全体が出る）。
+- スプラットは当たり判定を持たないので、検出のレイを当てる場合は、別に MeshCollider 用の簡単なメッシュ（床・机の Plane など）を置く。
 
 ### 3. 背景メッシュを現実に合わせる（いちばん大事）
 
@@ -103,7 +123,17 @@ Meta の Building Blocks から追加する:
 - Feather には、箱の位置をシェーダーに渡す **`DRMaskShaderGlobals`** が箱に付いている必要がある。`DRMaskFollowDetection` を使っていれば自動で付く。手で箱を置く場合は自分で付ける。無いときは Feather は効かない（従来どおり）。
 - 縁は箱の余白部分で混ざる。余白が小さいと物の端まで透けるので、Feather Width は Size Margin による余白より小さくする。
 - 消した物の**影**が箱の外に残るときは、Size Margin を大きくして影まで覆う。
-- 箱は 1 つだけ対応（値がグローバルなため）。
+- Feather が効く箱は同時に 8 個まで。9 個以上あると Feather は切れる（くっきり切れるが、消えはする）。
+
+### 8. Plan で動く物を消す（After 表示）
+
+`CoGroundAfterView` の **Diminish Style** を `DiminishedReality`（初期値）にすると、After で「動く物」の元の位置に
+マスクの箱が自動で置かれる（`DR Mask (<物体 ID>)`。Before に戻すと消える）。
+
+- 箱の位置と大きさは、シーンの物体（`CoGroundSceneObject`）ならその箱、カメラで認識した物体（`CoGroundPerceivedObjects`）なら認識結果の箱。
+- 大きさは `DR Mask Margin`（倍率、初期値 1.2）と `DR Mask Padding`（各方向に足す量、初期値 0.02 m）で広げる。影が残るときは大きくする。
+- 背景メッシュ（手順 2・3）がシーンに無いと DR では何も出ないので、そのときは `Ghost`（薄い姿を残す）で見せ、警告を 1 回出す。
+- 箱の材質は空でよい（Resources の `DR_StencilMask` シェーダーから作る）。Stencil Ref を 1 以外にしているときだけ `DR Mask Material` に入れる。
 
 ## うまくいかないとき
 

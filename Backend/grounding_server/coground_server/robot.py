@@ -467,7 +467,19 @@ class FakeRobot(Robot):
             grasp_reason = next((r for r in reasons if "in the way" in r), None)
             raise Blocked(grasp_reason or (reasons[-1] if reasons else "No stop position"), blockers if grasp_reason else [])
 
+        reported = 0
+
+        async def report() -> None:
+            """終わった step の結果を、途中経過に載せて知らせる（本物は plan_feedback の result）"""
+            nonlocal reported
+            while reported < len(steps_out):
+                r = steps_out[reported]
+                reported += 1
+                if on_progress is not None:
+                    await on_progress({"step_id": r["step_id"], "detail": r["status"], "result": r})
+
         for s in request["steps"]:
+            await report()
             sid, obj = s["step_id"], s.get("object") or ""
             kind = s.get("kind") or "pick_place"
             if on_progress is not None:
@@ -524,6 +536,7 @@ class FakeRobot(Robot):
                 del base[saved[4]:], phases[saved[5]:], attached[saved[6]:]
                 steps_out.append({"step_id": sid, "object": obj, "status": "infeasible", "reason": str(e),
                                   "t0": round(t, 3), "t1": round(t, 3), "stops": {}, "blocked_by": list(e.blocked_by)})
+        await report()
         base.append([round(t, 3), x, y, yaw])
         for a in attached:
             if a["t1"] is None:

@@ -18,7 +18,7 @@ using UnityEngine;
 ///   条件のあるルールのどれにも合わなかった物 (role = item) を、Target Region へ運ぶ。Attribute / Equals は見ない。
 ///
 /// ■ 片付けデモ (TidyDemoSetup のシーン)
-///   コンテキストメニューの「片付けデモのルールを入れる」で、ゴミ・割れ物・しまう物の 3 つのルールを入れる。
+///   コンテキストメニューの「片付けデモのルールを入れる」で、ゴミと割れ物のルールを入れる。
 ///
 /// Target Region は、place_zone を持つ物体 (CoGroundSceneObject) の ID。
 /// サーバーはルールを受け取ると Plan を作り直し、state.updated で配る (CoGroundPlanView が描く)。
@@ -35,6 +35,8 @@ public class CoGroundRulesSender : MonoBehaviour
         public string text;
         [Tooltip("「それ以外」のルールにする (条件のあるルールのどれにも合わなかった物に使う。Attribute / Equals は見ない)")]
         public bool otherwise;
+        [Tooltip("「触らない」ルールにする (条件に合う物にロボットが触れることを禁止する。norms.set で送る。Target Region は見ない)")]
+        public bool noTouch;
         [Tooltip("属性のキー (fragile, material, waste_type など)、または category / group / role")]
         public string attribute = "group";
         [Tooltip("true / false、数値、文字列のどれか")]
@@ -74,7 +76,7 @@ public class CoGroundRulesSender : MonoBehaviour
         for (int i = 0; i < rules.Count; i++)
         {
             var r = rules[i];
-            if (string.IsNullOrWhiteSpace(r.targetRegion)) continue;
+            if (r.noTouch || string.IsNullOrWhiteSpace(r.targetRegion)) continue;
             if (!r.otherwise && string.IsNullOrWhiteSpace(r.attribute)) continue;
             var condition = r.otherwise ? "otherwise" : $"{r.attribute} = {r.equals}";
             list.Add(new RuleDto
@@ -89,9 +91,57 @@ public class CoGroundRulesSender : MonoBehaviour
     }
 
     /// <summary>
-    /// 片付けデモ (TidyDemoSetup) の 3 つのルール。ゴミ → trash_bin、割れ物 → box_2、それ以外 (しまう物) → box_1。
+    /// 「触らない」ルール (noTouch) を家庭ルールの形 (NormRule。禁止 + contact) にする。norms.set で送る。
+    /// </summary>
+    public List<JObject> BuildNoTouchNorms()
+    {
+        var list = new List<JObject>();
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var r = rules[i];
+            if (!r.noTouch || string.IsNullOrWhiteSpace(r.attribute)) continue;
+            var condition = $"{r.attribute} = {r.equals}";
+            list.Add(JObject.FromObject(new
+            {
+                id = string.IsNullOrWhiteSpace(r.id) ? $"rule_{i + 1}" : r.id.Trim(),
+                original_text = string.IsNullOrWhiteSpace(r.text) ? $"Don't touch {condition}" : r.text,
+                norm = "prohibition",
+                target = new { kind = "object", where = new { attribute = r.attribute.Trim(), equals = ParseValue(r.equals) } },
+                requirement = new { predicate = "contact" },
+                source = "demo",
+            }));
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 閉じた語彙の検出 (CoGroundYoloWorldProvider の 6 つ) 用のルール。置き場所は EnvironmentBoxes の箱の名前。
+    ///   食器 (plate / mug / glass)  → sink
+    ///   紙くず (paper_scrap)        → trash_box
+    ///   はさみ・包丁 (危ない物)      → 触らない
+    /// shelf_lower / shelf_upper は今は使わない (割り当てる物が無い)。
+    /// </summary>
+    [ContextMenu("閉じた語彙のルールを入れる")]
+    public void UseClosedVocabularyRules()
+    {
+        rules = new List<RuleEntry>
+        {
+            new RuleEntry { id = "dishes_to_sink",   text = "Put dishes in the sink",         attribute = "group",    equals = "dish",        targetRegion = "sink" },
+            new RuleEntry { id = "paper_to_trash",   text = "Throw paper scraps in the trash", attribute = "category", equals = "paper_scrap", targetRegion = "trash_box" },
+            new RuleEntry { id = "no_touch_knife",   text = "Don't touch knives (dangerous)",  attribute = "category", equals = "knife",       noTouch = true },
+            new RuleEntry { id = "no_touch_scissors", text = "Don't touch scissors (dangerous)", attribute = "category", equals = "scissors",   noTouch = true },
+        };
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+#endif
+    }
+
+    /// <summary>
+    /// 片付けデモ (TidyDemoSetup) のルール。ゴミ → trash_bin と、割れ物に触らない。
     /// ゴミは group = trash でなく trash 属性で決める (pet_bottle は group = trash だが、デモでは捨てない物)。
-    /// 割れ物かつゴミの物があると、行き先が 2 つになり ambiguous (人に聞く) になる。
+    /// 「それ以外は箱へ」は家庭ルールではないので入れない。どのルールにも当たらない物は、
+    /// 依頼が無いときは運ばず、依頼 (task.request) の対象なら「収納先を決めるルールが無い」で保留になる。
+    /// 割れ物ルールは行き先が無いので BuildRules で落ち、rules.set では送られない (触らないは家庭ルール norms.set の仕事)。
     /// </summary>
     [ContextMenu("片付けデモのルールを入れる")]
     public void UseTidyDemoRules()
@@ -100,7 +150,6 @@ public class CoGroundRulesSender : MonoBehaviour
         {
             new RuleEntry { id = "trash",   text = "Throw trash in the trash bin",           attribute = AttributeKey.Trash,   equals = "true", targetRegion = "trash_bin" },
             new RuleEntry { id = "fragile", text = "Don't touch fragile items", attribute = AttributeKey.Fragile, equals = "true"},
-            new RuleEntry { id = "store",   text = "Put everything else in the box (box_1)",   otherwise = true,                                    targetRegion = "box_1" },
         };
 #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
@@ -108,10 +157,32 @@ public class CoGroundRulesSender : MonoBehaviour
     }
 
     [ContextMenu("Send Rules")]
-    public void SendRules() => Send(BuildRules());
+    public void SendRules()
+    {
+        Send(BuildRules());
+        // 「触らない」ルールがあるときだけ norms.set を送る (norms.set は家庭ルールを丸ごと置き換えるので、
+        // 無いときに空を送って、声で登録したルールを消さないようにする)
+        var norms = BuildNoTouchNorms();
+        if (norms.Count > 0) SendNorms(norms);
+    }
 
     [ContextMenu("Clear Rules On Server")]
     public void ClearRules() => Send(new List<RuleDto>());
+
+    async void SendNorms(List<JObject> norms)
+    {
+        var c = Client;
+        if (c == null || !c.IsConnected) return;
+        try
+        {
+            var result = await c.RequestAsync("norms.set", new { norms });
+            Debug.Log($"[CoGroundRulesSender] norms.set: norms={result["norms"]} steps={result["steps"]}");
+        }
+        catch (CoGroundRpcException e)
+        {
+            Debug.LogWarning($"[CoGroundRulesSender] norms.set failed: {e.Message} {e.Details}", this);
+        }
+    }
 
     async void Send(List<RuleDto> list)
     {

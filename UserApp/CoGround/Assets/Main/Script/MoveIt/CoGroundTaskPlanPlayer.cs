@@ -104,6 +104,132 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
     public string PlanId { get; private set; } = "";
     /// <summary>true の間は Ghost を出さない (After で未来の環境を見せている間など)</summary>
     public bool Suppressed { get; set; }
+    /// <summary>true なら、Suppressed でも Ghost を出す (Unity だけの計画: After を見ながら動きも見せる)</summary>
+    public bool ShowWhileSuppressed { get; set; }
+    /// <summary>true の間は Ghost を出さない (Unity だけの計画: 実行中は「今のロボット」だけを見せる)</summary>
+    public bool Hidden { get; set; }
+    /// <summary>false なら、ROS の計画結果 (/coground/task/plan_result) を使わない (Unity だけの計画: CoGroundUnityPlanner が SetTimeline で渡す)</summary>
+    public bool UseRosResults { get; set; } = true;
+
+    /// <summary>
+    /// 再生する範囲 (秒)。end が start 以下なら全体。範囲の終わりまで行ったら範囲の始めへ戻る (loop のとき)。
+    /// 「① の後」を見ている間は ① の動きだけを繰り返す、という使い方をする。
+    /// </summary>
+    public void SetPlayRange(float start, float end)
+    {
+        if (Mathf.Approximately(start, rangeStart) && Mathf.Approximately(end, rangeEnd)) return;
+        rangeStart = start; rangeEnd = end;
+        if (end > start && (time < start || time > end)) time = start;
+    }
+    float rangeStart, rangeEnd;
+
+    /// <summary>Unity で作った時間軸 (CoGroundUnityPlanner)。位置・向きは Unity の World</summary>
+    public class TimelineData
+    {
+        public string PlanId = "", Label = "";
+        public float Duration;
+        /// <summary>台車 (base_link) の位置と、ROS の yaw [rad] (= -Unity の Y 回りの角度)</summary>
+        public List<float> BaseT = new List<float>();
+        public List<Vector3> BasePos = new List<Vector3>();
+        public List<float> BaseYaw = new List<float>();
+        public float BaseHeight;
+        public string[] JointNames = new string[0];
+        public List<float> JointT = new List<float>();
+        public List<float[]> JointV = new List<float[]>();
+        /// <summary>時間軸に含まれない関節の値 (頭など)</summary>
+        public Dictionary<string, float> StartJoints = new Dictionary<string, float>();
+        public List<Phase> Phases = new List<Phase>();
+        public List<ObjectData> Objects = new List<ObjectData>();
+    }
+
+    public class ObjectData
+    {
+        public string Name;
+        public Vector3 StartPos, RestPos;
+        public Quaternion StartRot = Quaternion.identity, RestRot = Quaternion.identity;
+        /// <summary>T0〜T1 の間は Link に付いている (LocalPos / LocalRot は Link から見た bbox の中心の姿勢)</summary>
+        public float T0, T1;
+        public string Link = "gripper_link";
+        public Vector3 LocalPos;
+        public Quaternion LocalRot = Quaternion.identity;
+        /// <summary>運ぶ物の Ghost (原点 = bbox の中心)。null なら箱を作る。Player が持ち主になる (消すのも Player)</summary>
+        public Transform Ghost;
+    }
+
+    public enum ObjectStage { Before, Held, Done }
+
+    /// <summary>Unity で作った時間軸を再生する (null なら消す)</summary>
+    public void SetTimeline(TimelineData d)
+    {
+        Clear();
+        if (d == null || d.Duration <= 0f) return;
+        duration = d.Duration;
+        baseT = d.BaseT.ToArray(); basePos = d.BasePos.ToArray(); baseYaw = d.BaseYaw.ToArray();
+        baseHeight = d.BaseHeight;
+        jointNames = d.JointNames;
+        jointT = d.JointT.ToArray(); jointV = d.JointV.ToArray();
+        startJoints.Clear();
+        foreach (var kv in d.StartJoints) startJoints[kv.Key] = kv.Value;
+        phases.AddRange(d.Phases);
+        foreach (var o in d.Objects)
+        {
+            attaches.Add(new Attach { obj = o.Name, link = o.Link, t0 = o.T0, t1 = o.T1, localPos = o.LocalPos, localRot = o.LocalRot });
+            var ghost = o.Ghost != null ? o.Ghost : MakeObjectGhost(o.Name);
+            foreach (var r in ghost.GetComponentsInChildren<Renderer>()) r.enabled = false;
+            objects.Add(new ObjectTrack
+            {
+                name = o.Name, startPos = o.StartPos, startRot = o.StartRot,
+                restPos = o.RestPos, restRot = o.RestRot, hasRest = true, ghost = ghost,
+            });
+        }
+        PlanId = d.PlanId ?? "";
+        planLabel = d.Label ?? "";
+        rangeStart = rangeEnd = 0f;
+        time = 0f;
+        playing = autoPlay;
+        TimelineChanged?.Invoke();
+    }
+
+    /// <summary>時刻 t の姿勢 (台車と関節) を、別の Fetch (見た目だけ) に当てる</summary>
+    public void ApplyTo(FetchGhostRig target, float t)
+    {
+        if (target == null || !HasPlan) return;
+        target.SetJoints(startJoints);
+        ApplyBase(target, t);
+        ApplyJoints(target, t);
+    }
+
+    /// <summary>時刻 t の物体の姿勢 (bbox の中心)。Held のときは target の手に付いた姿勢。知らない物体は false</summary>
+    public bool TryGetObjectPose(string objectName, float t, FetchGhostRig target, out ObjectStage stage, out Vector3 position, out Quaternion rotation)
+    {
+        stage = ObjectStage.Before; position = default; rotation = Quaternion.identity;
+        foreach (var o in objects)
+        {
+            if (o.name != objectName) continue;
+            stage = PoseOf(o, t, target, out position, out rotation);
+            return true;
+        }
+        return false;
+    }
+
+    ObjectStage PoseOf(ObjectTrack o, float t, FetchGhostRig target, out Vector3 position, out Quaternion rotation)
+    {
+        Attach holding = null, done = null;
+        foreach (var a in attaches)
+        {
+            if (a.obj != o.name) continue;
+            if (t >= a.t0 && t <= a.t1) holding = a;
+            else if (t > a.t1) done = a;
+        }
+        if (holding != null && target != null && target.TryGetLink(holding.link, out var link))
+        {
+            position = link.TransformPoint(holding.localPos); rotation = link.rotation * holding.localRot;
+            return ObjectStage.Held;
+        }
+        if (done != null && o.hasRest) { position = o.restPos; rotation = o.restRot; return ObjectStage.Done; }
+        position = o.startPos; rotation = o.startRot;
+        return ObjectStage.Before;
+    }
 
     /// <summary>
     /// 物体を置き終わった姿勢 (時間軸の最後。ワールド、bbox の中心)。
@@ -139,7 +265,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
     void Start()
     {
         planMaterial = ghostMaterial != null ? ghostMaterial : FetchGhost.MakeMaterial(ghostColor);
-        objectMaterial = FetchGhost.MakeMaterial(objectGhostColor);
+        if (objectMaterial == null) objectMaterial = FetchGhost.MakeMaterial(objectGhostColor);
         rig = FetchGhostRig.Create("Task Plan Ghost", planMaterial);
         if (rig == null) { enabled = false; return; }
 
@@ -166,6 +292,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
 
     void OnResult(StringMsg msg)
     {
+        if (!UseRosResults) return;
         JObject root;
         try { root = JObject.Parse(msg.data); }
         catch (Exception e) { Debug.LogWarning($"[CoGroundTaskPlanPlayer] 計画の JSON が読めない: {e.Message}"); return; }
@@ -189,6 +316,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
     void Clear()
     {
         duration = 0f; time = 0f; playing = false;
+        rangeStart = rangeEnd = 0f;
         baseT = null; jointT = null;
         attaches.Clear(); phases.Clear();
         ClearObjects();
@@ -285,6 +413,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
         Destroy(cube.GetComponent<Collider>());
         cube.transform.localScale = size;
         var r = cube.GetComponent<MeshRenderer>();
+        if (objectMaterial == null) objectMaterial = FetchGhost.MakeMaterial(objectGhostColor);
         r.sharedMaterial = objectMaterial;
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         r.enabled = false;
@@ -297,11 +426,15 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
     {
         if (playing && HasPlan)
         {
+            bool ranged = rangeEnd > rangeStart;
+            float lo = ranged ? Mathf.Clamp(rangeStart, 0f, duration) : 0f;
+            float hi = ranged ? Mathf.Clamp(rangeEnd, lo, duration) : duration;
             time += UnityEngine.Time.deltaTime * playbackSpeed;
-            if (time > duration)
+            if (time < lo) time = lo;
+            if (time > hi)
             {
-                if (loop) time = 0f;
-                else { time = duration; playing = false; }
+                if (loop) time = lo;
+                else { time = hi; playing = false; }
             }
         }
         ApplyPose();
@@ -311,12 +444,12 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
     void ApplyPose()
     {
         if (rig == null) return;
-        bool show = HasPlan && !Suppressed && !(hideWhileBusy && busy);
+        bool show = HasPlan && !Hidden && (!Suppressed || ShowWhileSuppressed) && !(hideWhileBusy && busy);
         SetVisible(show);
         if (!show) return;
         rig.SetJoints(startJoints);
-        ApplyBase(time);
-        ApplyJoints(time);
+        ApplyBase(rig, time);
+        ApplyJoints(rig, time);
     }
 
     void LateUpdate()
@@ -325,32 +458,15 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
         foreach (var o in objects)
         {
             if (o.ghost == null) continue;
-            var r = o.ghost.GetComponent<Renderer>();
-            if (r != null) r.enabled = show;
+            foreach (var r in o.ghost.GetComponentsInChildren<Renderer>())
+                if (r.enabled != show) r.enabled = show;
             if (!show) continue;
-            Attach holding = null, done = null;
-            foreach (var a in attaches)
-            {
-                if (a.obj != o.name) continue;
-                if (time >= a.t0 && time <= a.t1) holding = a;
-                else if (time > a.t1) done = a;
-            }
-            if (holding != null && rig.TryGetLink(holding.link, out var link))
-            {
-                o.ghost.SetPositionAndRotation(link.TransformPoint(holding.localPos), link.rotation * holding.localRot);
-            }
-            else if (done != null && o.hasRest)
-            {
-                o.ghost.SetPositionAndRotation(o.restPos, o.restRot);
-            }
-            else
-            {
-                o.ghost.SetPositionAndRotation(o.startPos, o.startRot);
-            }
+            PoseOf(o, time, rig, out var pos, out var rot);
+            o.ghost.SetPositionAndRotation(pos, rot);
         }
     }
 
-    void ApplyBase(float t)
+    void ApplyBase(FetchGhostRig rig, float t)
     {
         if (baseT == null || baseT.Length == 0) return;
         int i = Segment(baseT, t, out float a);
@@ -361,7 +477,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
         rig.SetBasePose(pos, YawRot(yaw));
     }
 
-    void ApplyJoints(float t)
+    void ApplyJoints(FetchGhostRig rig, float t)
     {
         if (jointT == null || jointT.Length == 0 || jointNames.Length == 0) return;
         int i = Segment(jointT, t, out float a);
@@ -396,7 +512,7 @@ public class CoGroundTaskPlanPlayer : MonoBehaviour
 
     // ------------------------------------------------------------------ シーケンスバー
 
-    static readonly Dictionary<string, string> PhaseLabel = new Dictionary<string, string>
+    public static readonly Dictionary<string, string> PhaseLabel = new Dictionary<string, string>
     {
         { "navigating", "Move" }, { "opening", "Open fingers" }, { "approaching", "Approach" }, { "descending", "Lower hand" },
         { "grasping", "Grasp" }, { "lifting", "Lift" }, { "moving", "Over placement" }, { "lowering", "Lower" },

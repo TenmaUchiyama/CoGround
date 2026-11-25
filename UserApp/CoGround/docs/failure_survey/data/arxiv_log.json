@@ -1,0 +1,62 @@
+[
+ {
+  "q": "abs:robot AND abs:failure AND abs:taxonomy",
+  "total": 34,
+  "got": 34
+ },
+ {
+  "q": "abs:robot AND abs:failure AND abs:categories",
+  "total": 48,
+  "got": 48
+ },
+ {
+  "q": "abs:robot AND abs:failure AND abs:\"failure modes\"",
+  "total": 231,
+  "got": 150
+ },
+ {
+  "q": "abs:robot AND abs:error AND abs:taxonomy",
+  "total": 17,
+  "got": 17
+ },
+ {
+  "q": "abs:robot AND abs:infeasible AND abs:instruction",
+  "total": 32,
+  "got": 32
+ },
+ {
+  "q": "abs:robot AND abs:failure AND abs:explanation",
+  "total": 43,
+  "got": 43
+ },
+ {
+  "q": "abs:manipulation AND abs:failure AND abs:dataset AND abs:reasoning",
+  "total": 37,
+  "got": 37
+ },
+ {
+  "q": "abs:embodied AND abs:planning AND abs:\"error types\"",
+  "total": 1,
+  "got": 1
+ },
+ {
+  "q": "abs:\"vision-language-action\" AND abs:\"failure modes\"",
+  "total": 53,
+  "got": 53
+ },
+ {
+  "q": "abs:robot AND abs:failure AND abs:recovery AND abs:language",
+  "total": 103,
+  "got": 103
+ },
+ {
+  "q": "abs:robot AND abs:incapability",
+  "total": 37,
+  "got": 37
+ },
+ {
+  "q": "abs:embodied AND abs:safety AND abs:benchmark AND abs:household",
+  "total": 15,
+  "got": 15
+ }
+]

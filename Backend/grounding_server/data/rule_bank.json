@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "norms": [
+    {
+      "id": "trash",
+      "author": null,
+      "original_text": "Throw trash in the trash bin",
+      "norm": "obligation",
+      "scope": {
+        "clock": "home_local",
+        "from": null,
+        "until": null,
+        "requester": null,
+        "when": null
+      },
+      "target": {
+        "kind": "object",
+        "id": null,
+        "where": {
+          "attribute": "trash",
+          "equals": true
+        },
+        "unknown_as": "false",
+        "fallback": false
+      },
+      "requirement": {
+        "window": "at_place_complete",
+        "predicate": "placed_in",
+        "args": {
+          "region": "trash_bin"
+        },
+        "transition": null
+      },
+      "reason": null,
+      "exception_of": null,
+      "origin": "tidy",
+      "source": "script",
+      "attributes": []
+    },
+    {
+      "id": "N1",
+      "author": null,
+      "original_text": "Don't touch fragile objects",
+      "norm": "prohibition",
+      "scope": {
+        "clock": "home_local",
+        "from": null,
+        "until": null,
+        "requester": null,
+        "when": null
+      },
+      "target": {
+        "kind": "object",
+        "id": null,
+        "where": {
+          "attribute": "fragile",
+          "equals": true
+        },
+        "unknown_as": "unknown",
+        "fallback": false
+      },
+      "requirement": {
+        "window": "whole",
+        "predicate": "contact",
+        "args": {},
+        "transition": null
+      },
+      "reason": null,
+      "exception_of": null,
+      "origin": "norm",
+      "source": "script",
+      "attributes": []
+    }
+  ],
+  "zones": [],
+  "pending_rules": []
+}

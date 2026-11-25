@@ -4,7 +4,9 @@
   norms          家庭ルールと片付けルール（origin = norm / tidy）
   zones          住人が決めた領域（進入禁止の範囲など。zones.define）
   pending_rules  登録の途中のルール（rules.confirm で確定する）
-残さないもの: シーン、依頼、Plan、手で指定した行き先、属性の訂正（その場の状態なので）
+  attributes     住人が登録した属性のうち、画像から判断できないもの（持ち主など。visual = false の属性の task.correct）。
+                 物体 ID と、登録したときの物体の種類を一緒に残す。読み込んだあと、その ID の物体の種類が違えば重ねない
+残さないもの: シーン、依頼、Plan、手で指定した行き先、画像から判断できる属性の訂正（割れ物、汚れなど。その場の状態なので）
 
 COGROUND_RULE_BANK にファイルのパスを書くと有効になる（compose.yaml では /app/data/rule_bank.json）。
 空なら何もしない（テストは StateStore を直接作るので、ファイルに触らない）。
@@ -54,6 +56,7 @@ class RuleBank:
             "norms": [n.model_dump(mode="json", by_alias=True) for n in state.norms],
             "zones": [z.model_dump(mode="json") for z in state.zones.values()],
             "pending_rules": [p.model_dump(mode="json", by_alias=True) for p in state.pending_rules],
+            "attributes": state.durable_corrections(),
         }
 
     @staticmethod
@@ -73,6 +76,7 @@ class RuleBank:
             norms = [NormRule.model_validate(n) for n in data.get("norms", [])]
             zones = [SceneRegion.model_validate(z) for z in data.get("zones", [])]
             pending = [PendingRule.model_validate(p) for p in data.get("pending_rules", [])]
+            attributes = [{k: a[k] for k in ("object_id", "key", "value", "category")} for a in data.get("attributes", [])]
         except Exception as e:  # noqa: BLE001 壊れていても起動はする
             broken = self.path.with_suffix(self.path.suffix + ".broken")
             log.error("rule bank: %s を読めない（%s）。%s に退避して、空から始める", self.path, e, broken)
@@ -84,7 +88,7 @@ class RuleBank:
         ids = [n.id for n in norms]
         if len(set(ids)) != len(ids):
             log.warning("rule bank: ID が重なっているルールがある: %s", sorted({i for i in ids if ids.count(i) > 1}))
-        state.restore_rule_bank(norms, zones, pending)
+        state.restore_rule_bank(norms, zones, pending, attributes)
         self._last = self._text(self.dump(state))
         log.info("rule bank: %s から読み込んだ（ルール %d、領域 %d、登録の途中 %d）",
                  self.path, len(norms), len(zones), len(pending))

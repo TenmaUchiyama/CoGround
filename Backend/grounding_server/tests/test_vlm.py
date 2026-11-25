@@ -6,7 +6,9 @@ import pytest
 
 from coground_server.models import Attribute, Rule, SceneSnapshot
 from coground_server.state import StateStore
-from coground_server.vlm import DEFAULT_MOCK_FILE, MockVlm, NoAttributes, annotate_scene, make_attribute_provider
+from coground_server.perception.object_store import ObjectMemory
+from coground_server.vlm import (DEFAULT_MOCK_FILE, MockVlm, NoAttributes, PerceptionVlm, annotate_scene,
+                                 make_attribute_provider)
 
 
 def _item(oid: str, category: str, x: float, source: str = "detection", attributes=None) -> dict:
@@ -99,11 +101,60 @@ def test_correction_beats_vlm():
     assert next(o for o in state.scene.objects if o.id == "plate").attributes["fragile"].source == "vlm"
 
 
+def _memory(**objects: dict) -> ObjectMemory:
+    memory = ObjectMemory()
+    for object_id, attributes in objects.items():
+        memory.claim([object_id])
+        memory.complete(object_id, "mug", attributes)
+    return memory
+
+
+def test_perception_vlm_reads_object_memory():
+    """フレームで VLM が答えた属性を、物体 ID で引く。分からない答えと perception の中だけの項目は付けない。"""
+    vlm = PerceptionVlm(_memory(obj_001={"material": "ceramic", "fragility": "likely_fragile", "appearance": "white mug",
+                                         "fragile": "true", "trash": "false", "dirty": "unknown"},
+                                obj_002={"material": "unknown", "fragility": "uncertain", "appearance": "bottle"}))
+    scene = SceneSnapshot.model_validate({"objects": [
+        _item("obj_001", "mug", 0), _item("obj_002", "plastic_bottle", 0.1), _item("obj_003", "plate", 0.2)]})
+    out = {o.id: o for o in annotate_scene(scene, vlm).objects}
+    assert {k: (a.value, a.source) for k, a in out["obj_001"].attributes.items()} == {
+        "material": ("ceramic", "vlm"), "fragile": (True, "vlm"), "trash": (False, "vlm")}
+    assert out["obj_002"].attributes == {}  # 全部「分からない」
+    assert out["obj_003"].attributes == {}  # 記憶に無い（まだ VLM が見ていない）
+
+
+def test_perception_vlm_plan_and_unknown_stays_unknown():
+    """VLM の答えでルールに合い、Plan ができる。答えが無い物体に、代わりの値は入らない。"""
+    state = StateStore()
+    state.attributes = PerceptionVlm(_memory(obj_001={"fragile": "true"}, obj_002={"fragile": "unknown"}))
+    state.set_rules([TIDY_RULES[1]])
+    scene = tidy_scene().model_dump(mode="json")
+    scene["objects"] = [o for o in scene["objects"] if o["id"].startswith("box")] + [
+        _item("obj_001", "mug", -0.22), _item("obj_002", "plate", -0.34)]
+    scene["regions"] = []
+    state.set_scene(SceneSnapshot.model_validate(scene))
+    assert [(s.object_id, s.to.region_id) for s in state.plan.steps if s.to is not None] == [("obj_001", "box_2")]
+    assert "fragile" not in next(o for o in state.scene.objects if o.id == "obj_002").attributes
+
+
+def test_services_use_perception_vlm(monkeypatch):
+    monkeypatch.setenv("COGROUND_VLM", "perception")
+    monkeypatch.delenv("COGROUND_RULE_BANK", raising=False)
+    monkeypatch.delenv("COGROUND_OBJECT_MEMORY", raising=False)
+    from coground_server.services import Services
+
+    services = Services()
+    assert isinstance(services.state.attributes, PerceptionVlm)
+    assert services.state.attributes.memory is services.perception.memory
+
+
 def test_make_provider_from_env(monkeypatch):
     monkeypatch.delenv("COGROUND_VLM", raising=False)
     assert isinstance(make_attribute_provider(), NoAttributes)
     monkeypatch.setenv("COGROUND_VLM", "mock")
     assert isinstance(make_attribute_provider(), MockVlm)
+    monkeypatch.setenv("COGROUND_VLM", "perception")  # 記憶を持つ Services が差し替える
+    assert isinstance(make_attribute_provider(), NoAttributes)
     monkeypatch.setenv("COGROUND_VLM", "gpt")
     with pytest.raises(ValueError):
         make_attribute_provider()

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b1e5d0c4a9f4c3e8d2a6f1b0c9e8d21, type: 3}
+  m_Name: EnvironmentBoxes
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentBoxLayout
+  roomUuid: d2550fa9-25d6-657f-17c0-7ed683aa85e1
+  originPosition: {x: -4.1814413, y: -0.0007389784, z: 2.856988}
+  originYaw: 288.23492
+  boxes:
+  - name: sink
+    category: 15
+    position: {x: 3.2120476, y: 0.8469076, z: -3.4534993}
+    yaw: 88.88187
+    size: {x: 0.51342607, y: 0.18652499, z: 0.38585848}
+  - name: trash_box
+    category: 16
+    position: {x: 1.4709256, y: 0.31398404, z: -1.7922214}
+    yaw: 90.75604
+    size: {x: 0.42446014, y: 0.7596285, z: 0.3111296}
+  - name: shelf_lower
+    category: 19
+    position: {x: 3.4421418, y: 1.5233316, z: -2.785653}
+    yaw: 88.095856
+    size: {x: 0.36012334, y: 0.20574027, z: 0.317853}
+  - name: shelf_upper
+    category: 19
+    position: {x: 3.4196668, y: 1.7482451, z: -2.785262}
+    yaw: 90.14142
+    size: {x: 0.3307826, y: 0.17320853, z: 0.3109875}

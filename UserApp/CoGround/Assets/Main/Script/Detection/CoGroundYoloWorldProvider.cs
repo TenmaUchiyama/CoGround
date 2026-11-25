@@ -27,7 +27,7 @@ using Debug = UnityEngine.Debug;
 ///
 /// ■ サーバーの返事
 ///   429（推論中）はそのフレームを捨てる。503（検出が無効）や接続エラーは警告を出して次のフレームでまたやり直す。
-///   語彙（Send Vocabulary）はサーバーが再起動すると既定に戻るので、接続できなかった後は送り直す。
+///   モードと語彙（Mode = Closed）はサーバーが再起動すると既定に戻るので、接続できなかった後は送り直す。
 ///
 /// ■ つながっているかの確かめ方
 ///   - Editor：このアセットの ⋮ メニュー > Test Connection（Quest なしで /health と /detect を 1 回ずつ呼ぶ）
@@ -54,17 +54,30 @@ public sealed class CoGroundYoloWorldProvider : AIProviderBase, IObjectDetection
     [Tooltip("1 回の検出の待ち時間の上限 [秒]。")]
     [SerializeField, Min(1)] private int timeoutSeconds = 2;
 
-    [Header("語彙（任意）")]
-    [Tooltip("ON なら、最初の検出の前に下の語彙をサーバーに送る（PUT /detect/vocabulary）。\n" +
-             "OFF ならサーバーの語彙（detection_vocab.json か、ブラウザの /detect/ui で変えたもの）を使う。\n" +
-             "語彙はサーバー全体で 1 つなので、ほかのクライアントにも効く。")]
-    [SerializeField] private bool sendVocabulary = false;
+    public enum DetectMode
+    {
+        [Tooltip("サーバーのモードと語彙をそのまま使う（COGROUND_DETECT_MODE、既定 open）")]
+        ServerDefault,
+        [Tooltip("open：YOLOE prompt-free。名前を渡さず何でも拾う")]
+        Open,
+        [Tooltip("closed：YOLO-World。下の語彙に書いた物だけを探す")]
+        Closed,
+    }
 
+    [Header("モードと語彙")]
+    [Tooltip("最初の検出の前にサーバーへ送る（PUT /detect/mode、Closed なら PUT /detect/vocabulary も）。\n" +
+             "モードと語彙はサーバー全体で 1 つなので、ほかのクライアントにも効く。")]
+    [SerializeField] private DetectMode mode = DetectMode.Closed;
+
+    [Tooltip("Closed のときに探す物。label は CoGroundCategory の名前に揃える")]
     [SerializeField] private List<VocabularyEntry> vocabulary = new()
     {
-        new VocabularyEntry { prompt = "plastic bottle", label = "plastic_bottle" },
-        new VocabularyEntry { prompt = "cup", label = "cup" },
+        new VocabularyEntry { prompt = "scissors", label = "scissors" },
+        new VocabularyEntry { prompt = "kitchen knife", label = "knife" },
+        new VocabularyEntry { prompt = "drinking glass", label = "glass" },
         new VocabularyEntry { prompt = "mug", label = "mug" },
+        new VocabularyEntry { prompt = "crumpled paper", label = "paper_scrap" },
+        new VocabularyEntry { prompt = "plate", label = "plate" },
     };
 
     [Header("デバッグ")]
@@ -102,8 +115,8 @@ public sealed class CoGroundYoloWorldProvider : AIProviderBase, IObjectDetection
     {
         if (imageJpgOrPng == null || imageJpgOrPng.Length == 0) return null;
 
-        if (sendVocabulary && _vocabularySentSession != s_playSession)
-            await PushVocabularyAsync(ct);
+        if (mode != DetectMode.ServerDefault && _vocabularySentSession != s_playSession)
+            await PushModeAsync(ct);
 
         if (_firstSendLoggedSession != s_playSession)
         {
@@ -201,10 +214,41 @@ public sealed class CoGroundYoloWorldProvider : AIProviderBase, IObjectDetection
 
     // ------------------------------------------------------------------
 
-    private async Task PushVocabularyAsync(CancellationToken ct)
+    /// <summary>モード（と Closed なら語彙）をサーバーに送る。どれか失敗したら次のフレームでまた送る。</summary>
+    private async Task PushModeAsync(CancellationToken ct)
     {
-        var body = JsonConvert.SerializeObject(new { entries = vocabulary });
-        using var req = new UnityWebRequest(Url("/detect/vocabulary"), UnityWebRequest.kHttpVerbPUT)
+        if (mode == DetectMode.Closed)
+        {
+            // 語彙を先に入れてからモードを切り替える（切り替え直後のフレームが古い語彙で検出されないように）
+            var vocab = await PutJsonAsync("/detect/vocabulary", new { entries = vocabulary }, ct);
+            if (vocab.result != UnityWebRequest.Result.Success)
+            {
+                // 422 = 語彙の形が不正（ラベルは英小文字・数字・_、prompt の重複不可）
+                Warn($"{Tag} 語彙の送信に失敗: {vocab.responseCode} {vocab.error} {vocab.downloadHandler?.text}");
+                vocab.Dispose();
+                return;
+            }
+            vocab.Dispose();
+        }
+
+        var wire = mode == DetectMode.Closed ? "vocab" : "open";
+        using var req = await PutJsonAsync("/detect/mode", new { mode = wire }, ct);
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            Warn($"{Tag} モード ({wire}) の送信に失敗: {req.responseCode} {req.error} {req.downloadHandler?.text}");
+            return;
+        }
+
+        _vocabularySentSession = s_playSession;
+        Debug.Log(mode == DetectMode.Closed
+            ? $"{Tag} closed 語彙で検出: {string.Join(", ", vocabulary.ConvertAll(e => e.label))}"
+            : $"{Tag} open モードで検出");
+    }
+
+    private async Task<UnityWebRequest> PutJsonAsync(string path, object payload, CancellationToken ct)
+    {
+        var body = JsonConvert.SerializeObject(payload);
+        var req = new UnityWebRequest(Url(path), UnityWebRequest.kHttpVerbPUT)
         {
             uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(body)) { contentType = "application/json" },
             downloadHandler = new DownloadHandlerBuffer(),
@@ -212,17 +256,7 @@ public sealed class CoGroundYoloWorldProvider : AIProviderBase, IObjectDetection
         };
         req.SetRequestHeader("Content-Type", "application/json");
         await SendAsync(req, ct);
-
-        if (req.result == UnityWebRequest.Result.Success)
-        {
-            _vocabularySentSession = s_playSession;
-            Debug.Log($"{Tag} 語彙を送信: {vocabulary.Count} 件");
-        }
-        else
-        {
-            // 422 = 語彙の形が不正（ラベルは英小文字・数字・_、prompt の重複不可）。直るまで毎回送り直す
-            Warn($"{Tag} 語彙の送信に失敗: {req.responseCode} {req.error} {req.downloadHandler?.text}");
-        }
+        return req;
     }
 
     private string Url(string path) => endpoint.TrimEnd('/') + path;

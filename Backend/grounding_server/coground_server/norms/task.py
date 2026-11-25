@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field
 
 from typing import Any
 
-from .model import MissingFact, Verdict
+from .model import MissingFact, NormRule, Verdict
 
 ExecState = Literal[
     "pending", "deferred", "in_progress", "placed_unverified", "done", "misplaced", "unverified", "failed",
@@ -56,6 +56,9 @@ class TaskRow(BaseModel):
         default=None, description="住人がシーケンスの編集（sequence.add）で指定した置き先の領域 ID。"
         "収納先を決めるルールと照合し、合わなければ保留にする（手の指定 plan.place とは違い、ルールを確かめる）")
     added: bool = Field(default=False, description="住人がシーケンスの編集で足した行（依頼したときの対象ではない）")
+    overridden_rule_ids: list[str] = Field(
+        default_factory=list, description="依頼の間だけのルールが先に立ったので、収納先に使わなかった常設のルール"
+        "（例: 「全部 box_1」で、ゴミ箱のルールを使わなかった）")
     region_full: dict[str, bool] = Field(
         default_factory=dict, description="収納先を決めたときに調べた、領域 ID -> その物を置く空きが無いか（条件 region_full）")
 
@@ -133,6 +136,9 @@ class TaskRecord(BaseModel):
     sequence_version: int = Field(default=0, description="住人がシーケンスを編集するたびに上がる")
     removed: list[str] = Field(default_factory=list, description="住人がシーケンスから外した物体（記録）")
     corrections: list[AttributeCorrection] = Field(default_factory=list, description="この依頼の間の訂正（古い順）")
+    rules: list[NormRule] = Field(
+        default_factory=list, description="この依頼の間だけ効くルール（origin = task。例: 全部 box_1 に入れて）。"
+        "依頼を閉じると効かない。収納先は常設のルールより先に立つ")
 
     def row(self, object_id: str) -> TaskRow | None:
         return next((r for r in self.rows if r.object_id == object_id), None)

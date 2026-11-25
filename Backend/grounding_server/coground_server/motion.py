@@ -318,16 +318,37 @@ class MotionStore:
                         steps=[s.id for s in steps])
         await self._publish()
 
+        # 家庭ルール（領域への進入の禁止）に合うまで、避ける領域を足して計画し直す
+        norms = self.state.all_norms()
+        zone_rules = {r.id: r for r in monitored(norms) if is_zone_entry(r)}
+        # step は順に計画され、後ろの step の計算で前の step の結果は変わらない。なので、終わった step から順に見せる。
+        # ただし進入の禁止があるときは、全 step の経路を判定してから計画し直すことがある（ok が覆りうる）ので、最後にまとめて出す
+        incremental = not zone_rules
+
+        def make_entry(r: dict[str, Any], plan_version: int, avoided: list[str]) -> dict[str, Any] | None:
+            step, release, rest, mode, start = placed.get(r["step_id"], (None,) * 5)
+            if step is None:
+                return None
+            return {
+                "result": r, "place": release, "rest": rest, "mode": mode, "start": start,
+                "target": step.to.pose.position if step.to else None, "keepout": list(avoided),
+                "ref": {"plan_id": plan.id, "plan_version": plan_version, "step_id": r["step_id"]},
+            }
+
         async def progress(data: dict[str, Any]) -> None:
+            res = data.get("result")
+            # 途中で届いた step の結果（この計画のもので、計画の途中でシーケンスが編集されていなければ）を、その場で予測に入れる
+            if (incremental and isinstance(res, dict) and self.status == "planning" and self.epoch == epoch
+                    and data.get("plan_version", self.version) == self.version):
+                entry = make_entry(res, self.version, [])
+                if entry is not None:
+                    self.entries[step_key(placed[res["step_id"]][0])] = entry
             self.progress = f"{data.get('step_id') or ''} {data.get('detail') or ''}".strip()
             log.info("motion: 計画中 %s", self.progress)
             if on_progress is not None:
                 await on_progress({"step_id": data.get("step_id"), "detail": data.get("detail")})
             await self._publish()
 
-        # 家庭ルール（領域への進入の禁止）に合うまで、避ける領域を足して計画し直す
-        norms = self.state.all_norms()
-        zone_rules = {r.id: r for r in monitored(norms) if is_zone_entry(r)}
         task = self.state.active_task
         requester = task.requester if task is not None else None
         keepout: list[str] = []
@@ -419,14 +440,11 @@ class MotionStore:
                                  "t0": None, "t1": None, "stops": {}})
             result["steps"] = outcomes
             for r in outcomes:
-                step, release, rest, mode, start = placed.get(r["step_id"], (None,) * 5)
-                if step is None:
+                entry = make_entry(r, result["plan_version"], keepout)
+                if entry is None:
                     continue
-                self.entries[step_key(step)] = {
-                    "result": r, "place": release, "rest": rest, "mode": mode, "start": start,
-                    "target": step.to.pose.position if step.to else None, "keepout": list(keepout),
-                    "ref": {"plan_id": result["plan_id"], "plan_version": result["plan_version"], "step_id": r["step_id"]},
-                }
+                step = placed[r["step_id"]][0]
+                self.entries[step_key(step)] = entry
                 if r["step_id"] not in blocked and r.get("status") == "ok":
                     self.state.record_route(step.object_id, judged.get(r["step_id"], []), searched)
             for sid, block in blocked.items():

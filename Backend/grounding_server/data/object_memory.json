@@ -1,0 +1,77 @@
+{
+  "vlm_calls": 2,
+  "objects": [
+    {
+      "object_id": "obj_002",
+      "category": "travel_mug",
+      "detected_class": "cup",
+      "attributes": {
+        "material": "unknown",
+        "fragility": "uncertain",
+        "appearance": "cream-colored cylindrical mug with a clear lid and a side handle"
+      },
+      "vlm_status": "completed",
+      "attribute_version": 1,
+      "vlm_calls": 1,
+      "cache_hits": 6,
+      "error": null,
+      "created_at": 1795127224.8741431,
+      "updated_at": 1795127227.559664,
+      "last_seen_at": 1795127231.159518,
+      "last_bbox": [
+        784.0,
+        462.1,
+        883.1,
+        610.6
+      ],
+      "last_run_id": "20261119-222711-61909e",
+      "presence": "displaced",
+      "position": [
+        0.2163,
+        0.7732,
+        0.8663
+      ],
+      "size": [
+        0.1116,
+        0.1133,
+        0.1305
+      ]
+    },
+    {
+      "object_id": "obj_003",
+      "category": "travel_mug",
+      "detected_class": "cup",
+      "attributes": {
+        "material": "metal",
+        "fragility": "not_fragile",
+        "appearance": "cream/white insulated mug with lid and handle"
+      },
+      "vlm_status": "completed",
+      "attribute_version": 1,
+      "vlm_calls": 1,
+      "cache_hits": 0,
+      "error": null,
+      "created_at": 1795129095.3185403,
+      "updated_at": 1795129098.4835234,
+      "last_seen_at": 1795129098.4837718,
+      "last_bbox": [
+        766.8,
+        601.5,
+        901.8,
+        817.7
+      ],
+      "last_run_id": "20261119-225815-c6d3c8",
+      "presence": "present",
+      "position": [
+        0.034,
+        0.767,
+        0.4258
+      ],
+      "size": [
+        0.094,
+        0.1333,
+        0.0706
+      ]
+    }
+  ]
+}

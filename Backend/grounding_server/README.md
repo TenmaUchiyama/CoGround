@@ -319,7 +319,7 @@ Unity（検出器、VR シミュレーションでは `MockSimulatedObjects`）�
 
 - 付けるのは、届いた物体がまだ持っていない属性だけ（Unity や検出器が送った値が優先）。付けた値は `source = "vlm"`
 - 住人の訂正（`objects.set_attribute`）は VLM の値よりさらに優先する
-- `COGROUND_VLM`: `off`（既定）/ `mock`（`compose.yaml` では `mock`）。`mock` は `COGROUND_VLM_MOCK_FILE`（既定は同梱の `vlm_mock_attributes.json`）の答えを、カテゴリ（`by_category`）か物体 ID（`by_id`、優先）で引いて返す
+- `COGROUND_VLM`: `off`（既定）/ `mock`（`compose.yaml` では `mock`）/ `perception`。`perception` は、カメラのフレーム（`POST /perception/frame`）で VLM が答えた属性を、物体の記憶から物体 ID で引いて付ける（Unity の `CoGroundPerceivedObjects` が同じ ID で `scene.update` を送る。「分からない」と答えた属性は付けないので、ルールの判定は不明になる）。`mock` は `COGROUND_VLM_MOCK_FILE`（既定は同梱の `vlm_mock_attributes.json`）の答えを、カテゴリ（`by_category`）か物体 ID（`by_id`、優先）で引いて返す
 - 本物の VLM（切り出し画像 `observation.image_id` から推定）は、`AttributeProvider` を実装して `make_attribute_provider` に足す
 
 ## 家庭ルールと依頼
@@ -738,9 +738,8 @@ Configuration via environment variables:
 | `COGROUND_DETECT_VOCAB` | packaged `detection_vocab.json` | Prompt/label JSON array |
 | `COGROUND_DETECT_DEBUG_DIR` | unset | Save input JPEG, annotated JPEG and prediction JSON |
 
-The initial mapping is plastic bottle → plastic_bottle, cup → cup, mug → mug,
-plate → plate, paper cup → paper_cup, crumpled tissue → tissue,
-snack wrapper → wrapper. `GET /detect/vocabulary` returns the current mapping.
+The initial mapping is plastic bottle → plastic_bottle, mug → mug, knife → knife,
+plate → plate, paper cup → paper_cup, aluminum can → can (narrowed for the demo). `GET /detect/vocabulary` returns the current mapping.
 Change it without restarting:
 
 ```bash

@@ -1,0 +1,131 @@
+# type|domains|title prefix   (type: 1=人に聞いた調査, 2=レビュー・分類・理論, 3=データセット・ベンチマーク, 4=手法)
+1|マナー,倫理|Perceptions of Domestic Robots' Normative Behavior Across Cultures
+1|マナー,空間|Robotic etiquette: results from user studies involving a fetch and carry task
+1|マナー|Exploring Robot Etiquette: Refining a HRI Home Companion
+1|マナー|Form, Function and Etiquette
+1|マナー,空間|Social Roles and Baseline Proxemic Preferences for a Domestic Service Robot
+1|マナー|What is a robot companion
+1|マナー|What do people expect from robots
+1|片付け,所有|Exploring the role of robots in home organization
+1|片付け|Robots in the Home: Qualitative and Quantitative Insights into Kitchen Organization
+1|マナー,プライバシー|Understanding Social Appropriateness Perceptions in Secondary Users of Domestic Robots
+1|マナー|Investigating family perceptions and design preferences for an in-home robot
+1|マナー,倫理|Modularity as Accommodation: How Families Negotiate One Shared Domestic Robot
+1|倫理|Preserving Sense of Agency: User Preferences for Robot Autonomy
+1|倫理|Dignity, Autonomy, and Style of Company
+1|倫理|Older Adults' Task Preferences for Robot Assistance in the Home
+1|倫理|Preferences and Expectations for Home Robot Tasks
+1|倫理,プライバシー|Users' Perspectives on Value Awareness in Social Robots
+1|マナー|A Robot Jumping the Queue
+1|マナー,空間|Step Aside! VR-Based Evaluation of Adaptive Robot Conflict Resolution
+1|プライバシー|Our business, not the robot
+1|プライバシー|Snitches Get Unplugged
+1|プライバシー|Rules for Robots: Co-Designing Privacy-Conscious Social Robots
+1|プライバシー|It's like a pet...but my pet doesn't collect data
+1|プライバシー|Is it always watching? Is it always listening?
+1|プライバシー|Surveying Adult Perceptions of Privacy and Attitudes towards Social Robots in the Home
+1|プライバシー|I still need my privacy
+1|プライバシー|Navigating privacy in smart homes: how robot roles
+1|プライバシー|Enhancing Privacy and Trust in Domestic Robots Through Real-Time Feedback
+1|プライバシー|Designing for In-Home Long-Term Family-Robot Interactions
+1|プライバシー,安全|Responsible domestic robotics
+1|マナー|Examining the Impact of Robot Norm Violations
+1|マナー|Instruct or Evaluate: How People Choose to Teach Norms
+2|マナー|The Role of Social Norms in Human
+2|マナー|A Taxonomy of Social Errors in Human-Robot Interaction
+2|マナー,倫理|Requirements for an Artificial Agent with Norm Competence
+2|マナー,倫理|What Properties of Norms can we Implement in Robots
+2|マナー,倫理|The seven troubles with norm-compliant robots
+2|マナー|Making Place for Social Norms in the Design of Human-Robot Interaction
+2|マナー|Norms, Institutions, and Robots
+2|プライバシー|A Taxonomy of Privacy Constructs for Privacy-Sensitive Robotics
+2|プライバシー|Themes and Research Directions in Privacy-Sensitive Robotics
+2|プライバシー|Privacy-Sensitive Robotics: Perceptions, Measures, and Metrics
+2|プライバシー|Privacy at Home: An Inquiry into Sensors and Robots
+2|プライバシー|Towards Designing Privacy-Compliant Social Robots for Use in Private Households
+2|プライバシー|Position: Robot Privacy as Embodied Boundary Work
+2|プライバシー|Design Guidelines for Privacy-Aware Interactions in Home Robots
+2|プライバシー|More work for Roomba
+2|プライバシー|A spotlight on security and privacy risks with future household robots
+2|安全|The Safety of Domestic Robotics: A Survey
+2|倫理|Granny and the robots
+2|マナー,倫理|To Help or Not to Help
+2|倫理|Specification and Validation of Normative Rules for Autonomous Agents
+2|倫理|Toolkit for specification, validation and verification of social, legal
+3|安全|Generating Robot Constitutions
+3|安全|SafeAgentBench
+3|安全|AGENTSAFE
+3|安全|IS-Bench
+3|安全|EARBench
+3|安全|SafetyALFRED: Evaluating Safety-Conscious Planning of Multimodal
+3|安全|HomeSafeBench
+3|安全|HomeSafe-Bench: Evaluating
+3|安全|Hazards in Daily Life
+3|安全|SafeRelBench
+3|安全|EgoSafetyBench
+3|安全|CAPSafe
+3|安全|VestaBench
+3|安全|OopsieVerse
+3|安全|ROBOSHACKLES
+3|安全|MANIGUARD
+3|安全|HoRoTrust
+3|安全,マナー|Using large language models for embodied planning introduces systematic safety risks
+3|安全|Can AI Perceive Physical Danger and Intervene
+3|衛生|HygieneRoboBench
+3|マナー|NormAct
+3|マナー|EgoNormia
+3|マナー|NormBank
+3|マナー|Mind Your Manners
+3|マナー|Reading Books is Great, But Not if You Are Driving
+3|マナー|Where Norms and References Collide
+3|倫理|RobotValues
+3|倫理|InterSocialBench
+3|倫理|SciFi-Benchmark
+3|プライバシー|Measuring Physical-World Privacy Awareness of Large Language Models
+3|プライバシー|How Far Are VLMs from Privacy Awareness in the Physical World
+3|プライバシー|Benchmarking LLM Privacy Recognition for Social Robot Decision Making
+3|プライバシー|A Picture is Worth a Thousand Risks
+3|片付け|Housekeep: Tidying Virtual Households
+3|片付け,所有|PersONAL
+3|片付け|Personalized Robotic Object Rearrangement from Scene Context
+3|片付け|Inferring the Unspoken: Aligning Embodied Agents with Implicit Preferences
+4|所有|That’s Mine! Learning Ownership Relations
+4|所有|An Interactive Learning Framework for Item Ownership Relationship
+4|所有|Toward ownership understanding of objects
+4|所有|Whose Is This
+4|所有|COOL: Curiosity-Driven Object Ownership Learning
+4|片付け|TidyBot: Personalized Robot Assistance
+4|片付け|Robot, organize my shelves
+4|片付け|Organizing objects by predicting user preferences through collaborative filtering
+4|片付け|My House, My Rules
+4|片付け|LLM-Personalize
+4|片付け|APRICOT: Active Preference Learning
+4|片付け|Explaining Why Things Go Where They Go
+4|マナー|Learning behavioral norms in uncertain and changing contexts
+4|マナー|What Am I Allowed to Do Here
+4|マナー|A General Methodology for Teaching Norms to Social Robots
+4|マナー|Explicit representation of social norms for social robots
+4|マナー|A Computational Framework for Integrating Task Planning and Norm Aware Reasoning
+4|マナー|GRACE: Generating Socially Appropriate Robot Actions
+4|マナー|Federated Learning of Socially Appropriate Agent Behaviours in Simulated Home
+4|マナー|Mind the Context: Continual Learning of Socially Appropriate
+4|マナー|Should I Help?: A Skill-Based Framework
+4|マナー,倫理|Norm Conflict Resolution in Stochastic Domains
+4|マナー,倫理|Inverse Norm Conflict Resolution
+4|マナー,倫理|Inferring and Obeying Norms in Temporal Logic
+4|倫理|Multi-user Norm Consensus
+4|倫理|Multi-User Personalisation in Human-Robot Interaction: Resolving Preference Conflicts
+4|倫理|Personalization of Basic and Moral Values Guiding LLM-Controlled Assistant Robots
+4|倫理|Care Robots Learning Rules of Ethical Behavior
+4|倫理|Implementing Pro-social Rule Bending in an Elder-care Robot
+4|倫理|Operationalising Normative Rules in Autonomous Robotic Systems
+4|倫理|Sorry, I Can't Do That
+4|安全|Plug in the Safety Chip
+4|安全|Safety Guardrails for LLM-Enabled Robots
+4|安全|Semantically Safe Robot Manipulation
+4|安全|Updating Robot Safety Representations Online From Natural Language Feedback
+4|安全|Building Trustworthy Household Robots through Open-World Safety
+4|安全|Application of modified Asimov
+4|空間,プライバシー|Interactive Restriction of a Mobile Robot's Workspace in a Smart Home
+4|プライバシー|Detection of privacy-sensitive situations for social robots in smart homes
+4|プライバシー|Privacy-aware LLM-assisted Task Planning for Home Robots

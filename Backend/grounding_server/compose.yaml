@@ -31,7 +31,8 @@ services:
       - COGROUND_EVENT_LOG=/app/logs/events.jsonl
       # ルールバンクを残すファイル（空にすると残さない。coground_server/rulebank.py）
       - COGROUND_RULE_BANK=${COGROUND_RULE_BANK-/app/data/rule_bank.json}
-      # 検出した物体（observation.source = detection）に属性を付ける VLM。mock は vlm_mock_attributes.json の答えを返す（off で付けない）
+      # 検出した物体（observation.source = detection）に属性を付ける VLM。mock は vlm_mock_attributes.json の答えを返す（off で付けない）。
+      # 実物をカメラで認識するときは .env に COGROUND_VLM=perception（/perception/frame で VLM が答えた属性を使う）
       - COGROUND_VLM=${COGROUND_VLM:-mock}
       # perception（画像 → 検出 → VLM → 物体の記憶。/perception/ui）
       # 分割（YOLOE-seg）は detector コンテナに頼む

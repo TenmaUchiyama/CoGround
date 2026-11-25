@@ -183,8 +183,12 @@ public class DetectionBox3DSpawner : MonoBehaviour
 
             _label.text = text;
             _label.transform.localPosition = new Vector3(0f, size.y * 0.5f + 0.01f, 0f);
-            // ラベルはユーザー側（箱の手前）を向ける。TextMesh は -Z 側から読めるので 180° 回す
-            _label.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            // ラベルは見ている人の方へ向ける。TextMesh は -Z 側から読めるので、+Z をカメラから離れる向きにする
+            // (箱の Z は奥行き方向だが、回り込んでも読めるよう毎フレームカメラ基準で向ける。水平に回すだけ)
+            var cam = Camera.main;
+            var dir = cam != null ? _label.transform.position - cam.transform.position : rotation * Vector3.forward;
+            dir.y = 0f;
+            _label.transform.rotation = dir.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(dir, Vector3.up) : rotation;
         }
 
         public void Hide() => _root.SetActive(false);

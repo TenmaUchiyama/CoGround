@@ -13,9 +13,9 @@ from pydantic import BaseModel, Field, model_validator
 
 from ..errors import ErrorCode, RpcError
 from ..llm import LlmError
-from ..llm.compile_rule import interpret_task
+from ..llm.compile_rule import TaskDestination, interpret_task
 from ..models import AttributeValue
-from ..norms.model import NormRule
+from ..norms.model import NormRule, Requirement, Target
 from ..norms.report import build_report
 from ..rpc import EmptyParams, RequestContext, Router
 
@@ -30,7 +30,11 @@ class TaskRequestParams(BaseModel):
     object_ids: list[str] | None = Field(default=None, description="対象を直接指定する（source_region より先）")
     interpret: bool = Field(
         default=False, description="true なら、依頼の言葉から対象の物体を LLM に決めさせる（数秒かかる。"
-        "object_ids と source_region は使わない）。決められない部分は unresolved で返す")
+        "object_ids と source_region は使わない）。決められない部分は unresolved で返す。"
+        "言葉が置き先を言っていれば（全部 box_1 に入れて）、この依頼の間だけのルールにする")
+    destinations: list[TaskDestination] = Field(
+        default_factory=list, description="この依頼の間だけの置き先（例: [{\"region\": \"box_1\"}] = 全部 box_1）。"
+        "収納先は常設のルールより先に立つ（接触の禁止などは先に立たない）。interpret の結果に足す")
 
 
 @router.method(
@@ -38,19 +42,22 @@ class TaskRequestParams(BaseModel):
     params=TaskRequestParams,
     description="片付けを依頼する。対象の物体はここで決まり、あとでシーンが変わっても選び直さない。"
     "既定では言葉を解釈せず、source_region（省略すると机）にある物すべてを対象にする。"
-    "interpret = true なら、言葉から対象を LLM に決めさせる。前の依頼は閉じる",
+    "interpret = true なら、言葉から対象を LLM に決めさせる。言葉や destinations が言った置き先は、"
+    "この依頼の間だけのルール（task.rules、ID は T1, T2, ...）になり、収納先は常設のルールより先に立つ。前の依頼は閉じる",
 )
 async def request_task(ctx: RequestContext, p: TaskRequestParams) -> dict[str, Any]:
     state = ctx.services.state
     scene = state.scene
     source = p.source_region
     unresolved: list[str] = []
+    destinations = list(p.destinations)
     if p.interpret:
         try:
             answer = await interpret_task(ctx.services.llm, p.text, scene)
         except LlmError as e:
             raise RpcError(ErrorCode.LLM_FAILED, str(e)) from e
         object_ids, source, unresolved = answer.object_ids, answer.source_region, answer.unresolved
+        destinations = [*answer.destinations, *destinations]
         if not object_ids:
             raise RpcError(ErrorCode.INVALID_STATE, "Couldn't decide the target objects from the request words", {"unresolved": unresolved})
     elif p.object_ids is not None:
@@ -69,16 +76,27 @@ async def request_task(ctx: RequestContext, p: TaskRequestParams) -> dict[str, A
     if not object_ids:
         raise RpcError(ErrorCode.INVALID_STATE, "No target objects", {"source_region": source})
     try:
-        task = state.open_task(p.text, object_ids, requester=p.requester, source_region=source)
+        rules = [_destination_rule(d, p.text, p.requester) for d in destinations]
+        task = state.open_task(p.text, object_ids, requester=p.requester, source_region=source, rules=rules)
     except ValueError as e:
         raise RpcError(ErrorCode.INVALID_PARAMS, str(e)) from e
     ctx.services.events.add("task", ctx.session.actor, action="request", task_id=task.id, objects=object_ids,
-                            interpreted=p.interpret, unresolved=unresolved)
+                            interpreted=p.interpret, unresolved=unresolved, task_rules=[r.id for r in task.rules])
     await ctx.services.publish_state()
     motion_planning = ctx.services.start_auto_motion_plan()  # 続けて動作計画（結果は state.updated の motion）
     return {"version": state.version, "task": task.model_dump(mode="json"), "counts": task.counts(),
             "steps": len(state.plan.steps) if state.plan else 0, "unresolved": unresolved,
             "motion_planning": motion_planning}
+
+
+def _destination_rule(dest: TaskDestination, text: str, requester: str | None) -> NormRule:
+    """依頼の言葉が言った置き先を、この依頼の間だけの収納先の義務にする（ID は open_task が付ける）。"""
+    return NormRule(
+        id="T", author=requester, original_text=dest.text or text, norm="obligation",
+        target=Target(kind="object", where=dest.where, unknown_as="false"),
+        requirement=Requirement(window="at_place_complete", predicate="placed_in", args={"region": dest.region}),
+        origin="task", source="speech",
+    )
 
 
 @router.method("task.get", description="いまの依頼（いちばん新しいもの）と、状態ごとの件数")

@@ -1,0 +1,96 @@
+# tier|cats|verify|title-substring   (tier 1 = proposes a taxonomy, 2 = uses a failure/hazard/command classification)
+1|F,B,G|abs|Understanding and Resolving Failures in Human-Robot Interaction
+1|B,F,G,H|full|Using Online Customer Reviews to Classify, Predict, and Learn
+2|F,G,H|abs|Using Customers' Online Reviews to Identify and Classify
+2|F,G,H|abs|Perceived Failure Severity of Domestic Robots
+1|H|full|A Taxonomy of Social Errors in Human-Robot Interaction
+1|F,H|abs|Systematic analysis of video data from different human
+1|F,G,I|full|Taxonomy of Trust-Relevant Failures and Mitigation
+1|F,B|abs|A Survey about Faults of Robots Used in RoboCup
+1|F|abs|Results of the Survey: Failures in Robotics and Intelligent
+1|F,G|abs|How UGVs physically fail in the field
+1|F,G|abs|Follow-up analysis of mobile robot failures
+1|B,C,F|abs|Classifying and recovering from sensing failures
+1|F,B|full|On Fault Detection and Diagnosis in Robotic Systems
+1|F|abs|Fault Types and Diagnostic Methods of Manipulator Robots
+1|B,C,D|abs|Improving the Reliability of Service Robots in the Presence of External Faults
+2|B|abs|Using naive physics for unknown external faults
+2|B|abs|Classification of Exogenous Anomalies and Self-Diagnosis
+1|B,F|abs|What Matters for Designing Reliable Systems: A New Taxonomy of Failure
+1|B,F|abs|From Hardware to Autonomy: A Cross-Layer Evidence Synthesis
+1|B,F|abs|An Exploratory Study of Environmental Complexity Profiles
+2|A,B|abs|Basic Research on Movement Failure Condition for Home Service Robots
+2|B|abs|Environmental Hazard Analysis - a Variant of Preliminary Hazard
+1|F,G|abs|Classification of Causes of Errors in the Human - Robot System
+1|G|abs|The role of human error in human robot interaction
+2|G|abs|Human Error Identification and Risk Prioritization in Human
+2|G|abs|Intelligent Disobedience: A Novel Approach for Preventing Human Induced
+1|I|abs|A Taxonomy of Mental Model Mismatches
+1|G,H|abs|We All Make Mistakes: Terminal, Non-critical
+1|F|abs|A Taxonomy of Domestic Robot Failure Outcomes
+2|F,H|abs|Robot service failure and recovery: Literature review
+1|F|abs|Using Social Cues to Recognize Task Failures for HRI
+1|A,B|abs|Expressing Robot Incapability
+1|A,B|abs|Towards providing explanations for robot motion planning
+1|B|abs|Generating Environment-based Explanations of Motion Planner Failure
+1|A|abs|Robot Arms Too Short
+1|A,B,D|abs|FailRecOnt
+1|D,E|partial|REFLECT: Summarizing Robot Experiences
+1|C,D,E|full|AHA: A Vision-Language-Model for Detecting and Reasoning
+1|C,D,E|full|RoboFAC: A Comprehensive Framework
+1|C,D|abs|Embodied Agent Interface: Benchmarking LLMs
+1|E,D|abs|Unpacking Failure Modes of Generative Policies
+1|C,D,E|abs|What Can One Sentence Fix
+1|E|abs|Demystifying When and Why VLAs Fail in Contact-Rich
+1|all|abs|Unsupervised Discovery of Failure Taxonomies
+1|C,D,E|abs|LabRobFail
+2|C,E|abs|Benchmarking Vision-Language-Action Models on SO-101
+2|E|abs|Multimodal Detection and Classification of Robot Manipulation Failures
+2|E|abs|REBOOT: From Failure to Recovery
+2|D,E|abs|Guardian: Detecting Robotic Manipulation Failures
+2|C|abs|I-FailSense
+2|B,E|abs|StageCraft
+2|C,F|abs|Blackout vs. Freeze
+2|D|abs|Plan Verification for LLM-Based Embodied Task Completion
+2|D|abs|CAPE: Corrective Actions from Precondition Errors
+2|D|abs|Where LLM Agents Fail and How They can Learn
+1|G|partial|CLARA: Classifying and Disambiguating User Commands
+2|G|abs|Robots That Ask For Help
+2|G|abs|A Persian Vision-Language-Action Dataset and Benchmark for Ambiguity
+2|G|abs|AmbiK
+2|G|abs|REI-Bench
+2|C|abs|Robot perception errors and human resolution strategies
+1|H|abs|SafeAgentBench
+1|H,C,D,E|abs|SafeMind: Benchmarking and Mitigating Safety Risks
+1|H,D|abs|Subtle Risks, Critical Failures
+1|H,C,D,E|abs|AGENTSAFE: Benchmarking the Safety
+2|H|abs|IS-Bench
+2|H|abs|SafetyALFRED
+2|H|abs|HomeSafe-Bench
+2|H,E|abs|SafeManip
+2|H|abs|LIBERO-Safety
+2|H|abs|ResponsibleRobotBench
+2|H|abs|Task Success is not Enough
+2|A,H|abs|SPOC: Safety-Aware Planning
+1|H|abs|Safety in Embodied AI: A Survey of Risks
+1|H|abs|The Role of Social Norms in Human
+2|F,H|abs|To Err Is Robot
+2|F|abs|Would You Trust a (Faulty) Robot
+2|E,D|abs|Impact of Different Failures on a Robot
+2|E,D|abs|The Impact of Robot Error Archetype and Task Phase
+2|E|abs|Human Perception of Robot Failure and Explanation During a Pick
+2|E|abs|User Study Exploring the Role of Explanation of Failures
+2|E|abs|Effects of Explanation Strategies to Resolve Failures
+2|all|abs|Explainable AI for Robot Failures
+2|A,B|abs|Why Did I Fail
+2|all|abs|Reactive or Proactive
+2|all|abs|REX: Designing User-centered Repair
+2|F|abs|REPAIR-Bench
+2|F|abs|RFM-HRI
+2|H|abs|Comparing Approaches to Language Understanding for Human-Robot Dialogue
+2|A,B|abs|LLM 3 : Large Language Model-based Task and Motion Planning
+1|C,D,E,H|abs|Safe Embodied AI for Long-horizon Tasks
+2|A,E|abs|Recovering from failure by asking for help
+2|G,H|abs|Embodied Red Teaming for Auditing Robotic Foundation Models
+2|A|abs|PhysReflect-VLA
+2|D|abs|PerceptTwin

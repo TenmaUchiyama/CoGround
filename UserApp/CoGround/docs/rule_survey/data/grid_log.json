@@ -1,0 +1,152 @@
+[
+ {
+  "q": "household robot rules",
+  "count": 44151,
+  "got": 200
+ },
+ {
+  "q": "household robot social norms",
+  "count": 23247,
+  "got": 200
+ },
+ {
+  "q": "domestic robot norms home",
+  "count": 22476,
+  "got": 200
+ },
+ {
+  "q": "home robot user preferences rules",
+  "count": 36704,
+  "got": 200
+ },
+ {
+  "q": "robot norm learning",
+  "count": 181669,
+  "got": 200
+ },
+ {
+  "q": "robot norm competence",
+  "count": 44570,
+  "got": 200
+ },
+ {
+  "q": "robot norm violation household",
+  "count": 8075,
+  "got": 200
+ },
+ {
+  "q": "context-specific norms robot",
+  "count": 147500,
+  "got": 200
+ },
+ {
+  "q": "ownership norms robot",
+  "count": 28981,
+  "got": 200
+ },
+ {
+  "q": "robot privacy home domestic",
+  "count": 17567,
+  "got": 200
+ },
+ {
+  "q": "privacy-sensitive robotics",
+  "count": 100477,
+  "got": 200
+ },
+ {
+  "q": "robot etiquette home",
+  "count": 3488,
+  "got": 200
+ },
+ {
+  "q": "robot constitution safety rules",
+  "count": 12018,
+  "got": 200
+ },
+ {
+  "q": "household robot safety benchmark LLM",
+  "count": 2092,
+  "got": 200
+ },
+ {
+  "q": "embodied agent safety household hazard",
+  "count": 10612,
+  "got": 200
+ },
+ {
+  "q": "commonsense norms embodied agent",
+  "count": 6849,
+  "got": 200
+ },
+ {
+  "q": "tidying household commonsense object placement preferences",
+  "count": 103,
+  "got": 103
+ },
+ {
+  "q": "personalized household robot preferences",
+  "count": 9322,
+  "got": 200
+ },
+ {
+  "q": "what people want from home robots survey",
+  "count": 62946,
+  "got": 200
+ },
+ {
+  "q": "user expectations domestic service robot study",
+  "count": 20772,
+  "got": 200
+ },
+ {
+  "q": "robot ethics home care rules",
+  "count": 29632,
+  "got": 200
+ },
+ {
+  "q": "elderly care robot ethical rules",
+  "count": 13402,
+  "got": 200
+ },
+ {
+  "q": "robot permission obligation prohibition deontic",
+  "count": 273,
+  "got": 200
+ },
+ {
+  "q": "robot command rejection norm",
+  "count": 8596,
+  "got": 200
+ },
+ {
+  "q": "social norms human-robot interaction review",
+  "count": 88680,
+  "got": 200
+ },
+ {
+  "q": "end-user robot rules programming home",
+  "count": 63652,
+  "got": 200
+ },
+ {
+  "q": "family household robot boundaries acceptance",
+  "count": 7136,
+  "got": 200
+ },
+ {
+  "q": "smart home robot rules conflict multi-user",
+  "count": 19935,
+  "got": 200
+ },
+ {
+  "q": "robot value alignment household",
+  "count": 16970,
+  "got": 200
+ },
+ {
+  "q": "physical social norm understanding benchmark",
+  "count": 148275,
+  "got": 200
+ }
+]

@@ -1,0 +1,42 @@
+[
+ {
+  "q": "abs:LLM AND abs:robot AND abs:feasibility",
+  "total": 125,
+  "got": 125
+ },
+ {
+  "q": "abs:LLM AND abs:robot AND abs:infeasible",
+  "total": 31,
+  "got": 31
+ },
+ {
+  "q": "abs:embodied AND abs:infeasible",
+  "total": 67,
+  "got": 67
+ },
+ {
+  "q": "abs:LLM AND abs:planning AND abs:unsafe AND abs:robot",
+  "total": 17,
+  "got": 17
+ },
+ {
+  "q": "abs:robot AND abs:\"red teaming\"",
+  "total": 14,
+  "got": 14
+ },
+ {
+  "q": "abs:robot AND abs:capability AND abs:limitation AND abs:language",
+  "total": 623,
+  "got": 150
+ },
+ {
+  "q": "abs:LLM AND abs:robot AND abs:precondition AND abs:failure",
+  "total": 2,
+  "got": 2
+ },
+ {
+  "q": "abs:robot AND abs:\"physical constraints\" AND abs:LLM",
+  "total": 14,
+  "got": 14
+ }
+]

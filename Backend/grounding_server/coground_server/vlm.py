@@ -14,7 +14,8 @@
 どれを使うか（環境変数 COGROUND_VLM）:
   off（既定）  何も付けない
   mock         JSON に書いた答えを返す（COGROUND_VLM_MOCK_FILE、既定は同梱の vlm_mock_attributes.json）
-本物の VLM（切り出し画像 observation.image_id から属性を推定する）は、AttributeProvider を実装して足す。
+  perception   カメラのフレーム（POST /perception/frame）で VLM が答えた属性を、物体の記憶から物体 ID で引く。
+               記憶は Services が持つので、Services が PerceptionVlm に差し替える（ここでは何もしないものを返す）
 """
 
 from __future__ import annotations
@@ -88,17 +89,54 @@ class MockVlm:
         return {**self.by_category.get(obj.category, {}), **self.by_id.get(obj.id, {})}
 
 
+class PerceptionVlm:
+    """本物の VLM の答えを付ける。答えは perception（画像 → 検出 → VLM）が物体の記憶に残したもの。
+
+    Unity（CoGroundPerceivedObjects）は、フレームの答えにある object_id をそのまま物体 ID にして scene.update を送る。
+    ここでは、その ID で記憶を引く。
+
+    - 付けるのは、語彙にある material と、ルールが使っていて VLM に聞いた属性
+      （fragility / appearance は perception の中だけで使う項目なので付けない）
+    - "true" / "false" は bool にする。それ以外は文字列のまま
+    - VLM が「分からない」と答えた属性は付けない（ルールの判定は不明になる。代わりの値は入れない）
+    """
+
+    name = "perception"
+    INTERNAL = ("fragility", "appearance")
+    NO_ANSWER = ("", "unknown", "other", "uncertain")
+
+    def __init__(self, memory: Any) -> None:
+        self.memory = memory  # perception.object_store.ObjectMemory
+
+    def attributes_for(self, obj: SceneObject) -> dict[str, Attribute]:
+        record = self.memory.get(obj.id)
+        if record is None:
+            return {}
+        out: dict[str, Attribute] = {}
+        for key, text in record.attributes.items():
+            answer = str(text).strip().lower()
+            if key in self.INTERNAL or answer in self.NO_ANSWER:
+                continue
+            value: Any = True if answer == "true" else False if answer == "false" else str(text).strip()
+            out[key] = Attribute(value=value, source="vlm", observed_at=record.updated_at or None)
+        return out
+
+
+def configured_kind() -> str:
+    return (os.environ.get("COGROUND_VLM") or "off").strip().lower()
+
+
 def make_attribute_provider() -> AttributeProvider:
     """環境変数から選ぶ（上の「どれを使うか」）。"""
-    kind = (os.environ.get("COGROUND_VLM") or "off").strip().lower()
-    if kind == "off":
+    kind = configured_kind()
+    if kind in ("off", "perception"):  # perception は、記憶を持つ Services が PerceptionVlm に差し替える
         return NoAttributes()
     if kind == "mock":
         path = Path(os.environ.get("COGROUND_VLM_MOCK_FILE") or DEFAULT_MOCK_FILE)
         provider = MockVlm.from_file(path)
         log.info("VLM: mock (%s, %d categories, %d ids)", path, len(provider.by_category), len(provider.by_id))
         return provider
-    raise ValueError(f"COGROUND_VLM must be off or mock: {kind!r}")
+    raise ValueError(f"COGROUND_VLM must be off, mock or perception: {kind!r}")
 
 
 def annotate_scene(scene: SceneSnapshot, provider: AttributeProvider) -> SceneSnapshot:

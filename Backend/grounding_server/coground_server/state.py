@@ -54,6 +54,10 @@ class StateStore:
         self._raw_scene = self._scene  # 届いたままのシーン。_scene は、これに住人の訂正を重ねたもの
         # 住人が訂正した属性: 物体 ID -> キー -> 値。scene.update はシーン全体を置き換えるので、別に持って毎回重ねる
         self._corrections: dict[str, dict[str, Attribute]] = {}
+        # 訂正のうち、ファイルに残すもの（画像から判断できない属性。持ち主など）。物体 ID -> {属性のキー: 登録したときの物体の種類}
+        self._durable: dict[str, dict[str, str]] = {}
+        # ファイルから戻した訂正。物体の種類が登録したときと違えば重ねない（再起動で ID が別の物体に付いたときの歯止め）
+        self._from_file: set[tuple[str, str]] = set()
         self._correction_count = 0
         self._placements: dict[str, str] = {}  # 手で指定した行き先: 物体 ID -> 領域 ID（指定した順）
         self._plan: Plan | None = None  # まだ計画が無ければ None
@@ -114,14 +118,27 @@ class StateStore:
         return self._tasks
 
     def open_task(self, text: str, object_ids: list[str], *, requester: str | None = None,
-                  source_region: str | None = None, created_at: datetime | None = None) -> TaskRecord:
-        """依頼を記録する。対象（object_ids）はここで決まり、あとで増減しない。"""
+                  source_region: str | None = None, created_at: datetime | None = None,
+                  rules: list[NormRule] | None = None) -> TaskRecord:
+        """依頼を記録する。対象（object_ids）はここで決まり、あとで増減しない。
+
+        rules は、この依頼の間だけ効くルール（例: 全部 box_1 に入れて）。ID は付け直す（T1, T2, ...）。"""
         by_id = {o.id: o for o in self._scene.objects}
         unknown = [i for i in object_ids if i not in by_id]
         if unknown:
             raise ValueError(f"Objects not in the scene: {unknown}")
         if len(set(object_ids)) != len(object_ids):
             raise ValueError("Duplicate target object IDs")
+        region_ids = {r.id for r in self._scene.regions}
+        task_rules: list[NormRule] = []
+        taken = {n.id for n in self._norms} | {p.rule.id for p in self._pending}
+        for rule in rules or []:
+            region = rule.destination
+            if region is not None and region not in region_ids:
+                raise ValueError(f"Zone {region!r} is not in the scene")
+            rule_id = self.new_norm_id("T", taken)
+            taken.add(rule_id)
+            task_rules.append(rule.model_copy(update={"id": rule_id, "origin": "task"}))
         if self.active_task is not None:
             self.active_task.closed_at = created_at or self.clock.now()  # 前の依頼は閉じる（記録は残る）
         self._route_blocks.clear()  # 経路による保留は、前の依頼のもの
@@ -129,6 +146,7 @@ class StateStore:
             id=f"task_{len(self._tasks) + 1}", text=text, requester=requester, source_region=source_region,
             created_at=created_at or self.clock.now(),
             rows=[TaskRow(object_id=i, label=by_id[i].category) for i in object_ids],
+            rules=task_rules,
         )
         self._tasks.append(task)
         self._bump(replan=True)
@@ -343,8 +361,9 @@ class StateStore:
         return self._bump(replan=True)
 
     def all_norms(self) -> list[NormRule]:
-        """判定に使うルール: 旧 Rule（収納先の義務に直す）と家庭ルール。"""
-        return list(self._norms)
+        """判定に使うルール: 旧 Rule（収納先の義務に直す）と家庭ルール、いまの依頼の間だけのルール（origin = task）。"""
+        task = self.active_task
+        return [*self._norms, *(task.rules if task is not None else [])]
 
     def replan(self) -> int:
         """時計を変えたときなど、シーンもルールも変わっていないが判定をやり直したいときに呼ぶ。
@@ -431,11 +450,36 @@ class StateStore:
     def _with_corrections(self, scene: SceneSnapshot) -> SceneSnapshot:
         if not self._corrections:
             return scene
+        def kept(o: Any) -> dict[str, Attribute]:
+            return {k: a for k, a in self._corrections[o.id].items()
+                    if (o.id, k) not in self._from_file or self._durable.get(o.id, {}).get(k) == o.category}
+
         return scene.model_copy(update={"objects": [
-            o.model_copy(update={"attributes": {**o.attributes, **self._corrections[o.id]}})
+            o.model_copy(update={"attributes": {**o.attributes, **kept(o)}})
             if o.id in self._corrections else o
             for o in scene.objects
         ]})
+
+    def _mark_durable(self, object_id: str, key: str, category: str | None) -> None:
+        """訂正をファイルに残すかどうかを決める。残すのは、画像から判断できない属性（visual = false）の訂正だけ。
+
+        画像から判断できる属性（割れ物、汚れなど）はその場の状態で、次に見たときに VLM が答え直すので残さない。
+        category = None は訂正の取り消し。
+        """
+        self._from_file.discard((object_id, key))
+        definition = next((a for a in attribute_defs(self.all_norms()) if a.name == key), None)
+        if category is not None and definition is not None and not definition.visual:
+            self._durable.setdefault(object_id, {})[key] = category
+            return
+        self._durable.get(object_id, {}).pop(key, None)
+        if not self._durable.get(object_id):
+            self._durable.pop(object_id, None)
+
+    def durable_corrections(self) -> list[dict[str, Any]]:
+        """ファイルに残す訂正（rulebank.py）。"""
+        return [{"object_id": o, "key": k, "value": self._corrections[o][k].value, "category": category}
+                for o, keys in sorted(self._durable.items()) for k, category in sorted(keys.items())
+                if k in self._corrections.get(o, {})]
 
     def set_attribute(self, object_id: str, key: str, value: AttributeValue | None) -> AttributeCorrection:
         """住人が属性を訂正する（value = None なら訂正を取り消し、届いた値に戻す）。
@@ -459,6 +503,7 @@ class StateStore:
                 self._corrections.pop(object_id, None)
         else:
             self._corrections.setdefault(object_id, {})[key] = Attribute(value=value, source="user", confidence=1.0)
+        self._mark_durable(object_id, key, raw.category if value is not None else None)
         self._scene = self._compose(self._raw_scene)
         self._bump(replan=True)
         return self._correction("attribute", object_id, key, current, value,
@@ -636,11 +681,21 @@ class StateStore:
             self.rule_bank.save_if_changed(self)  # ルールが変わっていれば書き出す（同じなら何もしない）
         return self._version
 
-    def restore_rule_bank(self, norms: list[NormRule], zones: list[SceneRegion], pending: list[PendingRule]) -> int:
-        """ファイルに残したルールバンクを入れる（起動時。rulebank.py）。いまのルール・領域・登録の途中のルールは置き換える。"""
+    def restore_rule_bank(self, norms: list[NormRule], zones: list[SceneRegion], pending: list[PendingRule],
+                          attributes: list[dict[str, Any]] | None = None) -> int:
+        """ファイルに残したルールバンクを入れる（起動時。rulebank.py）。いまのルール・領域・登録の途中のルールは置き換える。
+
+        attributes は、住人が登録した属性のうち残したもの（durable_corrections の形）。
+        """
         self._norms = list(norms)
         self._zones = {z.id: z for z in zones}
         self._pending = list(pending)
+        for a in attributes or []:
+            object_id, key = str(a["object_id"]), str(a["key"])
+            self._corrections.setdefault(object_id, {})[key] = Attribute(value=a["value"], source="user", confidence=1.0)
+            self._durable.setdefault(object_id, {})[key] = str(a["category"])
+            self._from_file.add((object_id, key))
+        self._scene = self._compose(self._raw_scene)
         self._drop_route_blocks()
         return self._bump(replan=True)
 

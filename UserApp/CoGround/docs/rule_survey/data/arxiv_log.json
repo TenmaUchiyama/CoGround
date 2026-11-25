@@ -1,0 +1,77 @@
+[
+ {
+  "q": "abs:robot AND abs:\"house rules\"",
+  "total": 0,
+  "got": 0
+ },
+ {
+  "q": "abs:household AND abs:\"social norms\"",
+  "total": 9,
+  "got": 9
+ },
+ {
+  "q": "abs:robot AND abs:norms AND abs:LLM",
+  "total": 12,
+  "got": 12
+ },
+ {
+  "q": "abs:embodied AND abs:norms",
+  "total": 79,
+  "got": 79
+ },
+ {
+  "q": "abs:robot AND abs:\"natural language constraints\"",
+  "total": 5,
+  "got": 5
+ },
+ {
+  "q": "abs:robot AND abs:\"safety constraints\" AND abs:LLM AND abs:household",
+  "total": 1,
+  "got": 1
+ },
+ {
+  "q": "abs:household AND abs:privacy AND abs:agent",
+  "total": 13,
+  "got": 13
+ },
+ {
+  "q": "abs:robot AND abs:\"socially appropriate\"",
+  "total": 33,
+  "got": 33
+ },
+ {
+  "q": "abs:household AND abs:\"user preferences\" AND abs:robot",
+  "total": 13,
+  "got": 13
+ },
+ {
+  "q": "abs:robot AND abs:ownership",
+  "total": 29,
+  "got": 29
+ },
+ {
+  "q": "abs:robot AND abs:etiquette",
+  "total": 4,
+  "got": 4
+ },
+ {
+  "q": "abs:home AND abs:robot AND abs:\"older adults\" AND abs:rules",
+  "total": 1,
+  "got": 1
+ },
+ {
+  "q": "abs:embodied AND abs:\"common sense\" AND abs:safety",
+  "total": 6,
+  "got": 6
+ },
+ {
+  "q": "abs:robot AND abs:guardrails AND abs:LLM",
+  "total": 8,
+  "got": 8
+ },
+ {
+  "q": "abs:household AND abs:robot AND abs:values",
+  "total": 17,
+  "got": 17
+ }
+]

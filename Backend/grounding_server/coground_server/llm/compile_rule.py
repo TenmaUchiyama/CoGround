@@ -285,13 +285,29 @@ You decide "which objects to tidy" from the words of a request to a tidying robo
   Never invent an id that isn't in the list.
 - When it refers to everything in some place, like "everything on the desk", also put that place's zone id in source_region.
 - Deciding whether to tidy something is the rules' job. Include fragile or dirty items too if the request refers to them.
+- When the request says where to put things ("put everything in box 1", "the cups go on the shelf"), add one entry to destinations
+  per destination: region is the zone id from "Zones", where is the condition for which of the chosen objects go there
+  (null = all of them; otherwise {"attribute", "equals"} with category / group / an attribute key, e.g. category = cup),
+  and text is the part of the request that says it, in its original words.
+  These apply only during this request and take priority over the household rules' storage locations.
+  If the request doesn't say where to put things, leave destinations empty (the rules decide).
+  If the destination isn't in "Zones", don't pick the nearest one; write it in unresolved.
 - For parts where you can't decide which objects are meant, don't guess; write the reason in English in unresolved.
 """
+
+
+class TaskDestination(BaseModel):
+    """依頼の言葉が言った置き先（この依頼の間だけ。常設のルールより先に立つ）。"""
+
+    region: str = Field(min_length=1, description="置き先の領域 ID")
+    where: RuleCondition | None = Field(default=None, description="対象のうち、どれをそこへ置くか（null なら全部）")
+    text: str = Field(default="", description="依頼の言葉のうち、置き先を言った部分")
 
 
 class InterpretedTask(BaseModel):
     object_ids: list[str] = Field(default_factory=list)
     source_region: str | None = None
+    destinations: list[TaskDestination] = Field(default_factory=list)
     unresolved: list[str] = Field(default_factory=list)
 
 
@@ -307,5 +323,12 @@ async def interpret_task(llm: LlmClient, text: str, scene: SceneSnapshot) -> Int
     unknown = [i for i in answer.object_ids if i not in known]
     object_ids = list(dict.fromkeys(i for i in answer.object_ids if i in known))
     unresolved = [*answer.unresolved, *(f"Object {i!r} is not in the scene (not a carryable object)" for i in unknown)]
-    source = answer.source_region if answer.source_region in {r["id"] for r in regions} else None
-    return InterpretedTask(object_ids=object_ids, source_region=source, unresolved=unresolved)
+    region_ids = {r["id"] for r in regions}
+    source = answer.source_region if answer.source_region in region_ids else None
+    destinations = []
+    for dest in answer.destinations:
+        if dest.region in region_ids:
+            destinations.append(dest)
+        else:
+            unresolved.append(f"Destination {dest.region!r} is not in the scene")
+    return InterpretedTask(object_ids=object_ids, source_region=source, destinations=destinations, unresolved=unresolved)

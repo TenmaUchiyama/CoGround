@@ -15,6 +15,10 @@
 住人がシーケンスの編集で指定した置き先（row.requested_destination）は、収納先を決めるルールと照合する。
 ルールの収納先と違えば保留にする（手の指定 plan.place は、これまでどおりルールを確かめない）。
 
+依頼の間だけのルール（origin = task。例: 全部 box_1 に入れて）は、収納先を決めるときに常設のルールより先に立つ。
+合えばそれを使い、別の収納先を指していた常設のルールは row.overridden_rule_ids と step の message に残す（黙って捨てない）。
+先に立つのは収納先だけ。接触の禁止・置くことの禁止は、依頼の間だけのルールがあっても、これまでどおり調べる。
+
 行ごとの結果:
   step（ok）        つかんでよく、収納先が 1 つに決まった
   step（deferred）  保留。禁止に反する予測、判定する情報が足りない、収納先を決める取り決めが無い。
@@ -101,6 +105,7 @@ def plan_task(scene: SceneSnapshot, norms: list[NormRule], task: TaskRecord, pla
         if only_ruled and draft.no_rule:
             continue
         row.destination, row.destination_rule_ids = draft.destination, [r.id for r in draft.rules]
+        row.overridden_rule_ids = [r.id for r in draft.overridden]
 
         if draft.destination is not None and obj.region_id == draft.destination:
             # もう収納先にある（観測）
@@ -201,7 +206,7 @@ def plan_task(scene: SceneSnapshot, norms: list[NormRule], task: TaskRecord, pla
             steps.append(Step(
                 **{**common, "verdicts": [v.timeless() for v in verdicts]},
                 to=Placement(region_id=region.id, pose=Pose(position=position, rotation=d.obj.rotation)),
-                status="ok",
+                status="ok", message=_override_note(d),
             ))
             if d.row.exec_state in REPLANNABLE:
                 d.row.set_state("pending")
@@ -229,6 +234,7 @@ class _Draft:
         self.ambiguous = False
         self.problem: str | None = None       # 収納先が決まらない理由
         self.no_rule = False                  # 収納先を決める取り決めが、どれも当てはまらない
+        self.overridden: list[NormRule] = []  # 依頼の間だけのルールが先に立ち、使わなかった常設のルール
         self.blocked: str | None = None       # 禁止に反する
         self.unknown: str | None = None       # 判定する情報が足りない
         self.missing: list[MissingFact] = []
@@ -266,9 +272,27 @@ def _decide_destination(d: _Draft, obligations: list[NormRule], manual: str | No
         sample = WorldSample(t=now, phase="place_complete", holding=set(), region_full=dict(d.region_full))
         return applies(rule, sample, d.obj, requester=requester)
 
-    judged = [(r, *judge(r)) for r in obligations]
+    standing = [r for r in obligations if r.origin != "task"]
+    for_task = [r for r in obligations if r.origin == "task"]
+    judged = [(r, *judge(r)) for r in standing]
     specific = [(r, value, missing) for r, value, missing in judged if not r.target.fallback]
     matched = [r for r, value, _ in specific if value is True]
+
+    # 依頼の間だけのルールは、常設のルールより先に立つ
+    task_matched = [r for r in for_task if judge(r)[0] is True]
+    if task_matched:
+        targets = {r.destination for r in task_matched}
+        if len(targets) > 1:
+            d.ambiguous, d.candidates = True, task_matched
+            d.problem = "Multiple instructions in this request match with different storage locations"
+            return
+        destination = task_matched[0].destination
+        if not matched:
+            matched = [r for r, value, _ in judged if r.target.fallback and value is True]
+        d.overridden = [r for r in matched if r.destination != destination]
+        d.destination, d.rules = destination, task_matched
+        return
+
     if not matched:
         unknown = [(r, missing) for r, value, missing in specific if value is None]
         if unknown:
@@ -307,6 +331,15 @@ def _apply_requested(d: _Draft, requested: str, task: TaskRecord, now: datetime 
     d.problem = (
         f"Left in place: \"{rule.original_text}\" ({rule.id}) says it belongs in {ruled}, not {requested}"
         if rule is not None else f"Left in place: the rules say it belongs in {ruled}, not {requested}")
+
+
+def _override_note(d: _Draft) -> str | None:
+    """依頼の間だけのルールが、常設のルールより先に立ったことの説明（人が読む）。"""
+    if not d.overridden or not d.rules:
+        return None
+    by = d.rules[0]
+    over = ", ".join(f"\"{r.original_text}\" ({r.id}, {r.destination})" for r in d.overridden)
+    return f"For this request, \"{by.original_text}\" ({by.id}) takes priority over {over}"
 
 
 def _unique(missing: list[MissingFact]) -> list[MissingFact]:

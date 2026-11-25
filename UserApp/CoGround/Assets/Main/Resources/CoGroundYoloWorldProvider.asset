@@ -15,12 +15,18 @@ MonoBehaviour:
   supportedInferenceTypes: 2
   endpoint: http://100.110.93.117:8001
   timeoutSeconds: 2
-  sendVocabulary: 0
+  mode: 2
   vocabulary:
-  - prompt: plastic bottle
-    label: plastic_bottle
-  - prompt: cup
-    label: cup
+  - prompt: scissors
+    label: scissors
+  - prompt: kitchen knife
+    label: knife
+  - prompt: drinking glass
+    label: glass
   - prompt: mug
     label: mug
+  - prompt: crumpled paper
+    label: paper_scrap
+  - prompt: plate
+    label: plate
   statsLogInterval: 5

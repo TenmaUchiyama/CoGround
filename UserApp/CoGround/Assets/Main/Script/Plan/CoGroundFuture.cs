@@ -6,7 +6,9 @@ using UnityEngine;
 ///
 /// ■ いつ見せるか
 ///   Plan (どの物をどこへ) だけでは、腕が届くか・禁止区域を通らずに行けるかは分からない。
-///   なので、依頼の結果は、ok の step すべてに動作計画 (motion.plan) の結果が出てから見せる (IsConfirmed)。
+///   なので、依頼の結果は、動作計画 (motion.plan) の結果が出た step から順に見せる (結果がまだの step は IsChecking)。
+///   全部の step に結果が出るまでは Stage.Checking (IsConfirmed が false)。
+///   進入禁止のルールがあるときは、サーバーが全 step の結果をまとめて出す (途中で結果が覆りうるため)。
 ///   サーバーは依頼 (task.request) を受けると、自動で動作計画を始める (Services.start_auto_motion_plan)。
 ///   RequireTask / RequireMotion で変えられる (CoGroundRuleTagView の Inspector)。
 ///
@@ -143,14 +145,25 @@ public static class CoGroundFuture
         return closed == null || closed.Type == JTokenType.Null;
     }
 
-    /// <summary>見せる Plan の JSON (依頼が要るのに無ければ null)。描き直しの判定にも使う</summary>
+    /// <summary>
+    /// 見せる Plan の JSON (依頼が要るのに無ければ null)。描き直しの判定にも使う。
+    /// 確認中 (Stage.Checking) でも返す: 動作計画は step を順に確かめ、サーバーは結果が出た step から motion.preview に入れるので、
+    /// 結果が出た物から順に見せる。まだ確かめていない step は IsChecking で、各表示が出さずに飛ばす。
+    /// (古いサーバーは preview が無く、step ごとの「確認中」が分からないので、全部終わるまで null)
+    /// </summary>
     public static JToken PlanToken(JObject state)
     {
         var token = state?["plan"];
         if (token == null || token.Type == JTokenType.Null) return null;
-        if (StageOf(state) != Stage.Ready) return null;
+        var stage = StageOf(state);
+        if (stage == Stage.NoRequest) return null;
+        if (stage == Stage.Checking && Preview(state) == null) return null;
         return token;
     }
+
+    /// <summary>この step は、動作計画でまだ確かめている途中 (結果が出るまで、ラベルや予測位置を出さない)</summary>
+    public static bool IsChecking(JObject state, PlanDto plan, StepDto step) =>
+        StateOf(state, plan, step, out _) == StepState.Checking;
 
     /// <summary>
     /// 動作計画での step の状態 (ok / infeasible / stale)。結果が無ければ null。
@@ -184,7 +197,8 @@ public static class CoGroundFuture
     /// <summary>置き終わった姿勢 (bbox の中心)。分からなければ false</summary>
     public static bool TryFinalPose(JObject state, PlanDto plan, StepDto step, out Vector3 position, out Quaternion rotation)
     {
-        if (MotionStatus(state, plan, step, out _) == "ok")
+        // 計画中は、時間軸がまだ前の計画のもの (新しい時間軸は全 step が終わってから届く) なので使わない
+        if (MotionStatus(state, plan, step, out _) == "ok" && (string)state?["motion"]?["status"] != "planning")
         {
             var player = CoGroundTaskPlanPlayer.Instance;
             var obj = CoGroundSceneObject.Find(step.ObjectId);

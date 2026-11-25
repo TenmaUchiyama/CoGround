@@ -10,9 +10,14 @@ namespace PassthroughCameraSamples
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AfterSceneLoad()
         {
-            var ptLayerGo = new GameObject(nameof(OVRPassthroughLayer));
-            Object.DontDestroyOnLoad(ptLayerGo);
-            ptLayerGo.AddComponent<OVRPassthroughLayer>();
+            // CoGround: シーンにすでにパススルー (Building Block など) があるときは足さない。
+            // 2 つになると二重に重なって見える (Link では 2 つ目が捨てられる警告も出る)
+            if (Object.FindAnyObjectByType<OVRPassthroughLayer>(FindObjectsInactive.Include) == null)
+            {
+                var ptLayerGo = new GameObject(nameof(OVRPassthroughLayer));
+                Object.DontDestroyOnLoad(ptLayerGo);
+                ptLayerGo.AddComponent<OVRPassthroughLayer>();
+            }
 
             bool permissionsRequestedOnce = false;
             SceneManager.sceneLoaded += (scene, _) =>

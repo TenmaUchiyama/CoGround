@@ -107,6 +107,20 @@ public class CoGroundRuleTag : MonoBehaviour
         RebuildArea();
     }
 
+    /// <summary>全体の濃さ (1 = そのまま)。ほかの吹き出しを選んでいる間、薄くするのに使う</summary>
+    public void SetOpacity(float value)
+    {
+        opacity = Mathf.Clamp01(value);
+        foreach (var canvas in GetComponentsInChildren<Canvas>(true))
+        {
+            if (!canvas.isRootCanvas) continue;
+            if (!canvas.TryGetComponent<CanvasGroup>(out var group)) group = canvas.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = opacity;
+        }
+        Apply();
+    }
+    float opacity = 1f;
+
     /// <summary>再生中、target に付いていく (今の位置関係を保つ)</summary>
     public void Follow(Transform target)
     {
@@ -188,7 +202,7 @@ public class CoGroundRuleTag : MonoBehaviour
         if (noteText != null) { noteText.text = note; noteText.color = ink; }
         if (noteRoot != null) noteRoot.SetActive(!string.IsNullOrEmpty(note));
         foreach (var img in colorImages) if (img != null) img.color = color;
-        foreach (var sr in colorSprites) if (sr != null) sr.color = color;
+        foreach (var sr in colorSprites) if (sr != null) sr.color = new Color(color.r, color.g, color.b, color.a * opacity);
         foreach (var r in colorRenderers) Tint(r, color);
         var dark = Color.Lerp(color, Color.black, 0.3f);
         foreach (var r in darkRenderers) Tint(r, dark);

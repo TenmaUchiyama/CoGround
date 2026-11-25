@@ -68,6 +68,7 @@
         navigate    {"step_id", "kind": "navigate", "pose": [x, y, yaw]}  台車の移動だけ (move_base の経路)
       Web UI の「ロボット単体テスト」が pick / navigate を使う。計画は直近の数個を覚えておく (plan_ref で使える)
   /coground/task/plan_feedback  std_msgs/String (JSON)  {"plan_id", "plan_version", "step_id", "detail"} 途中経過
+       step が 1 つ終わるたびに、"result" (下の steps の 1 件と同じ形) を付けて送る
   /coground/task/plan_result    std_msgs/String (JSON, latch)  結果と、通しで再生するための時間軸 (Unity と Web UI が使う)
       {"plan_id", "plan_version", "error",
        "steps": [{"step_id", "object", "status": "ok" | "infeasible", "reason", "t0", "t1",
@@ -1347,11 +1348,15 @@ class PickPlaceServer:
         self.publish_held("")  # 以後は Unity の位置で scene_sync が更新する
 
     # ---- 計画 ----
-    def plan_progress(self, detail):
+    def plan_progress(self, detail, result=None):
+        """途中経過。result (その step の結果。plan_result の steps の 1 件と同じ形) があれば載せる:
+        サーバーは全体の結果 (plan_result) を待たずに、終わった step から順に見せられる"""
         dry = self.dry
-        self.plan_feedback_pub.publish(String(json.dumps({
-            "plan_id": getattr(self, "_plan_id", ""), "plan_version": getattr(self, "_plan_version", 0),
-            "step_id": dry.step_id if dry else None, "detail": detail}, ensure_ascii=False)))
+        data = {"plan_id": getattr(self, "_plan_id", ""), "plan_version": getattr(self, "_plan_version", 0),
+                "step_id": result["step_id"] if result else (dry.step_id if dry else None), "detail": detail}
+        if result is not None:
+            data["result"] = result
+        self.plan_feedback_pub.publish(String(json.dumps(data, ensure_ascii=False)))
 
     def on_plan_request(self, msg):
         try:
@@ -1610,7 +1615,7 @@ class PickPlaceServer:
         (rospy.loginfo if out["status"] == "ok" else rospy.logwarn)(
             "[plan] %s %s: %s %s %s", sid, name, out["status"], out["reason"] or out["stops"], out.get("stop_source", ""))
         dry.step_id, dry.kind = None, None
-        self.plan_progress(f"{sid}: {out['status']}" + (f" ({out['reason']})" if out["reason"] else ""))
+        self.plan_progress(f"{sid}: {out['status']}" + (f" ({out['reason']})" if out["reason"] else ""), result=out)
         return out
 
 
